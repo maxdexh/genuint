@@ -32,6 +32,12 @@ macro_rules! to_u_ovfl {
 pub const fn to_usize_overflowing<N: ToUint>() -> (usize, bool) {
     to_u_ovfl!(N::ToUint, usize)
 }
+pub const fn to_usize<N: ToUint>() -> Option<usize> {
+    match to_usize_overflowing::<N>() {
+        (n, false) => Some(n),
+        (_, true) => None,
+    }
+}
 pub const fn to_u128_overflowing<N: ToUint>() -> (u128, bool) {
     to_u_ovfl!(N::ToUint, u128)
 }

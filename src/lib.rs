@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 #![warn(clippy::nursery)]
 
 mod internals;
@@ -9,7 +9,6 @@ pub trait Uint: ToUint<ToUint = Self> + 'static + internals::UintSealed {}
 pub trait ToUint {
     type ToUint: Uint;
 }
-pub type UintFrom<N> = <N as ToUint>::ToUint;
 
 pub mod array;
 pub mod consts;

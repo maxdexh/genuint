@@ -1,4 +1,4 @@
-use crate::{ToUint, Uint};
+use crate::{ToUint, Uint, array::Array};
 
 pub struct I;
 pub struct O;
@@ -7,7 +7,7 @@ pub struct A<H, P>(H, P);
 pub trait UintSealed: 'static {
     type __Ops: PrimOps;
 }
-pub trait PrimOps {
+pub trait PrimOps: Arrays {
     const IS_NONZERO: bool;
     type Ternary<T: ToUint, F: ToUint>: ToUint;
     type Half: Uint;
@@ -74,4 +74,60 @@ impl<H: UintPos, P: UintBit> PrimOps for A<H, P> {
     type Parity = P;
     type AsBit = I;
     type AppendAsBit<B: Uint> = A<Self, Prim!(B, AsBit)>;
+}
+
+/// # Safety
+/// Internal API
+pub unsafe trait ArrBound<T, N: Uint> {
+    type Arr;
+}
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ArrBisect<A, P>([A; 2], P);
+
+#[repr(transparent)]
+pub struct ArrImpl<T, N: Uint, Bound: ArrBound<T, N>>(Bound::Arr);
+unsafe impl<T, N: Uint, Bound: ArrBound<T, N>> Array for ArrImpl<T, N, Bound> {
+    type Item = T;
+    type Length = N;
+}
+impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Copy for ArrImpl<T, N, Bound> {}
+impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Clone for ArrImpl<T, N, Bound> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+macro_rules! gen_arr_internals {
+    (
+        $($name:ident[$($($bound:tt)+)?])*
+    ) => {
+        pub trait Arrays {
+            $(type $name<T: $($($bound)+)?> $(: $($bound)+)?;)*
+        }
+        impl Arrays for O {
+            $(type $name<T: $($($bound)+)?> = [T; 0];)*
+        }
+        impl Arrays for I {
+            $(type $name<T: $($($bound)+)?> = [T; 1];)*
+        }
+        impl<HA: Arrays, PA: Arrays, H: UintPos<__Ops = HA>, P: UintBit<__Ops = PA>> Arrays for A<H, P> {
+            $(type $name<T: $($($bound)+)?> = ArrBisect<HA::$name<T>, PA::$name<T>>;)*
+        }
+        mod bounds {
+            $(pub struct $name;)*
+        }
+        $(unsafe impl<T: $($($bound)+)?, N: Uint> ArrBound<T, N> for bounds::$name {
+            type Arr = <N::__Ops as Arrays>::$name<T>;
+        })*
+
+        pub mod arr_reexports {
+            $(pub type $name<T, N> = super::ArrImpl<T, N, super::bounds::$name>;)*
+        }
+    };
+}
+
+gen_arr_internals! {
+    Arr[]
+    CopyArr[Copy]
 }

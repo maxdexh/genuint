@@ -23,6 +23,7 @@ macro_rules! test_op {
             #[allow(non_snake_case)]
             fn callback<$($param: $crate::Uint),*>() {
                 $(let $param = $crate::uint::to_u128::<$param>().unwrap();)*
+                // println!("Testing {}: {:?}", ::core::stringify!($name), ($($param),*));
                 assert_eq!(
                     $crate::uint::to_u128::<$got>(),
                     Some($expect),

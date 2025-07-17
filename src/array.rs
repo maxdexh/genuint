@@ -7,6 +7,8 @@ pub unsafe trait Array {
     type Length: crate::Uint;
 }
 
+mod arr_utils;
+
 unsafe impl<A: Array> Array for core::mem::ManuallyDrop<A> {
     type Item = core::mem::ManuallyDrop<A::Item>;
     type Length = A::Length;
@@ -15,6 +17,15 @@ unsafe impl<A: Array> Array for core::mem::MaybeUninit<A> {
     type Item = core::mem::MaybeUninit<A::Item>;
     type Length = A::Length;
 }
+unsafe impl<A: Array> Array for ArrApi<A> {
+    type Item = A::Item;
+    type Length = A::Length;
+}
+
+pub use crate::internals::arr_reexports::*;
+
+mod core_impl;
+mod extra_impl;
 
 #[cfg_attr(not(doc), repr(transparent))]
 pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item>(A, PhantomData<T>);

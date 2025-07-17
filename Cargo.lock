@@ -3,5 +3,41 @@
 version = 4
 
 [[package]]
+name = "const-util"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4af1572ceb4cda564816c4c73f99c9bf2e2c16f8c821ac26528c9948bf260e13"
+dependencies = [
+ "generic-upper-bound",
+ "rustversion",
+ "type-const",
+]
+
+[[package]]
 name = "generic-uint"
 version = "0.1.0"
+dependencies = [
+ "const-util",
+ "type-const",
+]
+
+[[package]]
+name = "generic-upper-bound"
+version = "3.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3f24331785711088a235ea51db79cb5d2098dfbbf8d9cab3f75cebe2d2539f6"
+dependencies = [
+ "type-const",
+]
+
+[[package]]
+name = "rustversion"
+version = "1.0.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a0d197bd2c9dc6e53b84da9556a69ba4cdfab8619eb41a8bd1cc2027a0f6b1d"
+
+[[package]]
+name = "type-const"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e47bab1beb61fe8f113ed26fb20f6b2070698da4953323be86632d61c7defc99"
