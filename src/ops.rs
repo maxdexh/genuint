@@ -5,8 +5,10 @@ use crate::{consts::*, internals, uint::From as UintFrom, utils::private_pub};
 /// ```
 macro_rules! l {
     (
+        $(#[$($attr:tt)*])*
         $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty
     ) => {
+        $(#[$($attr)*])*
         pub struct $name<$($param $(= $def)?),*>($($param),*);
         impl<$($param: $crate::ToUint),*> $crate::ToUint for $name<$($param),*> {
             type ToUint = $val;
@@ -18,9 +20,20 @@ macro_rules! l {
 /// ```
 macro_rules! a {
     (
+        $(#[$($attr:tt)*])*
         $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty
     ) => {
+        $(#[$($attr)*])*
         pub type $name<$($param $(= $def)?),*> = $val;
+    };
+}
+macro_rules! o {
+    (
+        $(#[$($attr:tt)*])*
+        $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty
+    ) => {
+        $(#[$($attr)*])*
+        pub type $name<$($param $(= $def)?),*> = $crate::uint::From<$val>;
     };
 }
 
@@ -49,6 +62,7 @@ private_pub! {
     a! { BitNot<N> = Tern<N, U0, U1> }
     // Short-circuiting And
     a! { AndSC<L, R> = Tern<L, R, U0> }
+    a! { AndL<L, R> = TernL<L, R, U0> }
     // Short-circuiting Or
     a! { OrSC<L, R> = Tern<L, U1, R> }
     a! { Xor<L, R> = Tern<L, BitNot<R>, R> }
@@ -210,16 +224,20 @@ private_pub! {
     l! {
         // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
         //
-        //     L = R
-        // iff 2 * HL + PL = 2 * HR + PR
-        // iff PL = PR  and  HL = HR
-        // iff Xnor(PL, PR) = 1  and  Eq(HL, HR) = 1
-        // iff And(Xnor(PL, PR), Eq(HL, HR)) = 1
-        //
-        // Eq(L, R) := Cond!(L == R) = And(Xnor(PL, PR), Eq(HL, HR))
-        EqL<L, R> = AndSC<
-            Xnor<P<L>, P<R>>,
-            EqL<H<L>, H<R>>,
+        // Eq(L, R) := Cond!(L == R)
+        EqL<L, R> = Tern<
+            L,
+            //     L = R
+            // iff 2 * HL + PL = 2 * HR + PR
+            // iff PL = PR  and  HL = HR
+            // iff Xnor(PL, PR) = 1  and  Eq(HL, HR) = 1
+            // iff And(Xnor(PL, PR), Eq(HL, HR)) = 1
+            AndL<
+                Xnor<P<L>, P<R>>,
+                EqL<H<R>, H<L>>,
+            >,
+            // case L = 0:  0 = R  iff  (if R { 0 } else { 1 }) = 1
+            TernL<R, U0, U1>,
         >
     }
 
@@ -258,6 +276,10 @@ private_pub! {
 a! { Lt<L, R> = UintFrom<LtL<L, R>> }
 a! { Gt<L, R> = Lt<R, L> }
 a! { Eq<L, R> = UintFrom<EqL<L, R>> }
+a! { Min<L, R> = Tern<Lt<L, R>, R, L> }
+a! { Max<L, R> = Tern<Lt<L, R>, L, R> }
+test_op! { test_cmp: L R, Lt<L, R>, (L < R) as _ }
+test_op! { test_eq: L R, Eq<L, R>, (L == R) as _ }
 
 private_pub! {
     mod sub;
@@ -311,7 +333,87 @@ private_pub! {
 }
 a! { AbsDiff<L, R> = Tern<Lt<L, R>, USubL<R, L>, USubL<L, R>> }
 a! { SatSub<L, R> = Tern<Gt<L, R>, USubL<L, R>, U0> }
+test_op! { test_abs_diff: L R, AbsDiff<L, R>, L.abs_diff(R) }
+test_op! { test_sat_sub: L R, SatSub<L, R>, L.saturating_sub(R) }
 
 private_pub! {
-    mod div;
+    mod divrem;
+
+    l! {
+        // SubIfGe(L, R) := if L >= R { L - R } else { R }
+        SubIfGeL<L, R> = Tern<
+            Lt<L, R>,
+            L,
+            USubL<L, R>,
+        >
+    }
+    a! {
+        // H := H(L), P := P(L)
+        //
+        // URemIn(L, R) := 2 * (H % R) + P
+        //
+        // L % R = (2 * H + P) % R
+        //       = (2 * (H % R) + P) % R
+        //       = URemIn(L, R) % R
+        URemInSL<L, R> = AppendL<
+            RemL<H<L>, R>,
+            P<L>,
+        >
+    }
+    l! {
+        // 0 % R = 0. We also get L % R = URem(L, R) % R
+        URemL<L, R> = Tern<L, URemInSL<L, R>, U0>
+    }
+    a! {
+        // H % R <= R - 1
+        // thus URem(L, R) = 2 * (H % R) + P <= 2 * (H % R) + 1 <= 2 * R - 1
+        // thus L % R = URem(L, R) % R = SubIfGe(URem(L, R), R)
+        RemL<L, R> = SubIfGeL<URemL<L, R>, R>
+    }
+
+    l! {
+        DivL<L, R> = Tern<
+            L,
+            AppendL<
+                DivL<Half<L>, R>,
+                BitNot<LtL<URemL<L, R>, R>>,
+            >,
+            U0,
+        >
+    }
+
+    l! { CheckedRemL<L, R> = Tern<R, RemL<L, R>, CheckedRemL<L, R>> }
+    l! { CheckedDivL<L, R> = Tern<R, DivL<L, R>, CheckedDivL<L, R>> }
+}
+o! {
+    /// ```compile_fail
+    /// use generic_uint::{ops::Rem, consts::*};
+    /// const _: fn(Rem<U1, U0>) = |_| {};
+    /// ```
+    Rem<L, R> = UintFrom<CheckedRemL<L, R>>
+}
+o! {
+    /// ```compile_fail
+    /// use generic_uint::{ops::Div, consts::*};
+    /// const _: fn(Div<U1, U0>) = |_| {};
+    /// ```
+    Div<L, R> = UintFrom<CheckedDivL<L, R>>
+}
+
+#[cfg(test)]
+mod divrem_test {
+
+    use super::*;
+
+    l! { RemL<L, R> = Rem<L, R> }
+    a! { DefaultRem<L, R> = Tern<R, RemL<L, R>, U0> }
+    test_op! { test_rem: L R, DefaultRem<L, R>, L.checked_rem(R).unwrap_or(0) }
+
+    l! { DivL<L, R> = Div<L, R> }
+    a! { DefaultDiv<L, R> = Tern<R, DivL<L, R>, U0> }
+    test_op! { test_div: L R, DefaultDiv<L, R>, L.checked_div(R).unwrap_or(0) }
+}
+
+private_pub! {
+    mod pow;
 }

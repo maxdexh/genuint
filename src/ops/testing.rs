@@ -11,6 +11,9 @@ fn test_decrement() {
     tests! { 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 }
 }
 
+/// ```rust_analyzer_brace_infer
+/// test_op! {}
+/// ```
 macro_rules! test_op {
     (
         $name:ident:
