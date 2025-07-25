@@ -76,19 +76,33 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
         self.len() == check_len::<A>()
     }
     #[track_caller]
-    pub const fn push_alt(&mut self, item: T) {
-        if self.is_full() {
-            panic!("Call to `push` on full `ArrVec`");
-        }
-        let ArrVecRepr { arr, len } = &mut repr!(self);
-        arr.as_mut_slice()[*len].write(item);
-        *len += 1;
-    }
-    #[track_caller]
     pub const fn into_full(self) -> A {
         if !self.is_full() {
             panic!("Call to `into_full` on non-full `ArrVec`");
         }
         unsafe { self.into_repr().arr.into_inner().assume_init() }
+    }
+    #[track_caller]
+    pub const fn push_alt(&mut self, item: T) {
+        if self.is_full() {
+            panic!("Call to `push_alt` on full `ArrVec`");
+        }
+        let ArrVecRepr { arr, len } = &mut repr!(self);
+        arr.as_mut_slice()[*len].write(item);
+        *len += 1;
+    }
+    pub const fn push(&mut self, item: T) -> Result<(), T> {
+        match self.is_full() {
+            true => Err(item),
+            false => Ok(self.push_alt(item)),
+        }
+    }
+    pub const fn pop(&mut self) -> Option<T> {
+        if self.is_empty() {
+            return None;
+        }
+        let ArrVecRepr { arr, len } = &mut repr!(self);
+        *len -= 1;
+        Some(unsafe { arr.as_slice()[*len].assume_init_read() })
     }
 }

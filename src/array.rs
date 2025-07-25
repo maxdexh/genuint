@@ -45,3 +45,16 @@ pub struct ArrDeq<A: Array<Item = T>, T = <A as Array>::Item>(
     arr_deq::ArrDeqDrop<A>,
     PhantomData<T>,
 );
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __drop_items {
+    [ $arr:expr ] => {{
+        let mut __guard = $crate::__mac::ArrDrop($arr).enter();
+        while __guard.has_next() {
+            let _ = __guard.pop_next();
+        }
+        __guard.discard();
+    }};
+}
+pub use __drop_items as drop_items;
