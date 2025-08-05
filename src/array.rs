@@ -21,6 +21,13 @@ unsafe impl<A: Array> Array for ArrApi<A> {
     type Item = A::Item;
     type Length = A::Length;
 }
+unsafe impl<T, N: crate::Uint, const L: usize> Array for [T; L]
+where
+    crate::consts::ConstUsize<L>: crate::ToUint<ToUint = N>,
+{
+    type Item = T;
+    type Length = N;
+}
 
 pub use crate::internals::arr_reexports::*;
 
@@ -45,6 +52,9 @@ pub struct ArrDeq<A: Array<Item = T>, T = <A as Array>::Item>(
     arr_deq::ArrDeqDrop<A>,
     PhantomData<T>,
 );
+
+#[derive(Debug, Copy, Clone)]
+pub struct TryFromSliceError(());
 
 #[macro_export]
 #[doc(hidden)]

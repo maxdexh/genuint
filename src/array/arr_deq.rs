@@ -28,7 +28,7 @@ macro_rules! repr {
 
 impl<A: Array<Item = T>, T> ArrDeq<A> {
     const fn check_cap() -> usize {
-        check_len::<A>()
+        arr_len::<A>()
     }
     const fn phys_idx_of(&self, idx: usize) -> usize {
         phys_idx(repr!(self).head.wrapping_add(idx), Self::check_cap())
@@ -63,7 +63,7 @@ impl<A: Array<Item = T>, T> ArrDeq<A> {
             Self::from_repr(ArrDeqRepr {
                 arr: ArrApi::new(MaybeUninit::new(full)),
                 head: 0,
-                len: check_len::<A>(),
+                len: arr_len::<A>(),
             })
         }
     }

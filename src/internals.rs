@@ -122,7 +122,7 @@ macro_rules! gen_arr_internals {
         })*
 
         pub mod arr_reexports {
-            $(pub type $name<T, N> = super::ArrImpl<T, N, super::bounds::$name>;)*
+            $(pub type $name<T, N> = crate::array::ArrApi<super::ArrImpl<T, N, super::bounds::$name>>;)*
         }
     };
 }

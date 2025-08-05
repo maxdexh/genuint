@@ -2,7 +2,7 @@ use core::{marker::PhantomData, mem::MaybeUninit};
 
 use crate::utils;
 
-use super::{ArrApi, ArrVec, Array, arr_utils::check_len};
+use super::{ArrApi, ArrVec, Array, arr_utils::arr_len};
 
 #[repr(transparent)]
 pub struct ArrVecDrop<A: Array<Item = T>, T = <A as Array>::Item>(ArrVecRepr<A>, PhantomData<T>);
@@ -46,7 +46,7 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
         unsafe {
             Self::from_repr(ArrVecRepr {
                 arr: ArrApi::new(MaybeUninit::new(full)),
-                len: check_len::<A>(),
+                len: arr_len::<A>(),
             })
         }
     }
@@ -70,10 +70,10 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
         self.len() == 0
     }
     pub const fn capacity(&self) -> usize {
-        check_len::<A>()
+        arr_len::<A>()
     }
     pub const fn is_full(&self) -> bool {
-        self.len() == check_len::<A>()
+        self.len() == arr_len::<A>()
     }
     #[track_caller]
     pub const fn into_full(self) -> A {
@@ -83,7 +83,7 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
         unsafe { self.into_repr().arr.into_inner().assume_init() }
     }
     #[track_caller]
-    pub const fn push_alt(&mut self, item: T) {
+    pub const fn push(&mut self, item: T) {
         if self.is_full() {
             panic!("Call to `push_alt` on full `ArrVec`");
         }
@@ -91,10 +91,10 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
         arr.as_mut_slice()[*len].write(item);
         *len += 1;
     }
-    pub const fn push(&mut self, item: T) -> Result<(), T> {
+    pub const fn try_push(&mut self, item: T) -> Result<(), T> {
         match self.is_full() {
             true => Err(item),
-            false => Ok(self.push_alt(item)),
+            false => Ok(self.push(item)),
         }
     }
     pub const fn pop(&mut self) -> Option<T> {

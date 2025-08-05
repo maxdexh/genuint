@@ -1,5 +1,3 @@
-use core::mem::ManuallyDrop;
-
 use crate::array::*;
 
 #[repr(transparent)]
