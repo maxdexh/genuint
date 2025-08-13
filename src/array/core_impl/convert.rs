@@ -1,4 +1,4 @@
-use crate::array::{ArrApi, Array, arr_utils::*};
+use crate::array::{ArrApi, Array, extra::*};
 
 impl<T, A> AsRef<[T]> for ArrApi<A>
 where
@@ -48,18 +48,18 @@ impl<'a, T, A> TryFrom<&'a [T]> for &'a ArrApi<A>
 where
     A: Array<Item = T>,
 {
-    type Error = crate::array::TryFromSliceError;
+    type Error = TryFromSliceError;
     fn try_from(value: &'a [T]) -> Result<Self, Self::Error> {
-        arr_from_slice(value)
+        from_slice(value)
     }
 }
 impl<'a, T, A> TryFrom<&'a mut [T]> for &'a mut ArrApi<A>
 where
     A: Array<Item = T>,
 {
-    type Error = crate::array::TryFromSliceError;
+    type Error = TryFromSliceError;
     fn try_from(value: &'a mut [T]) -> Result<Self, Self::Error> {
-        arr_from_mut_slice(value)
+        from_mut_slice(value)
     }
 }
 impl<T, A> TryFrom<&[T]> for ArrApi<A>
@@ -67,11 +67,11 @@ where
     A: Array<Item = T>,
     T: Copy,
 {
-    type Error = crate::array::TryFromSliceError;
+    type Error = TryFromSliceError;
     fn try_from(value: &[T]) -> Result<Self, Self::Error> {
         <&crate::array::CopyArr<_, _>>::try_from(value)
             .copied()
-            .map(ArrApi::into_arr)
+            .map(ArrApi::retype)
     }
 }
 impl<T, A> TryFrom<&mut [T]> for ArrApi<A>
@@ -79,7 +79,7 @@ where
     A: Array<Item = T>,
     T: Copy,
 {
-    type Error = crate::array::TryFromSliceError;
+    type Error = TryFromSliceError;
     fn try_from(value: &mut [T]) -> Result<Self, Self::Error> {
         (value as &[T]).try_into()
     }
@@ -97,7 +97,7 @@ macro_rules! tuple_impl {
                 A: Array<Item = $F, Length = crate::uint::FromUsize<COUNT>>,
             {
                 fn from(value: ArrApi<A>) -> Self {
-                    crate::array::arr_utils::arr_conv::<[_; COUNT]>(value).into()
+                    crate::array::extra::retype::<_, [_; COUNT]>(value).into()
                 }
             }
             impl<A, $F> From<($F, $($T),*)> for ArrApi<A>
@@ -105,7 +105,7 @@ macro_rules! tuple_impl {
                 A: Array<Item = $F, Length = crate::uint::FromUsize<COUNT>>
             {
                 fn from(value: ($F, $($T),*)) -> Self {
-                    crate::array::arr_utils::arr_conv(<[_; COUNT]>::from(value))
+                    crate::array::extra::retype(<[_; COUNT]>::from(value))
                 }
             }
         };
@@ -159,7 +159,7 @@ where
         let mut arc = Self::new_uninit_slice(arr_len::<A>());
 
         let buf = Arc::get_mut(&mut arc).unwrap();
-        *arr_from_mut_slice(buf).unwrap() = core::mem::MaybeUninit::new(value);
+        *from_mut_slice(buf).unwrap() = core::mem::MaybeUninit::new(value);
 
         unsafe { arc.assume_init() }
     }
@@ -175,7 +175,7 @@ where
         let mut arc = Self::new_uninit_slice(arr_len::<A>());
 
         let buf = Rc::get_mut(&mut arc).unwrap();
-        *arr_from_mut_slice(buf).unwrap() = core::mem::MaybeUninit::new(value);
+        *from_mut_slice(buf).unwrap() = core::mem::MaybeUninit::new(value);
 
         unsafe { arc.assume_init() }
     }
@@ -187,7 +187,7 @@ where
 {
     fn from(value: ArrApi<A>) -> Self {
         let mut out = Self::new_uninit_slice(arr_len::<A>());
-        *arr_from_mut_slice(&mut out).unwrap() = core::mem::MaybeUninit::new(value);
+        *from_mut_slice(&mut out).unwrap() = core::mem::MaybeUninit::new(value);
 
         unsafe { out.assume_init() }
     }

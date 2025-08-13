@@ -1,6 +1,6 @@
 use crate::{
     Uint,
-    array::{ArrApi, Array, arr_utils::*},
+    array::{ArrApi, Array, extra::*},
 };
 
 impl<N: Uint, A, B> PartialEq<ArrApi<B>> for ArrApi<A>

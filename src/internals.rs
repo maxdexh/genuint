@@ -131,3 +131,10 @@ gen_arr_internals! {
     Arr[]
     CopyArr[Copy]
 }
+
+pub trait _ArrApi {
+    type Inner;
+}
+impl<A: Array> _ArrApi for crate::array::ArrApi<A> {
+    type Inner = A;
+}

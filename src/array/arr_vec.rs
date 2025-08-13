@@ -2,7 +2,7 @@ use core::{marker::PhantomData, mem::MaybeUninit};
 
 use crate::utils;
 
-use super::{ArrApi, ArrVec, Array, arr_utils::arr_len};
+use super::{ArrApi, ArrVec, Array, extra::arr_len};
 
 #[repr(transparent)]
 pub struct ArrVecDrop<A: Array<Item = T>, T = <A as Array>::Item>(ArrVecRepr<A>, PhantomData<T>);
@@ -32,7 +32,7 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
         Self(ArrVecDrop(repr, PhantomData), PhantomData)
     }
     const fn into_repr(self) -> ArrVecRepr<A> {
-        unsafe { utils::transmute(self) }
+        unsafe { utils::union_transmute(self) }
     }
     pub const fn new() -> Self {
         unsafe {
@@ -85,7 +85,7 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
     #[track_caller]
     pub const fn push(&mut self, item: T) {
         if self.is_full() {
-            panic!("Call to `push_alt` on full `ArrVec`");
+            panic!("Call to `push` on full `ArrVec`");
         }
         let ArrVecRepr { arr, len } = &mut repr!(self);
         arr.as_mut_slice()[*len].write(item);

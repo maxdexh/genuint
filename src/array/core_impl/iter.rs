@@ -1,6 +1,6 @@
 use crate::{
     Uint,
-    array::{ArrApi, Array, arr_utils::*},
+    array::{ArrApi, Array, extra::*},
 };
 
 pub struct IntoIter<T, N: Uint> {
@@ -30,7 +30,7 @@ impl<A: Array> IntoIterator for ArrApi<A> {
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
-            deq: CanonDeq::full(self.into_arr()),
+            deq: CanonDeq::full(self.retype()),
         }
     }
 }

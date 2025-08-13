@@ -7,7 +7,7 @@ pub unsafe trait Array {
     type Length: crate::Uint;
 }
 
-mod arr_utils;
+pub mod extra;
 
 unsafe impl<A: Array> Array for core::mem::ManuallyDrop<A> {
     type Item = core::mem::ManuallyDrop<A::Item>;
@@ -52,9 +52,6 @@ pub struct ArrDeq<A: Array<Item = T>, T = <A as Array>::Item>(
     arr_deq::ArrDeqDrop<A>,
     PhantomData<T>,
 );
-
-#[derive(Debug, Copy, Clone)]
-pub struct TryFromSliceError(());
 
 #[macro_export]
 #[doc(hidden)]

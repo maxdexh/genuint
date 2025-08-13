@@ -1,6 +1,6 @@
 use core::{marker::PhantomData, mem::MaybeUninit};
 
-use super::{ArrApi, ArrDeq, Array, arr_utils::*};
+use super::{ArrApi, ArrDeq, Array, extra::*};
 
 #[repr(transparent)]
 pub struct ArrDeqDrop<A: Array<Item = T>, T = <A as Array>::Item>(ArrDeqRepr<A>, PhantomData<T>);

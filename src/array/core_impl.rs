@@ -2,7 +2,7 @@ mod cmp;
 mod convert;
 mod iter;
 
-use super::{ArrApi, ArrDeq, ArrVec, Array, arr_utils::*};
+use super::{ArrApi, ArrDeq, ArrVec, Array, extra::*};
 use crate::Uint;
 
 impl<T, N: Uint, A> ArrApi<A>
@@ -15,7 +15,7 @@ where
     pub const fn as_slice(&self) -> &[T] {
         unsafe { core::slice::from_raw_parts(&*(&raw const *self).cast(), Self::length()) }
     }
-    pub const fn each_mut(&mut self) -> impl Array<Item = &mut T, Length = N> {
+    pub const fn each_mut(&mut self) -> ArrApi<ImplArr![&mut T; N]> {
         let mut out = CanonVec::new();
         let mut this = self.as_mut_slice();
         while let [first, rest @ ..] = this {
@@ -24,7 +24,7 @@ where
         }
         out.into_full()
     }
-    pub const fn each_ref(&self) -> ArrApi<impl Array<Item = &T, Length = N> + Copy> {
+    pub const fn each_ref(&self) -> ArrApi<ImplArr![&T; N; Copy]> {
         let mut out = ArrVec::<super::CopyArr<_, _>>::new();
         let mut this = self.as_slice();
         while let [first, rest @ ..] = this {
@@ -33,7 +33,7 @@ where
         }
         out.into_full()
     }
-    pub fn map<F, U>(self, mut f: F) -> ArrApi<impl Array<Item = U, Length = N>>
+    pub fn map<F, U>(self, mut f: F) -> ArrApi<ImplArr![U; N]>
     where
         F: FnMut(T) -> U,
     {
@@ -51,7 +51,7 @@ where
     A: Array<Item: Clone>,
 {
     fn clone(&self) -> Self {
-        self.each_ref().map(Clone::clone).into_arr()
+        self.each_ref().map(Clone::clone).retype()
     }
 }
 impl<A> Copy for ArrApi<A> where A: Array<Item: Copy> + Copy {}
@@ -60,9 +60,7 @@ where
     A: Array<Item: Default>,
 {
     fn default() -> Self {
-        CanonArr::of_copy(())
-            .map(|()| Default::default())
-            .into_arr()
+        CanonArr::of_copy(()).map(|()| Default::default()).retype()
     }
 }
 impl<A> core::fmt::Debug for ArrApi<A>

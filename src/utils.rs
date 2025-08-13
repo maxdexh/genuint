@@ -1,4 +1,6 @@
-pub const unsafe fn transmute<Src, Dst>(src: Src) -> Dst {
+/// Performs the operation of writing the argument into a `repr(C)` union
+/// of `Src` and `Dst` and reading out `Dst`.
+pub const unsafe fn union_transmute<Src, Dst>(src: Src) -> Dst {
     use core::mem::ManuallyDrop;
     #[repr(C)]
     union Helper<Src, Dst> {
@@ -11,6 +13,12 @@ pub const unsafe fn transmute<Src, Dst>(src: Src) -> Dst {
         }
         .dst
     })
+}
+
+/// Transmutes types of the same size.
+pub const unsafe fn exact_transmute<Src, Dst>(src: Src) -> Dst {
+    debug_assert!(size_of::<Src>() == size_of::<Dst>());
+    unsafe { core::mem::transmute_copy(&core::mem::ManuallyDrop::new(src)) }
 }
 
 pub const fn reverse<T>(slice: &mut [T]) {
@@ -38,4 +46,5 @@ macro_rules! private_pub {
         pub(crate) use $name::*;
     };
 }
+
 pub(crate) use private_pub;

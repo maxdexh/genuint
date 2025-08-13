@@ -64,11 +64,11 @@ pub const fn cmp<L: ToUint, R: ToUint>() -> core::cmp::Ordering {
 pub trait TCon {
     type Apply<N: Uint>;
 }
-pub const fn check_eq_type<C: TCon, Src: Uint, Dst: Uint>(
+pub const fn transform_eq<C: TCon, Src: Uint, Dst: Uint>(
     src: C::Apply<Src>,
 ) -> Result<C::Apply<Dst>, C::Apply<Src>> {
     if cmp::<Src, Dst>().is_eq() {
-        Ok(unsafe { crate::utils::transmute(src) })
+        Ok(unsafe { crate::utils::exact_transmute(src) })
     } else {
         Err(src)
     }
