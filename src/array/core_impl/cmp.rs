@@ -1,7 +1,10 @@
 use crate::{
     Uint,
-    array::{ArrApi, Array, extra::*},
+    array::{ArrApi, Array},
 };
+
+// TODO: Add missing impls
+// TODO: Consider not restricting to same size
 
 impl<N: Uint, A, B> PartialEq<ArrApi<B>> for ArrApi<A>
 where
@@ -10,7 +13,7 @@ where
     A::Item: PartialEq<B::Item>,
 {
     fn eq(&self, other: &ArrApi<B>) -> bool {
-        (const { arr_len::<A>() == arr_len::<B>() }) && self.as_slice() == other.as_slice()
+        self.as_slice() == other.as_slice()
     }
 }
 impl<T, N: Uint, A> Eq for ArrApi<A>
@@ -37,6 +40,27 @@ where
 {
     fn eq(&self, other: &ArrApi<A>) -> bool {
         *self == other.as_slice()
+    }
+}
+
+impl<A, T, const N: usize> PartialEq<[T; N]> for ArrApi<A>
+where
+    A: Array,
+    A::Item: PartialEq<T>,
+    crate::consts::ConstUsize<N>: crate::ToUint<ToUint = A::Length>,
+{
+    fn eq(&self, other: &[T; N]) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+impl<A, T, const N: usize> PartialEq<ArrApi<A>> for [T; N]
+where
+    A: Array,
+    T: PartialEq<A::Item>,
+    crate::consts::ConstUsize<N>: crate::ToUint<ToUint = A::Length>,
+{
+    fn eq(&self, other: &ArrApi<A>) -> bool {
+        self.as_slice() == other.as_slice()
     }
 }
 

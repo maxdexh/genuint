@@ -5,7 +5,7 @@ where
     A: Array<Item = T>,
 {
     fn as_ref(&self) -> &[T] {
-        self
+        self.as_slice()
     }
 }
 impl<T, A> AsMut<[T]> for ArrApi<A>
@@ -13,7 +13,7 @@ where
     A: Array<Item = T>,
 {
     fn as_mut(&mut self) -> &mut [T] {
-        self
+        self.as_mut_slice()
     }
 }
 impl<T, A> core::borrow::Borrow<[T]> for ArrApi<A>
@@ -21,7 +21,7 @@ where
     A: Array<Item = T>,
 {
     fn borrow(&self) -> &[T] {
-        self
+        self.as_slice()
     }
 }
 impl<T, A> core::borrow::BorrowMut<[T]> for ArrApi<A>
@@ -29,15 +29,18 @@ where
     A: Array<Item = T>,
 {
     fn borrow_mut(&mut self) -> &mut [T] {
-        self
+        self.as_mut_slice()
     }
 }
+// TODO: Reconsider these, since they are fallible and arrays don't actually implement deref
+#[cfg(any())]
 impl<A: Array> core::ops::Deref for ArrApi<A> {
     type Target = [A::Item];
     fn deref(&self) -> &Self::Target {
         self.as_slice()
     }
 }
+#[cfg(any())]
 impl<A: Array> core::ops::DerefMut for ArrApi<A> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.as_mut_slice()
@@ -71,7 +74,7 @@ where
     fn try_from(value: &[T]) -> Result<Self, Self::Error> {
         <&crate::array::CopyArr<_, _>>::try_from(value)
             .copied()
-            .map(ArrApi::retype)
+            .map(ArrApi::into_arr)
     }
 }
 impl<T, A> TryFrom<&mut [T]> for ArrApi<A>
@@ -97,7 +100,7 @@ macro_rules! tuple_impl {
                 A: Array<Item = $F, Length = crate::uint::FromUsize<COUNT>>,
             {
                 fn from(value: ArrApi<A>) -> Self {
-                    crate::array::extra::retype::<_, [_; COUNT]>(value).into()
+                    crate::array::extra::arr_convert::<_, [_; COUNT]>(value).into()
                 }
             }
             impl<A, $F> From<($F, $($T),*)> for ArrApi<A>
@@ -105,7 +108,7 @@ macro_rules! tuple_impl {
                 A: Array<Item = $F, Length = crate::uint::FromUsize<COUNT>>
             {
                 fn from(value: ($F, $($T),*)) -> Self {
-                    crate::array::extra::retype(<[_; COUNT]>::from(value))
+                    crate::array::extra::arr_convert(<[_; COUNT]>::from(value))
                 }
             }
         };

@@ -51,7 +51,7 @@ where
     A: Array<Item: Clone>,
 {
     fn clone(&self) -> Self {
-        self.each_ref().map(Clone::clone).retype()
+        self.each_ref().map(Clone::clone).into_arr()
     }
 }
 impl<A> Copy for ArrApi<A> where A: Array<Item: Copy> + Copy {}
@@ -60,7 +60,7 @@ where
     A: Array<Item: Default>,
 {
     fn default() -> Self {
-        CanonArr::of_copy(()).map(|()| Default::default()).retype()
+        CanonArr::of_copy(()).map(|()| Default::default()).into_arr()
     }
 }
 impl<A> core::fmt::Debug for ArrApi<A>

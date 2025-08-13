@@ -30,7 +30,7 @@ impl<A: Array> IntoIterator for ArrApi<A> {
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
-            deq: CanonDeq::full(self.retype()),
+            deq: CanonDeq::full(self.into_arr()),
         }
     }
 }

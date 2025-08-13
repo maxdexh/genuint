@@ -9,12 +9,8 @@ pub(crate) type CanonArr<T, N> = Arr<T, N>;
 pub(crate) type CanonVec<T, N> = ArrVec<CanonArr<T, N>>;
 pub(crate) type CanonDeq<T, N> = ArrDeq<CanonArr<T, N>>;
 
-#[repr(C)]
-pub(crate) struct ArrConcat<A, B>(pub A, pub B);
-
-unsafe impl<T, A: Array<Item = T>, B: Array<Item = T>> Array for ArrConcat<A, B> {
-    type Item = T;
-    type Length = crate::ops::Add<A::Length, B::Length>;
+pub(crate) const fn into_canon<A: Array>(arr: A) -> CanonArr<A::Item, A::Length> {
+    arr_convert(arr)
 }
 
 pub(crate) const fn phys_idx(logical: usize, cap: usize) -> usize {
@@ -45,7 +41,7 @@ pub(crate) const fn arr_len<A: Array>() -> usize {
     }
 }
 
-pub const fn from_slice<A: Array>(slice: &[A::Item]) -> Result<&A, TryFromSliceError> {
+pub(crate) const fn from_slice<A: Array>(slice: &[A::Item]) -> Result<&A, TryFromSliceError> {
     if arr_len::<A>() == slice.len() {
         Ok(unsafe { &*slice.as_ptr().cast() })
     } else {
@@ -53,7 +49,9 @@ pub const fn from_slice<A: Array>(slice: &[A::Item]) -> Result<&A, TryFromSliceE
     }
 }
 
-pub const fn from_mut_slice<A: Array>(slice: &mut [A::Item]) -> Result<&mut A, TryFromSliceError> {
+pub(crate) const fn from_mut_slice<A: Array>(
+    slice: &mut [A::Item],
+) -> Result<&mut A, TryFromSliceError> {
     if arr_len::<A>() == slice.len() {
         Ok(unsafe { &mut *slice.as_mut_ptr().cast() })
     } else {
@@ -61,7 +59,7 @@ pub const fn from_mut_slice<A: Array>(slice: &mut [A::Item]) -> Result<&mut A, T
     }
 }
 
-pub const fn retype<Src, Dst>(src: Src) -> Dst
+pub(crate) const fn arr_convert<Src, Dst>(src: Src) -> Dst
 where
     Src: Array,
     Dst: Array<Item = Src::Item, Length = Src::Length>,
@@ -71,7 +69,7 @@ where
 
 /// # Safety
 /// `Src::Length == Dst::Length`
-pub const unsafe fn retype_unchecked<Src, Dst>(src: Src) -> Dst
+pub(crate) const unsafe fn into_arr_unchecked<Src, Dst>(src: Src) -> Dst
 where
     Src: Array,
     Dst: Array<Item = Src::Item>,
