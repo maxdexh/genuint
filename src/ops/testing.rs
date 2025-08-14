@@ -1,10 +1,11 @@
+// Test decrementing itself before we use it in all other tests.
 #[test]
 fn test_decrement() {
     macro_rules! tests {
         ($($val:literal)*) => {$(
             assert_eq!(
-                crate::uint::to_u128::<$crate::ops::SatDec<$crate::uint::FromU128<$val>>>(),
-                Some({ let val: u128 = $val; val }.saturating_sub(1)),
+                crate::uint::to_u128::<crate::ops::SatDecForTest<$crate::uint::FromU128<$val>>>(),
+                Some(u128::saturating_sub($val, 1)),
             );
         )*};
     }
@@ -50,7 +51,7 @@ macro_rules! __test_op_inner {
         fn $first<$($param: $crate::Uint,)*>() {
             fn cumul<$first: $crate::Uint, $($param: $crate::Uint),*>(max: u128) {
                 if max != 0 {
-                    cumul::<$crate::ops::SatDec<$first>, $($param),*>(max - 1);
+                    cumul::<$crate::ops::SatDecForTest<$first>, $($param),*>(max - 1);
                 }
                 $callback::<$first, $($param),*>()
             }

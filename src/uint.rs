@@ -5,7 +5,7 @@ pub type FromUsize<const N: usize> = From<crate::consts::ConstUsize<N>>;
 pub type FromU128<const N: u128> = From<crate::consts::ConstU128<N>>;
 
 pub const fn to_bool<N: ToUint>() -> bool {
-    crate::internals::Prim!(N::ToUint, IS_NONZERO)
+    crate::internals::PrimitiveOp!(N::ToUint, ::IS_NONZERO)
 }
 pub const fn to_str<N: ToUint>() -> &'static str {
     todo!()

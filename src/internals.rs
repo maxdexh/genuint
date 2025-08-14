@@ -15,12 +15,12 @@ pub trait PrimOps: Arrays {
     type AsBit: UintBit;
     type AppendAsBit<B: Uint>: Uint;
 }
-macro_rules! Prim {
-    ($Self:ty, $($item:tt)*) => {
+macro_rules! PrimitiveOp {
+    ($Self:ty, ::$($item:tt)*) => {
         <<$Self as $crate::internals::UintSealed>::__Ops as $crate::internals::PrimOps>::$($item)*
     };
 }
-pub(crate) use Prim;
+pub(crate) use PrimitiveOp;
 
 pub trait UintBit: Uint<__Ops: PrimOps<AsBit = Self>> {}
 impl<N: Uint<__Ops: PrimOps<AsBit = Self>>> UintBit for N {}
@@ -41,7 +41,7 @@ impl PrimOps for O {
     type Half = Self;
     type Parity = Self;
     type AsBit = Self;
-    type AppendAsBit<B: Uint> = Prim!(B, AsBit);
+    type AppendAsBit<B: Uint> = PrimitiveOp!(B, ::AsBit);
 }
 
 impl Uint for I {}
@@ -57,7 +57,7 @@ impl PrimOps for I {
     type Half = O;
     type Parity = Self;
     type AsBit = Self;
-    type AppendAsBit<B: Uint> = A<Self, Prim!(B, AsBit)>;
+    type AppendAsBit<B: Uint> = A<Self, PrimitiveOp!(B, ::AsBit)>;
 }
 
 impl<H: UintPos, P: UintBit> UintSealed for A<H, P> {
@@ -73,7 +73,7 @@ impl<H: UintPos, P: UintBit> PrimOps for A<H, P> {
     type Half = H;
     type Parity = P;
     type AsBit = I;
-    type AppendAsBit<B: Uint> = A<Self, Prim!(B, AsBit)>;
+    type AppendAsBit<B: Uint> = A<Self, PrimitiveOp!(B, ::AsBit)>;
 }
 
 /// # Safety
