@@ -14,6 +14,7 @@ pub trait PrimOps: Arrays {
     type Parity: Uint;
     type AsBit: UintBit;
     type AppendAsBit<B: Uint>: Uint;
+    type Opaque<N: ToUint>: ToUint;
 }
 macro_rules! PrimitiveOp {
     ($Self:ty, ::$($item:tt)*) => {
@@ -42,6 +43,7 @@ impl PrimOps for O {
     type Parity = Self;
     type AsBit = Self;
     type AppendAsBit<B: Uint> = PrimitiveOp!(B, ::AsBit);
+    type Opaque<N: ToUint> = N;
 }
 
 impl Uint for I {}
@@ -58,6 +60,7 @@ impl PrimOps for I {
     type Parity = Self;
     type AsBit = Self;
     type AppendAsBit<B: Uint> = A<Self, PrimitiveOp!(B, ::AsBit)>;
+    type Opaque<N: ToUint> = N;
 }
 
 impl<H: UintPos, P: UintBit> UintSealed for A<H, P> {
@@ -74,6 +77,7 @@ impl<H: UintPos, P: UintBit> PrimOps for A<H, P> {
     type Parity = P;
     type AsBit = I;
     type AppendAsBit<B: Uint> = A<Self, PrimitiveOp!(B, ::AsBit)>;
+    type Opaque<N: ToUint> = N;
 }
 
 /// # Safety

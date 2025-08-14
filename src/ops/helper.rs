@@ -4,7 +4,7 @@ use super::*;
 pub type TernL<C, T, F> = Tern<C, T, F>;
 
 #[apply(lazy)]
-pub type AppendL<N, P> = AppendAsBit<N, P>;
+pub type AppendL<N, P> = AppendBit<N, P>;
 
 // Short-circuiting And
 pub type AndSC<L, R> = Tern<L, R, U0>;

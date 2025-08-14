@@ -239,7 +239,7 @@ where
             type Item = ManuallyDrop<T>;
             type Length = N;
         }
-        let ArrSplit { lhs, rhs } = arr_convert(ManuallyDrop::new(self));
+        let ArrSplit::<N, I, _> { lhs, rhs } = arr_convert(ManuallyDrop::new(self));
         (ManuallyDrop::into_inner(lhs), ManuallyDrop::into_inner(rhs))
     }
 
