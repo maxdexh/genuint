@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 const-util = "2.2.0"
+macro_rules_attribute = "0.2.2"
 type-const = "1.1.1"
 
 [features]
