@@ -72,8 +72,8 @@ mod extra_impl;
 ///
 /// Once const traits become stabilized, the inherent methods may also be duplicated
 /// as default methods in [`Array`].
-#[cfg_attr(not(doc), repr(transparent))]
-pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item>(A, PhantomData<T>);
+#[repr(transparent)]
+pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item>(pub(crate) A, PhantomData<T>);
 
 mod arr_vec;
 

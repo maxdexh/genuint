@@ -10,10 +10,10 @@ where
     A: Array<Item = T, Length = N>,
 {
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
-        unsafe { core::slice::from_raw_parts_mut(&mut *(&raw mut *self).cast(), Self::length()) }
+        unsafe { core::slice::from_raw_parts_mut((&raw mut *self).cast::<T>(), Self::length()) }
     }
     pub const fn as_slice(&self) -> &[T] {
-        unsafe { core::slice::from_raw_parts(&*(&raw const *self).cast(), Self::length()) }
+        unsafe { core::slice::from_raw_parts((&raw const *self).cast::<T>(), Self::length()) }
     }
     pub const fn each_mut(&mut self) -> ArrApi<ImplArr![&mut T; N]> {
         let mut out = CanonVec::new();
@@ -60,7 +60,9 @@ where
     A: Array<Item: Default>,
 {
     fn default() -> Self {
-        CanonArr::of_copy(()).map(|()| Default::default()).into_arr()
+        CanonArr::of_copy(())
+            .map(|()| Default::default())
+            .into_arr()
     }
 }
 impl<A> core::fmt::Debug for ArrApi<A>
