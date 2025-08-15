@@ -59,26 +59,66 @@ pub(crate) const fn from_mut_slice<A: Array>(
     }
 }
 
+const fn debug_array_invariant_check<A: Array>() {
+    debug_assert!(align_of::<A>() == align_of::<A::Item>());
+    debug_assert!(match uint::to_usize::<A::Length>() {
+        Some(len) => size_of::<A::Item>().checked_mul(len).unwrap() == size_of::<A>(),
+        None => size_of::<A>() == 0 && size_of::<A::Item>() == 0,
+    })
+}
+
 pub(crate) const fn arr_convert<Src, Dst>(src: Src) -> Dst
 where
     Src: Array,
     Dst: Array<Item = Src::Item, Length = Src::Length>,
 {
-    unsafe { crate::utils::exact_transmute(src) }
+    debug_array_invariant_check::<Src>();
+    debug_array_invariant_check::<Dst>();
+    unsafe { arr_convert_unchecked(src) }
 }
 
 /// # Safety
 /// `Src::Length == Dst::Length`
-pub(crate) const unsafe fn into_arr_unchecked<Src, Dst>(src: Src) -> Dst
+pub(crate) const unsafe fn arr_convert_unchecked<Src, Dst>(src: Src) -> Dst
 where
     Src: Array,
     Dst: Array<Item = Src::Item>,
 {
-    debug_assert!(
-        crate::uint::cmp::<Src::Length, Dst::Length>().is_eq(),
-        "Array length mismatch"
-    );
     unsafe { crate::utils::exact_transmute(src) }
+}
+
+#[track_caller]
+pub(crate) const fn assert_same_arr_len<Src: Array, Dst: Array>() {
+    debug_array_invariant_check::<Src>();
+    debug_array_invariant_check::<Dst>();
+
+    if let Some(err) = array_length_mismatch::<Src, Dst>() {
+        panic!("{}", err)
+    }
+}
+const fn array_length_mismatch<Src: Array, Dst: Array>() -> Option<&'static str> {
+    struct Message<A, B>(A, B);
+    impl<Src: Array, Dst: Array> type_const::Const for Message<Src, Dst> {
+        type Type = &'static [&'static str];
+        const VALUE: Self::Type = &[
+            "Array length mismatch. Source array has length ",
+            uint::to_str::<Src::Length>(),
+            ", destination array type has length ",
+            uint::to_str::<Dst::Length>(),
+            ".",
+        ];
+    }
+    const {
+        if uint::cmp::<Src::Length, Dst::Length>().is_ne() {
+            Some(if cfg!(feature = "uint-panic-values") {
+                const_util::concat::concat_strs::<Message<Src, Dst>>()
+            } else {
+                "Array length mismatch"
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]

@@ -3,7 +3,7 @@ use crate::array::*;
 #[repr(transparent)]
 pub struct ArrDrop<T>(pub T);
 
-impl<A: Array> ArrDrop<ArrApi<A>> {
+impl<A: Array> ArrDrop<A> {
     pub const fn enter(self) -> ArrDrop<ArrVec<A>> {
         // SAFETY: repr(transparent)
         let inner: A = unsafe { crate::utils::exact_transmute(self) };

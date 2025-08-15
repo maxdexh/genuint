@@ -80,6 +80,8 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
     ///
     /// # Examples
     /// ```
+    /// use generic_uint::array::*;
+    ///
     /// let mut vec = ArrVec::full([1, 2, 3]);
     /// vec.pop();
     /// assert_eq!(vec.as_slice()[1..], [2]);
@@ -93,6 +95,8 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
     ///
     /// # Examples
     /// ```
+    /// use generic_uint::array::*;
+    ///
     /// let mut vec = ArrVec::full([1, 2, 3]);
     /// vec.as_mut_slice().reverse();
     /// assert_eq!(vec, [3, 2, 1]);

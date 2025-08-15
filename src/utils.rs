@@ -28,23 +28,3 @@ pub const fn reverse<T>(slice: &mut [T]) {
         i += 1;
     }
 }
-
-/// ```rust_analyzer_brace_infer
-/// private_pub! {}
-/// ```
-macro_rules! private_pub {
-    (
-        mod $name:ident;
-        $($items:tt)*
-    ) => {
-        mod $name {
-            #[allow(unused_imports)]
-            use super::*;
-            $($items)*
-        }
-        #[allow(unused_imports)]
-        pub(crate) use $name::*;
-    };
-}
-
-pub(crate) use private_pub;

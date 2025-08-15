@@ -1,4 +1,4 @@
-use crate::{ToUint, Uint, ops};
+use crate::{ToUint, Uint, consts, ops};
 
 pub type From<N> = <N as ToUint>::ToUint;
 pub type FromUsize<const N: usize> = From<crate::consts::ConstUsize<N>>;
@@ -8,7 +8,33 @@ pub const fn to_bool<N: ToUint>() -> bool {
     crate::internals::PrimitiveOp!(N::ToUint, ::IS_NONZERO)
 }
 pub const fn to_str<N: ToUint>() -> &'static str {
-    todo!()
+    const fn to_byte_str<N: Uint>() -> &'static [u8] {
+        const {
+            if to_bool::<N>() {
+                const_util::concat::concat_bytes::<BuildRepr<N>>()
+            } else {
+                b""
+            }
+        }
+    }
+    struct BuildRepr<N>(N);
+    impl<N: Uint> type_const::Const for BuildRepr<N> {
+        type Type = &'static [&'static [u8]];
+        const VALUE: Self::Type = &[
+            to_byte_str::<ops::Div<N, consts::U10>>(),
+            &[b'0' + to_usize::<ops::Rem<N, consts::U10>>().unwrap() as u8],
+        ];
+    }
+    const {
+        if to_bool::<N>() {
+            match core::str::from_utf8(to_byte_str::<N::ToUint>()) {
+                Ok(s) => s,
+                Err(_) => unreachable!(),
+            }
+        } else {
+            "0"
+        }
+    }
 }
 
 macro_rules! to_u_ovfl {
@@ -50,13 +76,21 @@ pub const fn to_u128<N: ToUint>() -> Option<u128> {
 pub const fn cmp<L: ToUint, R: ToUint>() -> core::cmp::Ordering {
     use core::cmp::Ordering;
     const {
-        match cmp::<ops::Half<L>, ops::Half<R>>() {
-            it @ (Ordering::Less | Ordering::Greater) => it,
-            Ordering::Equal => match (to_bool::<ops::Parity<L>>(), to_bool::<ops::Parity<R>>()) {
-                (true, true) | (false, false) => Ordering::Equal,
-                (true, false) => Ordering::Greater,
-                (false, true) => Ordering::Less,
-            },
+        if !to_bool::<L>() {
+            match to_bool::<R>() {
+                true => Ordering::Less,
+                false => Ordering::Equal,
+            }
+        } else {
+            match cmp::<ops::Half<L>, ops::Half<R>>() {
+                it @ (Ordering::Less | Ordering::Greater) => it,
+                Ordering::Equal => match (to_bool::<ops::Parity<L>>(), to_bool::<ops::Parity<R>>())
+                {
+                    (true, true) | (false, false) => Ordering::Equal,
+                    (true, false) => Ordering::Greater,
+                    (false, true) => Ordering::Less,
+                },
+            }
         }
     }
 }

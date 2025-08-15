@@ -113,7 +113,7 @@ pub struct ArrDeq<A: Array<Item = T>, T = <A as Array>::Item>(
 #[doc(hidden)]
 macro_rules! __drop_items {
     [ $arr:expr ] => {{
-        let mut __guard = $crate::__mac::ArrDrop($arr).enter();
+        let mut __guard = $crate::__mac::arr::ArrDrop($arr).enter();
         while __guard.has_next() {
             let _ = __guard.pop_next();
         }
