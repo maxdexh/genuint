@@ -6,7 +6,7 @@ pub struct ArrDrop<T>(pub T);
 impl<A: Array> ArrDrop<ArrApi<A>> {
     pub const fn enter(self) -> ArrDrop<ArrVec<A>> {
         // SAFETY: repr(transparent)
-        let inner: A = unsafe { crate::utils::union_transmute(self) };
+        let inner: A = unsafe { crate::utils::exact_transmute(self) };
         ArrDrop(ArrVec::full(inner))
     }
 }

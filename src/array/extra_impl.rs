@@ -20,7 +20,7 @@ where
 {
     /// Creates a new [`ArrApi`] to wrap the given array.
     pub const fn new(inner: A) -> Self {
-        Self(inner, core::marker::PhantomData)
+        Self { inner }
     }
 
     /// Returns the wrapped array of this [`ArrApi`].
@@ -33,37 +33,9 @@ where
         // SAFETY: This is a known safe way of destructuring in a `const fn`
         unsafe {
             let this = core::mem::ManuallyDrop::new(self);
-            let inner = &const_util::mem::man_drop_ref(&this).0;
+            let inner = &const_util::mem::man_drop_ref(&this).inner;
             core::ptr::read(inner)
         }
-    }
-
-    /// Gets a reference to the wrapped array of this [`ArrApi`].
-    ///
-    /// This method is primarily useful when dealing with [`ManuallyDrop`] or [`MaybeUninit`] inside of an [`ArrApi`].
-    ///
-    /// # Examples
-    /// ```
-    /// ```
-    pub const fn as_inner(&self) -> &A {
-        &self.0
-    }
-
-    /// Gets a mutable reference to the wrapped array of this [`ArrApi`].
-    ///
-    /// This method is primarily useful when dealing with [`ManuallyDrop`] or [`MaybeUninit`] inside of an [`ArrApi`].
-    ///
-    /// # Examples
-    /// Writing into a [`ManuallyDrop<Arr<_, _>>`] wrapped in an [`ArrApi`]:
-    /// ```
-    /// use core::mem::ManuallyDrop;
-    /// use generic_uint::array::*;
-    /// let mut arr = ArrApi::new(ManuallyDrop::new([1, 2, 3, 4]));
-    /// **arr.as_mut_inner() = [1; 4];
-    /// assert_eq!(arr, [ManuallyDrop::new(1); 4]);
-    /// ```
-    pub const fn as_mut_inner(&mut self) -> &mut A {
-        &mut self.0
     }
 
     /// Converts into an array with the same item and length.
@@ -104,6 +76,10 @@ where
     ///
     /// If the lengths are the same, the operation is successful. Otherwise, the original
     /// array is returned.
+    ///
+    /// If you are having trouble using the returned [`Result`] in a const fn, consider using
+    /// functions from [`const_util::result`] or going through [`Self::into_manually_drop`]
+    /// first.
     pub const fn try_into_arr<Dst: Array<Item = T>>(self) -> Result<Dst, Self> {
         match crate::uint::cmp::<N, Dst::Length>().is_eq() {
             true => Ok(unsafe { into_arr_unchecked(self) }),
@@ -157,7 +133,7 @@ where
             *first = MaybeUninit::new(item);
             buf = rest;
         }
-        unsafe { out.into_inner().assume_init() }
+        unsafe { out.inner.assume_init() }
     }
 
     /// Equivalent to `[CONST; N]` (or `[const { expr }; N]`).
@@ -185,7 +161,7 @@ where
             *first = MaybeUninit::new(C::VALUE);
             buf = rest;
         }
-        unsafe { out.into_inner().assume_init() }
+        unsafe { out.inner.assume_init() }
     }
 
     /// Like `<&[T] as TryInto<&[T; N]>>::try_into`, but as a const method.
@@ -198,7 +174,7 @@ where
         from_mut_slice(slice)
     }
 
-    /// Wraps the wrapped array in [`ManuallyDrop`].
+    /// Wraps the inner array in [`ManuallyDrop`].
     ///
     /// Because of the [`Array`] implementation for [`ManuallyDrop<impl Array>`],
     /// the returned value implements [`Array<Item = ManuallyDrop<T>>`].
@@ -206,7 +182,7 @@ where
         ArrApi::new(ManuallyDrop::new(self.into_inner()))
     }
 
-    /// Wraps the wrapped array in [`ManuallyDrop`].
+    /// Wraps the inner array in [`ManuallyDrop`].
     ///
     /// Because of the [`Array`] implementation for [`MaybeUninit<impl Array>`],
     /// the returned value implements [`Array<Item = MaybeUninit<T>>`].

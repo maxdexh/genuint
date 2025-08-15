@@ -60,9 +60,7 @@ where
     A: Array<Item: Default>,
 {
     fn default() -> Self {
-        CanonArr::of_copy(())
-            .map(|()| Default::default())
-            .into_arr()
+        Self::from_fn(|_| Default::default())
     }
 }
 impl<A> core::fmt::Debug for ArrApi<A>
@@ -70,7 +68,7 @@ where
     A: Array<Item: core::fmt::Debug>,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        f.debug_list().entries(self.as_slice()).finish()
+        write!(f, "{:?}", self.as_slice())
     }
 }
 impl<A> core::hash::Hash for ArrApi<A>
