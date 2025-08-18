@@ -6,6 +6,9 @@ pub type TernL<C, T, F> = Tern<C, T, F>;
 #[apply(lazy)]
 pub type AppendL<N, P> = AppendBit<N, P>;
 
+#[apply(lazy)]
+pub type HalfL<N> = Half<N>;
+
 // Short-circuiting And
 pub type AndSC<L, R> = Tern<L, R, U0>;
 // Short-circuiting Or

@@ -5,6 +5,7 @@ use super::*;
 //
 // SatDecIf(N, C) := if C { if N { N - 1 } else { 0 } } else { N }
 //                 = if N { N - C } else { N }
+//                 = max(N - C, 0)
 pub type SatDecIfL<N, C = U1> = Tern<
     AndSC<C, N>,
     // case C = 1, N > 0:

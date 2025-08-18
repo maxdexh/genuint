@@ -4,7 +4,7 @@ use super::*;
 #[apply(lazy)]
 pub type SubIfGeL<L, R> = Tern<
     //
-    Lt<L, R>,
+    cmp::LtL<L, R>,
     L,
     sub::USubL<L, R>,
 >;
@@ -82,9 +82,11 @@ mod divrem_test {
 
     #[apply(lazy)]
     pub type RemL<L, R> = Rem<L, R>;
-    test_op! { test_rem: L R, Tern<R, RemL<L, R>, U0>, L.checked_rem(R).unwrap_or(0) }
+    #[apply(test_op! test_rem: L.checked_rem(R).unwrap_or(0))]
+    type RemOr0<L, R> = Tern<R, RemL<L, R>, U0>;
 
     #[apply(lazy)]
     pub type DivL<L, R> = Div<L, R>;
-    test_op! { test_div: L R, Tern<R, DivL<L, R>, U0>, L.checked_div(R).unwrap_or(0) }
+    #[apply(test_op! test_div: L.checked_div(R).unwrap_or(0))]
+    type DivOr0<L, R> = Tern<R, DivL<L, R>, U0>;
 }

@@ -31,6 +31,8 @@ macro_rules! test_op {
                 assert_eq!(
                     $crate::uint::to_u128::<$got>(),
                     Some($expect),
+                    "params={:?}",
+                    ($($param),*)
                 );
             }
             $crate::ops::testing::__test_op_inner! {

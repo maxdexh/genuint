@@ -1,11 +1,12 @@
 use crate::{consts::*, internals, uint};
-use macro_rules_attribute::apply;
+use generic_uint_proc::apply;
 
 // TODO: Warning for custom op: Having associated type projections in the result can affect type
 // inference
 
 macro_rules! lazy {
     (
+        ()
         $(#[$($attr:tt)*])*
         pub type $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty;
     ) => {
@@ -34,6 +35,7 @@ pub(crate) use __make_opaque;
 
 macro_rules! opaque {
     (
+        ()
         $(#[$($attr:tt)*])*
         pub type $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty;
     ) => {
@@ -44,25 +46,43 @@ macro_rules! opaque {
     };
 }
 
+macro_rules! test_op {
+    (
+        ($name:ident: $ex:expr)
+        $(#[$($attr:tt)*])*
+        $v:vis $kw:ident $tname:ident<$($param:ident $(= $def:ty)?),* $(,)?> $($rest:tt)*
+    ) => {
+        #[cfg(test)]
+        $crate::ops::testing::test_op! { $name: $($param)*, $tname<$($param),*>, $ex }
+
+        $(#[$($attr)*])*
+        $v $kw $tname<$($param $(= $def)?),*> $($rest)*
+    };
+}
+
 /// More efficient implementation of [`Div<N, U2>`].
 ///
-/// Under the current implementation, this is a primitive operation.
+/// This is currently a primitive operation.
 // H(N) := N / 2
 pub type Half<N> = internals::PrimitiveOp!(uint::From<N>, ::Half);
 
 /// More efficient implementation of [`Rem<N, U2>`].
 ///
-/// Under the current implementation, this is a primitive operation.
+/// This is currently a primitive operation.
 // P(N) := N % 2
 pub type Parity<N> = internals::PrimitiveOp!(uint::From<N>, ::Parity);
 
-/// More efficient implementation of `Add<Mul<N, U2>, Tern<P, U1, U0>>`.
+/// More efficient implementation of `Add<Mul<N, U2>, Tern<P, U1, U0>>``
 ///
-/// Under the current implementation, this is a primitive operation.
+/// Equivalent to `2 * N + (P != 0) as _` in basic arithmetic or `(N << 1) | (P != 0) as _`
+/// in bit manipulation. This operation is useful for building the output of operations
+/// recursively bit-by-bit.
+///
+/// This is currently a primitive operation.
 // Append(N, P) := 2 * N + if P { 1 } else { 0 }
 pub type AppendBit<N, P> = internals::PrimitiveOp!(uint::From<N>, ::AppendAsBit<uint::From<P>>);
 
-/// If-else/Ternary function.
+/// If-else/Ternary operation.
 ///
 /// If the first argument is nonzero, evaluates to the second argument, otherwise to the third.
 ///
@@ -70,7 +90,7 @@ pub type AppendBit<N, P> = internals::PrimitiveOp!(uint::From<N>, ::AppendAsBit<
 /// argument. This means that this operation can be used for the exit condition of a recursive
 /// operation (see examples below).
 ///
-/// Under the current implementation, this is a primitive operation.
+/// This is currently a primitive operation.
 ///
 /// # Examples
 /// Exiting from a recursive operation
@@ -108,15 +128,9 @@ pub type SatDecForTest<N> = uint::From<satdec::SatDecIfL<N>>;
 
 #[cfg(test)]
 mod testing;
-macro_rules! test_op {
-    ($($input:tt)*) => {
-        #[cfg(test)]
-        $crate::ops::testing::test_op! { $($input)* }
-    };
-}
 
 mod bitwise;
-pub use bitwise::BitAnd;
+pub use bitwise::{BitAnd, BitOr, BitXor};
 
 mod add;
 pub use add::Add;
@@ -133,6 +147,8 @@ pub use sub::{AbsDiff, SatSub};
 mod divrem;
 pub use divrem::{Div, Rem};
 
-// TODO: shift
+mod shift;
+pub use shift::{Shl, Shr};
 
-// TODO: pow
+mod pow;
+pub use pow::Pow;

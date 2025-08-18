@@ -17,8 +17,8 @@ pub trait PrimOps: Arrays {
     type Opaque<N: ToUint>: ToUint;
 }
 macro_rules! PrimitiveOp {
-    ($Self:ty, ::$($item:tt)*) => {
-        <<$Self as $crate::internals::UintSealed>::__Ops as $crate::internals::PrimOps>::$($item)*
+    ($Self:ty, $($item:tt)*) => {
+        <<$Self as $crate::internals::UintSealed>::__Ops as $crate::internals::PrimOps>$($item)*
     };
 }
 pub(crate) use PrimitiveOp;

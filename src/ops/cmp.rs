@@ -20,11 +20,11 @@ pub type EqL<L, R> = Tern<
 >;
 
 #[apply(opaque)]
+#[apply(test_op! test_eq: (L == R) as _)]
 pub type Eq<L, R> = EqL<L, R>;
+
 #[apply(opaque)]
 pub type Ne<L, R> = BitNot<Eq<L, R>>;
-
-test_op! { test_eq: L R, Eq<L, R>, (L == R) as _ }
 
 #[apply(lazy)]
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
@@ -39,25 +39,26 @@ pub type LtByLastL<L, R> = AndSC<
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
 //
 // Lt(L, R) := Cond!(L < R)
-pub type LtL<L, R> = AndSC<
+pub type LtL<L, R> = Tern<
     R,
     TernL<
         L,
         //     L < R
         // iff 2 * HL + PL < 2 * HR + PR
         // iff HL < HR or HL = HR and PL = 0 and PR = 1
-        // iff Lt(HL, HR) = 1 or LtByLastL(L, R) = 1
+        // iff Lt(HL, HR) = 1 or LtByLast(L, R) = 1
         TernL<LtL<H<L>, H<R>>, U1, LtByLastL<L, R>>,
-        // 0 < R  because R = 0 is handled by the initial And
+        // 0 < R is true because R = 0 was already checked
         U1,
     >,
+    // L < 0 is false
+    U0,
 >;
 
 #[apply(opaque)]
+#[apply(test_op! test_lt: (L < R) as _)]
 pub type Lt<L, R> = LtL<L, R>;
 pub type Gt<L, R> = Lt<R, L>;
-
-test_op! { test_cmp: L R, Lt<L, R>, (L < R) as _ }
 
 #[apply(opaque)]
 pub type Ge<L, R> = BitNot<Lt<L, R>>;
