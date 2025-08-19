@@ -121,3 +121,5 @@ macro_rules! __drop_items {
     }};
 }
 pub use __drop_items as drop_items;
+
+// TODO: BufDeq and BufVec as wrappers around &[MaybeUninit<T>] (seperate crate)

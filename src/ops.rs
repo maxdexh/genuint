@@ -1,9 +1,6 @@
 use crate::{consts::*, internals, uint};
 use generic_uint_proc::apply;
 
-// TODO: Warning for custom op: Having associated type projections in the result can affect type
-// inference
-
 macro_rules! lazy {
     (
         $(())?
@@ -52,7 +49,7 @@ macro_rules! test_op {
         $(#[$($attr:tt)*])*
         $v:vis $kw:ident $tname:ident<$($param:ident $(= $def:ty)?),* $(,)?> $($rest:tt)*
     ) => {
-        #[cfg(test)]
+        #[cfg(all(test, not(miri)))]
         $crate::ops::testing::test_op! { $name: $($param)*, $tname<$($param),*>, $($args)* }
 
         $(#[$($attr)*])*
@@ -122,11 +119,11 @@ pub(crate) use helper::*;
 
 mod satdec;
 
+#[cfg(all(test, not(miri)))]
 // We need this to iterate over ranges of uints in tests
-#[cfg(test)]
 pub type SatDecForTest<N> = uint::From<satdec::SatDecIfL<N>>;
 
-#[cfg(test)]
+#[cfg(all(test, not(miri)))]
 mod testing;
 
 mod bitmath;

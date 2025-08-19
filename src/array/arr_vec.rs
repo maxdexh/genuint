@@ -3,6 +3,8 @@ use core::{
     mem::{ManuallyDrop, MaybeUninit},
 };
 
+use crate::{Uint, array::extra::ImplArr, ops, uint};
+
 use super::{ArrApi, ArrVec, Array, extra::arr_len};
 
 #[repr(transparent)]
@@ -17,8 +19,8 @@ impl<A: Array<Item = T>, T> Drop for ArrVecDrop<A, T> {
 }
 
 pub struct ArrVecRepr<A: Array> {
-    len: usize,
-    arr: ArrApi<MaybeUninit<A>>,
+    pub len: usize,
+    pub arr: ArrApi<MaybeUninit<A>>,
 }
 
 macro_rules! repr {
@@ -27,10 +29,11 @@ macro_rules! repr {
     };
 }
 
+// TODO: Capacity panics
 impl<A: Array<Item = T>, T> ArrVec<A> {
     /// # Safety
     /// `repr.arr[..repr.len]` must be initialized.
-    const unsafe fn from_repr(repr: ArrVecRepr<A>) -> Self {
+    pub(crate) const unsafe fn from_repr(repr: ArrVecRepr<A>) -> Self {
         Self(ArrVecDrop(repr, PhantomData), PhantomData)
     }
 
@@ -88,7 +91,8 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
     /// ```
     pub const fn as_slice(&self) -> &[T] {
         let ArrVecRepr { ref arr, len } = repr!(self);
-        unsafe { core::slice::from_raw_parts(arr.as_slice().split_at(len).0.as_ptr().cast(), len) }
+        let (arr, _) = arr.as_slice().split_at(len);
+        unsafe { crate::utils::assume_init_slice(arr) }
     }
 
     /// Turns an [`ArrVec`] into a slice.
@@ -103,12 +107,8 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
     /// ```
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
         let ArrVecRepr { ref mut arr, len } = repr!(self);
-        unsafe {
-            core::slice::from_raw_parts_mut(
-                arr.as_mut_slice().split_at_mut(len).0.as_mut_ptr().cast(),
-                len,
-            )
-        }
+        let (arr, _) = arr.as_mut_slice().split_at_mut(len);
+        unsafe { crate::utils::assume_init_mut_slice(arr) }
     }
 
     /// Returns the length of the [`ArrVec`].
@@ -140,18 +140,17 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
 
     #[track_caller]
     pub const fn push(&mut self, item: T) {
-        if self.is_full() {
-            panic!("Call to `push` on full `ArrVec`");
-        }
-        let ArrVecRepr { arr, len } = &mut repr!(self);
-        arr.as_mut_slice()[*len].write(item);
-        *len += 1;
+        const_util::result::expect_ok(self.try_push(item), "Call to `push` on full `ArrVec`")
     }
 
     pub const fn try_push(&mut self, item: T) -> Result<(), T> {
         match self.is_full() {
             true => Err(item),
-            false => Ok(self.push(item)),
+            false => Ok({
+                let ArrVecRepr { arr, len } = &mut repr!(self);
+                arr.as_mut_slice()[*len].write(item);
+                *len += 1;
+            }),
         }
     }
 
@@ -181,6 +180,35 @@ impl<A: Array<Item = T>, T> ArrVec<A> {
     /// and `new_len <= self.capacity()`.
     pub const unsafe fn set_len(&mut self, new_len: usize) {
         repr!(self).len = new_len;
+    }
+
+    /// Transfers the elements into a contiguous [`ArrDeq`](crate::array::ArrDeq).
+    pub const fn into_arr_deq(self) -> crate::array::ArrDeq<A> {
+        use crate::array::*;
+
+        let ArrVecRepr { len, arr } = self.into_repr();
+        // SAFETY: `len` elements starting at index `0` are initialized.
+        unsafe { ArrDeq::from_repr(arr_deq::ArrDeqRepr { arr, len, head: 0 }) }
+    }
+}
+
+impl<T, N: Uint, A: Array<Item = T, Length = N>> ArrVec<A> {
+    pub const fn grow<M: Uint>(self) -> ArrVec<ImplArr![T; ops::Max<A::Length, M>]> {
+        const_util::result::unwrap_ok(self.try_grow())
+    }
+
+    pub const fn try_grow<M: Uint>(self) -> Result<ArrVec<ImplArr![T; M]>, Self> {
+        if uint::cmp::<M, N>().is_ge() {
+            let ArrVecRepr { len, arr } = self.into_repr();
+            let repr = ArrVecRepr {
+                arr: arr.resize_uninit(),
+                len,
+            };
+            // SAFETY: new cap >= old cap, so we must still have `len` initialized elements.
+            Ok(unsafe { ArrVec::from_repr(repr) })
+        } else {
+            Err(self)
+        }
     }
 }
 

@@ -14,6 +14,7 @@ where
     }
 }
 
+// TODO: Capacity panics
 impl<T, N: Uint, A> ArrApi<A>
 where
     A: Array<Item = T, Length = N>,

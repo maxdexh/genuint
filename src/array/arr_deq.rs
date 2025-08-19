@@ -1,4 +1,11 @@
-use core::{marker::PhantomData, mem::MaybeUninit};
+use core::{
+    marker::PhantomData,
+    mem::{ManuallyDrop, MaybeUninit},
+    ops::Range,
+    ptr::NonNull,
+};
+
+use crate::utils;
 
 use super::{ArrApi, ArrDeq, Array, extra::*};
 
@@ -16,9 +23,9 @@ impl<A: Array<Item = T>, T> Drop for ArrDeqDrop<A, T> {
 }
 
 pub struct ArrDeqRepr<A: Array> {
-    head: usize,
-    len: usize,
-    arr: ArrApi<MaybeUninit<A>>,
+    pub head: usize,
+    pub len: usize,
+    pub arr: ArrApi<MaybeUninit<A>>,
 }
 macro_rules! repr {
     ($self:expr) => {
@@ -26,16 +33,63 @@ macro_rules! repr {
     };
 }
 
+const fn wrapping_idx(logical: usize, cap: usize) -> usize {
+    debug_assert!(logical == 0 || logical < 2 * cap);
+    let phys = if logical >= cap {
+        logical - cap
+    } else {
+        logical
+    };
+    debug_assert!(phys == 0 || phys < cap);
+    phys
+}
+
+const fn phys_idx_of(idx: usize, head: usize, cap: usize) -> usize {
+    // TODO: Overflow explain
+    wrapping_idx(head.wrapping_add(idx), cap)
+}
+const fn slice_ranges(head: usize, len: usize, cap: usize) -> (Range<usize>, Range<usize>) {
+    debug_assert!(head <= cap);
+    debug_assert!(len <= cap);
+    if len == 0 {
+        (0..0, 0..0)
+    } else {
+        let after_head = cap - head;
+        if after_head >= len {
+            (head..head + len, 0..0)
+        } else {
+            let tail_len = len - after_head;
+            (head..cap, 0..tail_len)
+        }
+    }
+}
+const unsafe fn as_nonnull_slices<T>(
+    buf: NonNull<[MaybeUninit<T>]>,
+    head: usize,
+    len: usize,
+) -> (NonNull<[T]>, NonNull<[T]>) {
+    let (lhs, rhs) = slice_ranges(head, len, buf.len());
+    unsafe {
+        (
+            utils::subslice_nonnull(buf, lhs),
+            utils::subslice_nonnull(buf, rhs),
+        )
+    }
+}
+
 impl<A: Array<Item = T>, T> ArrDeq<A> {
-    const fn check_cap() -> usize {
+    const fn get_cap() -> usize {
         arr_len::<A>()
     }
     const fn phys_idx_of(&self, idx: usize) -> usize {
-        wrapping_idx(self.head().wrapping_add(idx), Self::check_cap())
+        phys_idx_of(idx, repr!(self).head, self.capacity())
     }
-    const fn phys_idx_of_back(&self, idx: usize) -> usize {
-        let cap = Self::check_cap();
-        wrapping_idx(self.head().wrapping_sub(idx).wrapping_add(cap), cap)
+    const fn tail(&self) -> usize {
+        self.phys_idx_of(self.len())
+    }
+    const fn phys_idx_before_head(&self, idx: usize) -> usize {
+        let cap = self.capacity();
+        wrapping_idx(repr!(self).head.wrapping_sub(idx).wrapping_add(cap), cap)
     }
     const unsafe fn phys_read(&self, idx: usize) -> T {
         unsafe { repr!(self).arr.as_slice()[idx].assume_init_read() }
@@ -43,15 +97,29 @@ impl<A: Array<Item = T>, T> ArrDeq<A> {
     const unsafe fn virt_read(&self, idx: usize) -> T {
         unsafe { self.phys_read(self.phys_idx_of(idx)) }
     }
-    const fn head(&self) -> usize {
-        repr!(self).head
-    }
 }
 
+// TODO: Capacity panics
 impl<A: Array<Item = T>, T> ArrDeq<A> {
-    const unsafe fn from_repr(repr: ArrDeqRepr<A>) -> Self {
+    const fn into_repr(self) -> ArrDeqRepr<A> {
+        let this = ManuallyDrop::new(self);
+        let repr = &repr!(const_util::mem::man_drop_ref(&this));
+        // SAFETY: Known safe way of destructuring in `const fn`
+        unsafe { core::ptr::read(repr) }
+    }
+
+    pub(crate) const unsafe fn from_repr(repr: ArrDeqRepr<A>) -> Self {
         Self(ArrDeqDrop(repr, PhantomData), PhantomData)
     }
+
+    /// Creates a new empty [`ArrDeq`].
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// assert_eq!(ArrDeq::<[i32; 20]>::new(), []);
+    /// ```
     pub const fn new() -> Self {
         unsafe {
             Self::from_repr(ArrDeqRepr {
@@ -61,6 +129,17 @@ impl<A: Array<Item = T>, T> ArrDeq<A> {
             })
         }
     }
+
+    /// Creates a full [`ArrDeq<A>`] from an instance of `A`.
+    ///
+    /// The resulting deque will be contiguous.
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// assert_eq!(ArrDeq::full([1; 20]), [1; 20]);
+    /// ```
     pub const fn full(full: A) -> Self {
         unsafe {
             Self::from_repr(ArrDeqRepr {
@@ -70,21 +149,99 @@ impl<A: Array<Item = T>, T> ArrDeq<A> {
             })
         }
     }
+
+    /// Returns the capacity of the deque, i.e. [`A::Length`](Array::Length) as a [`usize`].
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// assert_eq!(ArrDeq::<[i32; 20]>::new().capacity(), 20);
+    /// ```
+    pub const fn capacity(&self) -> usize {
+        Self::get_cap()
+    }
+
+    /// Returns the current number of initialized elements.
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// assert_eq!(ArrDeq::<[i32; 20]>::new().len(), 0);
+    /// assert_eq!(ArrDeq::full([1; 20]).len(), 20);
+    /// ```
     pub const fn len(&self) -> usize {
         repr!(self).len
     }
+
+    /// Checks whether the deque is empty.
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// assert_eq!(ArrDeq::<[i32; 20]>::new().is_empty(), true);
+    /// assert_eq!(ArrDeq::full([1; 20]).is_empty(), false);
+    /// ```
     pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
+    /// Checks whether the deque is full.
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// assert_eq!(ArrDeq::<[i32; 20]>::new().is_full(), false);
+    /// assert_eq!(ArrDeq::full([1; 20]).is_full(), true);
+    /// ```
+    pub const fn is_full(&self) -> bool {
+        self.len() >= self.capacity()
+    }
+
+    /// Removes and returns the first element of the deque.
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::{array::*, consts::*};
+    ///
+    /// assert_eq!(
+    ///     ArrDeq::<[i32; 20]>::new().pop_front(),
+    ///     None
+    /// );
+    /// assert_eq!(
+    ///     ArrDeq::full(Arr::<_, U20>::from_fn(|i| i)).pop_front(),
+    ///     Some(0)
+    /// );
+    /// ```
     pub const fn pop_front(&mut self) -> Option<T> {
         if self.is_empty() {
             return None;
         }
-        repr!(self).len -= 1;
-        let popped = repr!(self).head;
-        repr!(self).head = self.phys_idx_of(1);
-        Some(unsafe { self.phys_read(popped) })
+        let new_head = self.phys_idx_of(1);
+        let ArrDeqRepr { head, len, arr: _ } = &mut repr!(self);
+        *len -= 1;
+        let old_head = core::mem::replace(head, new_head);
+        Some(unsafe { self.phys_read(old_head) })
     }
+
+    /// Removes and returns the last element of the deque.
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::{array::*, consts::*};
+    ///
+    /// assert_eq!(
+    ///     ArrDeq::<[i32; 20]>::new().pop_back(),
+    ///     None
+    /// );
+    /// assert_eq!(
+    ///     ArrDeq::full(Arr::<_, U20>::from_fn(|i| i)).pop_back(),
+    ///     Some(19)
+    /// );
+    /// ```
     pub const fn pop_back(&mut self) -> Option<T> {
         if self.is_empty() {
             return None;
@@ -92,9 +249,167 @@ impl<A: Array<Item = T>, T> ArrDeq<A> {
         repr!(self).len -= 1;
         Some(unsafe { self.virt_read(repr!(self).len) })
     }
-    pub const fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        todo!()
+
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// let mut deq = ArrDeq::<[_; 20]>::new();
+    /// deq.push_front(1);
+    /// deq.push_front(2);
+    /// assert_eq!(deq, [2, 1]);
+    /// ```
+    #[track_caller]
+    pub const fn push_front(&mut self, item: T) {
+        const_util::result::expect_ok(
+            self.try_push_front(item),
+            "Call to `push_front` on full `ArrDeq`",
+        )
     }
+
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// let mut deq = ArrDeq::<[_; 20]>::new();
+    /// deq.push_back(1);
+    /// deq.push_back(2);
+    /// assert_eq!(deq, [1, 2]);
+    /// ```
+    #[track_caller]
+    pub const fn push_back(&mut self, item: T) {
+        const_util::result::expect_ok(
+            self.try_push_back(item),
+            "Call to `push_back` on full `ArrDeq`",
+        )
+    }
+
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// let mut deq = ArrDeq::<[_; 2]>::new();
+    /// assert_eq!(deq.try_push_front(1), Ok(()));
+    /// assert_eq!(deq.try_push_front(2), Ok(()));
+    /// assert_eq!(deq.try_push_front(3), Err(3));
+    /// assert_eq!(deq, [2, 1]);
+    /// ```
+    pub const fn try_push_front(&mut self, item: T) -> Result<(), T> {
+        match self.is_full() {
+            true => Err(item),
+            false => Ok({
+                let new_head = self.phys_idx_before_head(1);
+                let ArrDeqRepr { head, len, arr } = &mut repr!(self);
+                arr.as_mut_slice()[new_head].write(item);
+                *head = new_head;
+                *len += 1;
+            }),
+        }
+    }
+
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// let mut deq = ArrDeq::<[_; 2]>::new();
+    /// assert_eq!(deq.try_push_back(1), Ok(()));
+    /// assert_eq!(deq.try_push_back(2), Ok(()));
+    /// assert_eq!(deq.try_push_back(3), Err(3));
+    /// assert_eq!(deq, [1, 2]);
+    /// ```
+    pub const fn try_push_back(&mut self, item: T) -> Result<(), T> {
+        match self.is_full() {
+            true => Err(item),
+            false => Ok({
+                let tail = self.tail();
+                let ArrDeqRepr { head: _, len, arr } = &mut repr!(self);
+                arr.as_mut_slice()[tail].write(item);
+                *len += 1;
+            }),
+        }
+    }
+
+    /// Returns a reference to the elements as a pair of slices.
+    ///
+    /// If the deque is contiguous, then the right slice will be empty.
+    /// The left slice is empty only when the entire deque is empty.
+    ///
+    /// Note that the exact distribution between left and right are not guaranteed
+    /// unless the length of the deque is 1 or less, or the deque is contiguous
+    /// according to an API.
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// let mut deq = ArrDeq::<[_; 20]>::new();
+    /// deq.push_front(1);
+    /// deq.push_back(2);
+    /// let (lhs, rhs) = deq.as_slices();
+    /// assert_eq!(lhs.iter().chain(rhs).next(), Some(&1));
+    /// assert_eq!(lhs.iter().chain(rhs).next_back(), Some(&2));
+    /// ```
+    pub const fn as_slices(&self) -> (&[T], &[T]) {
+        let ArrDeqRepr { head, len, ref arr } = repr!(self);
+        unsafe {
+            let (lhs, rhs) = as_nonnull_slices(
+                NonNull::new_unchecked((&raw const *arr.as_slice()).cast_mut()),
+                head,
+                len,
+            );
+            (lhs.as_ref(), rhs.as_ref())
+        }
+    }
+
+    /// Returns a mutable reference to the elements as a pair of slices.
+    ///
+    /// If the deque is contiguous, then the right slice will be empty.
+    /// The left slice is empty only when the entire deque is empty.
+    ///
+    /// Note that the exact distribution between left and right are not guaranteed
+    /// unless the length of the deque is 1 or less, or the deque is contiguous
+    /// according to an API.
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// let mut deq = ArrDeq::<[_; 20]>::new();
+    /// deq.push_front(1);
+    /// deq.push_back(2);
+    /// let (lhs, rhs) = deq.as_mut_slices();
+    /// assert_eq!(lhs.iter_mut().chain(&mut *rhs).next(), Some(&mut 1));
+    /// assert_eq!(lhs.iter_mut().chain(rhs).next_back(), Some(&mut 2));
+    /// ```
+    pub const fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
+        let ArrDeqRepr {
+            head,
+            len,
+            ref mut arr,
+        } = repr!(self);
+        unsafe {
+            let (mut lhs, mut rhs) = as_nonnull_slices(
+                NonNull::new_unchecked(arr.as_mut_slice()), //
+                head,
+                len,
+            );
+            (lhs.as_mut(), rhs.as_mut())
+        }
+    }
+
+    /// Rotates the underlying array to make the initialized part contiguous.
+    /// Also returns a mutable slice of the now contiguous elements.
+    ///
+    /// After calling this method, [`Self::as_slices`] and [`Self::as_mut_slices`] are guaranteed
+    /// to return an empty slice as the right tuple element.
+    ///
+    /// ```
+    /// use generic_uint::array::*;
+    /// let mut deq = ArrDeq::<[i32; 20]>::new();
+    /// for i in 0..3 {
+    ///     deq.push_back(i);
+    ///     deq.push_front(10 - i);
+    /// }
+    /// assert_eq!(deq.make_contiguous(), [8, 9, 10, 0, 1, 2]);
+    /// assert_eq!(deq.as_slices(), ([8, 9, 10, 0, 1, 2].as_slice(), [].as_slice()));
+    /// ```
+    #[inline]
     pub const fn make_contiguous(&mut self) -> &mut [T] {
         const fn rotate_left<T>(slice: &mut [T], dist: usize) {
             const fn reverse<T>(slice: &mut [T]) {
@@ -105,13 +420,13 @@ impl<A: Array<Item = T>, T> ArrDeq<A> {
                 }
             }
             let (lhs, rhs) = slice.split_at_mut(dist);
-            // EFGHIJKLMNABCD
+            // EFGHIJKLMN^ABCD
             reverse(lhs);
-            // NMLKJIHGFEABCD
+            // NMLKJIHGFE^ABCD
             reverse(rhs);
-            // NMLKJIHGFEDBCA
+            // NMLKJIHGFE^DBCA
             reverse(slice);
-            // ABCDEFGHIJKLMN
+            // ABCDEFGHIJ^KLMN
         }
 
         let ArrDeqRepr { head, len: _, arr } = &mut repr!(self);
@@ -119,4 +434,27 @@ impl<A: Array<Item = T>, T> ArrDeq<A> {
         *head = 0;
         self.as_mut_slices().0
     }
+
+    /// Transfers the elements into an [`ArrVec`](crate::array::ArrVec).
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// let mut deq = ArrDeq::<[_; 20]>::new();
+    /// deq.push_front(2);
+    /// deq.push_front(1);
+    /// let mut vec = deq.into_arr_vec();
+    /// assert_eq!(vec, [1, 2]);
+    /// ```
+    pub const fn into_arr_vec(mut self) -> crate::array::ArrVec<A> {
+        use crate::array::*;
+
+        self.make_contiguous();
+        let ArrDeqRepr { len, arr, head: _ } = self.into_repr();
+        // SAFETY: `head == 0`, so the first `len` elements are initialized.
+        unsafe { ArrVec::from_repr(arr_vec::ArrVecRepr { arr, len }) }
+    }
 }
+
+mod core_impl;
