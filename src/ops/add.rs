@@ -1,7 +1,7 @@
 use super::*;
 
 #[apply(lazy)]
-pub type IncIfL<N, C> = Tern<C, AppendL<IncIfL<H<N>, P<N>>, BitNot<P<N>>>, N>;
+pub type IncIfL<N, C = U1> = Tern<C, AppendL<IncIfL<H<N>, P<N>>, BitNot<P<N>>>, N>;
 
 #[apply(lazy)]
 // This is just binary addition.

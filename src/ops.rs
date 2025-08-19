@@ -6,14 +6,14 @@ use generic_uint_proc::apply;
 
 macro_rules! lazy {
     (
-        ()
+        $(())?
         $(#[$($attr:tt)*])*
         pub type $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty;
     ) => {
         $(#[$($attr)*])*
         pub struct $name<$($param $(= $def)?),*>($($param),*);
         impl<$($param: $crate::ToUint),*> $crate::ToUint for $name<$($param),*> {
-            type ToUint = $val;
+            type ToUint = $crate::uint::From<$val>;
         }
     };
 }
@@ -35,7 +35,7 @@ pub(crate) use __make_opaque;
 
 macro_rules! opaque {
     (
-        ()
+        $(())?
         $(#[$($attr:tt)*])*
         pub type $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty;
     ) => {
@@ -48,12 +48,12 @@ macro_rules! opaque {
 
 macro_rules! test_op {
     (
-        ($name:ident: $ex:expr)
+        ($name:ident: $($args:tt)*)
         $(#[$($attr:tt)*])*
         $v:vis $kw:ident $tname:ident<$($param:ident $(= $def:ty)?),* $(,)?> $($rest:tt)*
     ) => {
         #[cfg(test)]
-        $crate::ops::testing::test_op! { $name: $($param)*, $tname<$($param),*>, $ex }
+        $crate::ops::testing::test_op! { $name: $($param)*, $tname<$($param),*>, $($args)* }
 
         $(#[$($attr)*])*
         $v $kw $tname<$($param $(= $def)?),*> $($rest)*
@@ -129,8 +129,11 @@ pub type SatDecForTest<N> = uint::From<satdec::SatDecIfL<N>>;
 #[cfg(test)]
 mod testing;
 
-mod bitwise;
-pub use bitwise::{BitAnd, BitOr, BitXor};
+mod bitmath;
+pub use bitmath::{BitAnd, BitOr, BitXor, CountOnes};
+
+mod log;
+pub use log::{BaseLen, ILog};
 
 mod add;
 pub use add::Add;

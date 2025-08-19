@@ -54,3 +54,19 @@ pub type BitXorL<L, R> = Tern<
 #[apply(opaque)]
 #[apply(test_op! test_bit_xor: L ^ R)]
 pub type BitXor<L, R> = BitXorL<L, R>;
+
+#[apply(lazy)]
+pub type CountOnesL<N> = Tern<
+    //
+    N,
+    add::IncIfL<
+        //
+        CountOnesL<H<N>>,
+        P<N>,
+    >,
+    U0,
+>;
+
+#[apply(opaque)]
+#[apply(test_op! test_count_ones: N.count_ones().into())]
+pub type CountOnes<N> = CountOnesL<N>;

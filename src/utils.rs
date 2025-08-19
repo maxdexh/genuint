@@ -20,11 +20,3 @@ pub const unsafe fn exact_transmute<Src, Dst>(src: Src) -> Dst {
     debug_assert!(size_of::<Src>() == size_of::<Dst>());
     unsafe { core::mem::transmute_copy(&core::mem::ManuallyDrop::new(src)) }
 }
-
-pub const fn reverse<T>(slice: &mut [T]) {
-    let mut i = 0;
-    while i < slice.len() / 2 {
-        slice.swap(i, slice.len() - i - 1);
-        i += 1;
-    }
-}

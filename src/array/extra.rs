@@ -13,7 +13,7 @@ pub(crate) const fn into_canon<A: Array>(arr: A) -> CanonArr<A::Item, A::Length>
     arr_convert(arr)
 }
 
-pub(crate) const fn phys_idx(logical: usize, cap: usize) -> usize {
+pub(crate) const fn wrapping_idx(logical: usize, cap: usize) -> usize {
     debug_assert!(logical == 0 || logical < 2 * cap);
     let phys = if logical >= cap {
         logical - cap

@@ -18,7 +18,7 @@ pub type SubIfGeL<L, R> = Tern<
 //       = URemIn(L, R) % R
 pub type URemInSL<L, R> = AppendL<
     //
-    RemL<H<L>, R>,
+    RemUncheckedL<H<L>, R>,
     P<L>,
 >;
 
@@ -34,59 +34,46 @@ pub type URemL<L, R> = Tern<
 // H % R <= R - 1
 // thus URem(L, R) = 2 * (H % R) + P <= 2 * (H % R) + 1 <= 2 * R - 1
 // thus L % R = URem(L, R) % R = SubIfGe(URem(L, R), R)
-pub type RemL<L, R> = SubIfGeL<
+pub type RemUncheckedL<L, R> = SubIfGeL<
     //
     URemL<L, R>,
     R,
 >;
 
 #[apply(lazy)]
-pub type DivL<L, R> = Tern<
+pub type DivUncheckedL<L, R> = Tern<
     //
     L,
     AppendL<
         //
-        DivL<Half<L>, R>,
+        DivUncheckedL<Half<L>, R>,
         BitNot<cmp::LtL<URemL<L, R>, R>>,
     >,
     U0,
 >;
 
 #[apply(lazy)]
-pub type CheckedRemL<L, R> = Tern<R, RemL<L, R>, CheckedRemL<L, R>>;
+pub type RemL<L, R> = Tern<R, RemUncheckedL<L, R>, RemL<L, R>>;
 
 #[apply(lazy)]
-pub type CheckedDivL<L, R> = Tern<R, DivL<L, R>, CheckedDivL<L, R>>;
+pub type DivL<L, R> = Tern<R, DivUncheckedL<L, R>, DivL<L, R>>;
 
+/// Dividing by zero gives a "overflow while evaluating" error.
+///
+/// ```compile_fail
+/// use generic_uint::{ops::Rem, consts::*};
+/// const _: fn(Rem<U1, U0>) = |_| {};
+/// ```
 #[apply(opaque)]
-pub type Rem<L, R> = CheckedRemL<L, R>;
+#[apply(test_op! test_rem: L.checked_rem(R).unwrap_or(0), .., 1..)]
+pub type Rem<L, R> = RemL<L, R>;
 
+/// Dividing by zero gives a "overflow while evaluating" error.
+///
+/// ```compile_fail
+/// use generic_uint::{ops::Div, consts::*};
+/// const _: fn(Div<U1, U0>) = |_| {};
+/// ```
 #[apply(opaque)]
-pub type Div<L, R> = CheckedDivL<L, R>;
-
-#[cfg(any(test, doctest))]
-mod divrem_test {
-    //! Dividing by zero gives a "overflow while evaluating" error.
-    //!
-    //! ```compile_fail
-    //! use generic_uint::{ops::Div, consts::*};
-    //! const _: fn(Div<U1, U0>) = |_| {};
-    //! ```
-    //!
-    //! ```compile_fail
-    //! use generic_uint::{ops::Rem, consts::*};
-    //! const _: fn(Rem<U1, U0>) = |_| {};
-    //! ```
-
-    use super::*;
-
-    #[apply(lazy)]
-    pub type RemL<L, R> = Rem<L, R>;
-    #[apply(test_op! test_rem: L.checked_rem(R).unwrap_or(0))]
-    type RemOr0<L, R> = Tern<R, RemL<L, R>, U0>;
-
-    #[apply(lazy)]
-    pub type DivL<L, R> = Div<L, R>;
-    #[apply(test_op! test_div: L.checked_div(R).unwrap_or(0))]
-    type DivOr0<L, R> = Tern<R, DivL<L, R>, U0>;
-}
+#[apply(test_op! test_div: L.checked_div(R).unwrap_or(0), .., 1..)]
+pub type Div<L, R> = DivL<L, R>;

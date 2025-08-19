@@ -31,17 +31,20 @@ impl<A: Array<Item = T>, T> ArrDeq<A> {
         arr_len::<A>()
     }
     const fn phys_idx_of(&self, idx: usize) -> usize {
-        phys_idx(repr!(self).head.wrapping_add(idx), Self::check_cap())
+        wrapping_idx(self.head().wrapping_add(idx), Self::check_cap())
     }
     const fn phys_idx_of_back(&self, idx: usize) -> usize {
         let cap = Self::check_cap();
-        phys_idx(repr!(self).head.wrapping_sub(idx).wrapping_add(cap), cap)
+        wrapping_idx(self.head().wrapping_sub(idx).wrapping_add(cap), cap)
     }
     const unsafe fn phys_read(&self, idx: usize) -> T {
         unsafe { repr!(self).arr.as_slice()[idx].assume_init_read() }
     }
     const unsafe fn virt_read(&self, idx: usize) -> T {
         unsafe { self.phys_read(self.phys_idx_of(idx)) }
+    }
+    const fn head(&self) -> usize {
+        repr!(self).head
     }
 }
 
@@ -91,5 +94,29 @@ impl<A: Array<Item = T>, T> ArrDeq<A> {
     }
     pub const fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
         todo!()
+    }
+    pub const fn make_contiguous(&mut self) -> &mut [T] {
+        const fn rotate_left<T>(slice: &mut [T], dist: usize) {
+            const fn reverse<T>(slice: &mut [T]) {
+                let mut i = 0;
+                while i < slice.len() / 2 {
+                    slice.swap(i, slice.len() - i - 1);
+                    i += 1;
+                }
+            }
+            let (lhs, rhs) = slice.split_at_mut(dist);
+            // EFGHIJKLMNABCD
+            reverse(lhs);
+            // NMLKJIHGFEABCD
+            reverse(rhs);
+            // NMLKJIHGFEDBCA
+            reverse(slice);
+            // ABCDEFGHIJKLMN
+        }
+
+        let ArrDeqRepr { head, len: _, arr } = &mut repr!(self);
+        rotate_left(arr.as_mut_slice(), *head);
+        *head = 0;
+        self.as_mut_slices().0
     }
 }
