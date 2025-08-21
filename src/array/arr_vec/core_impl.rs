@@ -1,6 +1,6 @@
 use crate::array::*;
 
-impl<A: Array, U> PartialEq<[U]> for ArrVec<A>
+impl<A: Array, U> PartialEq<[U]> for ArrVecApi<A>
 where
     A::Item: PartialEq<U>,
 {
@@ -9,16 +9,16 @@ where
     }
 }
 
-impl<A: Array, T> PartialEq<ArrVec<A>> for [T]
+impl<A: Array, T> PartialEq<ArrVecApi<A>> for [T]
 where
     T: PartialEq<A::Item>,
 {
-    fn eq(&self, other: &ArrVec<A>) -> bool {
+    fn eq(&self, other: &ArrVecApi<A>) -> bool {
         self == other.as_slice()
     }
 }
 
-impl<A: Array, U, const N: usize> PartialEq<[U; N]> for ArrVec<A>
+impl<A: Array, U, const N: usize> PartialEq<[U; N]> for ArrVecApi<A>
 where
     A::Item: PartialEq<U>,
 {
@@ -27,16 +27,16 @@ where
     }
 }
 
-impl<A: Array, T, const N: usize> PartialEq<ArrVec<A>> for [T; N]
+impl<A: Array, T, const N: usize> PartialEq<ArrVecApi<A>> for [T; N]
 where
     T: PartialEq<A::Item>,
 {
-    fn eq(&self, other: &ArrVec<A>) -> bool {
+    fn eq(&self, other: &ArrVecApi<A>) -> bool {
         self == other.as_slice()
     }
 }
 
-impl<A: Array> core::fmt::Debug for ArrVec<A>
+impl<A: Array> core::fmt::Debug for ArrVecApi<A>
 where
     A::Item: core::fmt::Debug,
 {

@@ -32,21 +32,6 @@ where
         self.as_mut_slice()
     }
 }
-// TODO: Reconsider these, since they are fallible and arrays don't actually implement deref
-#[cfg(any())]
-impl<A: Array> core::ops::Deref for ArrApi<A> {
-    type Target = [A::Item];
-    fn deref(&self) -> &Self::Target {
-        self.as_slice()
-    }
-}
-#[cfg(any())]
-impl<A: Array> core::ops::DerefMut for ArrApi<A> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.as_mut_slice()
-    }
-}
-
 impl<'a, T, A> TryFrom<&'a [T]> for &'a ArrApi<A>
 where
     A: Array<Item = T>,
@@ -163,7 +148,7 @@ where
 
         let buf = Arc::get_mut(&mut arc).unwrap();
         *from_mut_slice(buf).unwrap() = core::mem::MaybeUninit::new(value);
-
+        // SAFETY: The elements were initialized
         unsafe { arc.assume_init() }
     }
 }
@@ -175,12 +160,12 @@ where
     fn from(value: ArrApi<A>) -> Self {
         use alloc::rc::Rc;
 
-        let mut arc = Self::new_uninit_slice(arr_len::<A>());
+        let mut rc = Self::new_uninit_slice(arr_len::<A>());
 
-        let buf = Rc::get_mut(&mut arc).unwrap();
+        let buf = Rc::get_mut(&mut rc).unwrap();
         *from_mut_slice(buf).unwrap() = core::mem::MaybeUninit::new(value);
-
-        unsafe { arc.assume_init() }
+        // SAFETY: The elements were initialized
+        unsafe { rc.assume_init() }
     }
 }
 #[cfg(feature = "alloc")]
@@ -191,7 +176,7 @@ where
     fn from(value: ArrApi<A>) -> Self {
         let mut out = Self::new_uninit_slice(arr_len::<A>());
         *from_mut_slice(&mut out).unwrap() = core::mem::MaybeUninit::new(value);
-
+        // SAFETY: The elements were initialized
         unsafe { out.assume_init() }
     }
 }
@@ -280,8 +265,10 @@ where
 {
     type Error = alloc::boxed::Box<[T]>;
     fn try_from(value: alloc::boxed::Box<[T]>) -> Result<Self, Self::Error> {
+        use alloc::boxed::Box;
         if value.len() == arr_len::<A>() {
-            Ok(unsafe { Self::from_raw(alloc::boxed::Box::into_raw(value).cast()) })
+            // SAFETY: Length is correct; casting slices to arrays this way is valid
+            Ok(unsafe { Box::from_raw(Box::into_raw(value).cast()) })
         } else {
             Err(value)
         }
@@ -295,6 +282,8 @@ where
     type Error = alloc::vec::Vec<T>;
     fn try_from(mut value: alloc::vec::Vec<T>) -> Result<Self, Self::Error> {
         if value.len() == arr_len::<A>() {
+            // SAFETY: set_len(0) is always safe and effectively forgets the elements,
+            // ensuring that the drop of `Vec` only frees the allocation.
             unsafe {
                 value.set_len(0);
                 Ok(core::ptr::read(value.as_ptr().cast()))

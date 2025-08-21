@@ -82,7 +82,7 @@ impl<H: UintPos, P: UintBit> PrimOps for A<H, P> {
 
 /// # Safety
 /// Internal API
-pub unsafe trait ArrBound<T, N: Uint> {
+pub trait ArrBound<T, N: Uint> {
     type Arr;
 }
 #[repr(C)]
@@ -91,6 +91,7 @@ pub struct ArrBisect<A, P>([A; 2], P);
 
 #[repr(transparent)]
 pub struct ArrImpl<T, N: Uint, Bound: ArrBound<T, N>>(Bound::Arr);
+// SAFETY: repr(transparent); `Bound::Arr` was recursively constructed to be a valid implementor
 unsafe impl<T, N: Uint, Bound: ArrBound<T, N>> Array for ArrImpl<T, N, Bound> {
     type Item = T;
     type Length = N;
@@ -121,7 +122,7 @@ macro_rules! gen_arr_internals {
         mod bounds {
             $(pub struct $name;)*
         }
-        $(unsafe impl<T: $($($bound)+)?, N: Uint> ArrBound<T, N> for bounds::$name {
+        $(impl<T: $($($bound)+)?, N: Uint> ArrBound<T, N> for bounds::$name {
             type Arr = <N::__Ops as Arrays>::$name<T>;
         })*
 
@@ -132,7 +133,7 @@ macro_rules! gen_arr_internals {
 }
 
 gen_arr_internals! {
-    Arr[]
+    Arr[Sized]
     CopyArr[Copy]
 }
 

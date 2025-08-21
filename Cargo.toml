@@ -14,6 +14,5 @@ generic-uint-proc = { path = "generic-uint-proc" }
 
 
 [features]
-uint-panic-values = []
 alloc = []
 std = ["alloc"]

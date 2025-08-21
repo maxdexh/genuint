@@ -2,24 +2,32 @@ use core::mem::{ManuallyDrop, MaybeUninit};
 
 use crate::{Uint, ops};
 
-use crate::array::{ArrApi, ArrVec, Array, extra::*};
+use crate::array::{ArrApi, ArrVecApi, Array, extra::*};
 
 // Helpers
-impl<T, N: Uint, A> ArrApi<A>
-where
-    A: Array<Item = T, Length = N>,
-{
-    pub(crate) const fn length() -> usize {
-        arr_len::<Self>()
-    }
-}
+impl<T, N: Uint, A> ArrApi<A> where A: Array<Item = T, Length = N> {}
 
 // TODO: Capacity panics
 impl<T, N: Uint, A> ArrApi<A>
 where
     A: Array<Item = T, Length = N>,
 {
+    /// Returns the length that arrays of this type have.
+    ///
+    /// # Panics
+    /// If the length of this type exceeds [`usize::MAX`].
+    #[track_caller]
+    pub const fn length() -> usize {
+        arr_len::<Self>()
+    }
+
     /// Creates a new [`ArrApi`] to wrap the given array.
+    ///
+    /// ```
+    /// use generic_uint::array::*;
+    ///
+    /// assert_eq!(ArrApi::new([1, 2, 3]), [1, 2, 3]);
+    /// ```
     pub const fn new(inner: A) -> Self {
         Self { inner }
     }
@@ -46,9 +54,9 @@ where
     /// ```
     /// use generic_uint::{array::*, consts::*};
     /// let arr = Arr::<_, U5>::from_fn(|i| i * i);
-    /// let into_arrd: CopyArr<_, _> = arr.into_arr();
-    /// let into_arrd_copy = into_arrd;
-    /// assert_eq!(into_arrd_copy, into_arrd);
+    /// let converted: CopyArr<_, _> = arr.into_arr();
+    /// let converted_copy = converted;
+    /// assert_eq!(converted, converted_copy);
     /// ```
     ///
     /// Converting a small `ArrApi` into a builtin array:
@@ -83,7 +91,8 @@ where
     /// first.
     pub const fn try_into_arr<Dst: Array<Item = T>>(self) -> Result<Dst, Self> {
         match crate::uint::cmp::<N, Dst::Length>().is_eq() {
-            true => Ok(unsafe { arr_convert_unchecked(self) }),
+            // SAFETY: Length equality was checked
+            true => Ok(unsafe { arr_convert_no_len_check(self) }),
             false => Err(self),
         }
     }
@@ -115,7 +124,8 @@ where
     #[track_caller]
     pub const fn assert_len_eq<M: Uint>(self) -> ArrApi<ImplArr![T; M]> {
         assert_same_arr_len::<Self, CanonArr<T, M>>();
-        unsafe { arr_convert_unchecked::<_, CanonArr<T, M>>(self) }
+        // SAFETY: Length equality was checked
+        unsafe { arr_convert_no_len_check::<_, CanonArr<T, M>>(self) }
     }
 
     /// Asserts in a `const` block that the length of the array is equal to the paramter and returns
@@ -158,7 +168,8 @@ where
         const {
             assert_same_arr_len::<Self, CanonArr<T, M>>();
         }
-        unsafe { arr_convert_unchecked::<_, CanonArr<_, _>>(self) }
+        // SAFETY: Length equality was checked
+        unsafe { arr_convert_no_len_check::<_, CanonArr<_, _>>(self) }
     }
 
     /// [`core::array::from_fn`], but as a method.
@@ -170,7 +181,7 @@ where
     /// assert_eq!(arr, [0, 1, 4, 9]);
     /// ```
     pub fn from_fn<F: FnMut(usize) -> T>(mut f: F) -> Self {
-        let mut out = ArrVec::new();
+        let mut out = ArrVecApi::new();
         while !out.is_full() {
             out.push(f(out.len()));
         }
@@ -207,6 +218,7 @@ where
             *first = MaybeUninit::new(item);
             buf = rest;
         }
+        // SAFETY: All elements have been initialized
         unsafe { out.inner.assume_init() }
     }
 
@@ -235,6 +247,7 @@ where
             *first = MaybeUninit::new(C::VALUE);
             buf = rest;
         }
+        // SAFETY: All elements have been initialized
         unsafe { out.inner.assume_init() }
     }
 
@@ -328,6 +341,16 @@ where
     A: Array<Item = MaybeUninit<T>, Length = N>,
 {
     pub const fn resize_uninit<M: Uint>(self) -> ArrApi<MaybeUninit<ImplArr![T; M]>> {
-        unsafe { crate::utils::union_transmute::<_, ArrApi<MaybeUninit<CanonArr<_, _>>>>(self) }
+        // SAFETY:
+        // - if N >= M, then transmuting through a union forgets `N - M` elements,
+        //   which is always safe.
+        // - if N <= M, then transmuting through a union fills the rest of the array with
+        //   uninitialized memory, which is valid in this context.
+        unsafe {
+            crate::utils::union_transmute::<
+                Self, //
+                ArrApi<MaybeUninit<CanonArr<_, _>>>,
+            >(self)
+        }
     }
 }

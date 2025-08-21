@@ -4,13 +4,13 @@ use crate::array::*;
 pub struct ArrDrop<T>(pub T);
 
 impl<A: Array> ArrDrop<A> {
-    pub const fn enter(self) -> ArrDrop<ArrVec<A>> {
+    pub const fn enter(self) -> ArrDrop<ArrVecApi<A>> {
         // SAFETY: repr(transparent)
         let inner: A = unsafe { crate::utils::exact_transmute(self) };
-        ArrDrop(ArrVec::full(inner))
+        ArrDrop(ArrVecApi::full(inner))
     }
 }
-impl<A: Array> ArrDrop<ArrVec<A>> {
+impl<A: Array> ArrDrop<ArrVecApi<A>> {
     pub const fn enter(self) -> Self {
         self
     }
@@ -25,7 +25,7 @@ impl<A: Array> ArrDrop<ArrVec<A>> {
         core::mem::forget(self);
     }
 }
-impl<A: Array> ArrDrop<ArrDeq<A>> {
+impl<A: Array> ArrDrop<ArrDeqApi<A>> {
     pub const fn enter(self) -> Self {
         self
     }

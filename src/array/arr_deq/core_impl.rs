@@ -1,6 +1,6 @@
-use crate::array::{ArrDeq, Array};
+use crate::array::{ArrDeqApi, Array};
 
-impl<A: Array, U> PartialEq<[U]> for ArrDeq<A>
+impl<A: Array, U> PartialEq<[U]> for ArrDeqApi<A>
 where
     A::Item: PartialEq<U>,
 {
@@ -13,11 +13,11 @@ where
     }
 }
 
-impl<A: Array, T> PartialEq<ArrDeq<A>> for [T]
+impl<A: Array, T> PartialEq<ArrDeqApi<A>> for [T]
 where
     T: PartialEq<A::Item>,
 {
-    fn eq(&self, other: &ArrDeq<A>) -> bool {
+    fn eq(&self, other: &ArrDeqApi<A>) -> bool {
         self.len() == other.len() && {
             let (lhs, rhs) = other.as_slices();
             let (lhso, rhso) = self.split_at(lhs.len());
@@ -26,7 +26,7 @@ where
     }
 }
 
-impl<A: Array, U, const N: usize> PartialEq<[U; N]> for ArrDeq<A>
+impl<A: Array, U, const N: usize> PartialEq<[U; N]> for ArrDeqApi<A>
 where
     A::Item: PartialEq<U>,
 {
@@ -35,16 +35,16 @@ where
     }
 }
 
-impl<A: Array, T, const N: usize> PartialEq<ArrDeq<A>> for [T; N]
+impl<A: Array, T, const N: usize> PartialEq<ArrDeqApi<A>> for [T; N]
 where
     T: PartialEq<A::Item>,
 {
-    fn eq(&self, other: &ArrDeq<A>) -> bool {
+    fn eq(&self, other: &ArrDeqApi<A>) -> bool {
         self.as_slice() == other
     }
 }
 
-impl<A: Array> core::fmt::Debug for ArrDeq<A>
+impl<A: Array> core::fmt::Debug for ArrDeqApi<A>
 where
     A::Item: core::fmt::Debug,
 {

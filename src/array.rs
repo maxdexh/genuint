@@ -10,10 +10,10 @@ use core::marker::PhantomData;
 /// 2. `Self` has the same layout and ownership semantics as `[Item; to_usize::<Length>().unwrap()]`.
 ///    Even if `Length` exceeds the maximum `usize`, it still must behave *as if* it had
 ///    ownership over exactly `Length` items, in particular with respect to [`Drop`] implementations.
+///     - Even for `ZST`s, the layout requirement still includes the alignment of an
+///       array, which is always the same as that of the item.
 ///     - Note that the layout requirements make it impossible to construct an array of size
 ///       greater than [`isize::MAX`] unless `Item` (and therefore `Self`) is a ZST.
-///     - Note that even for `ZST`s, the layout requirement still includes the alignment of an
-///       array, which is always the same as that of the item.
 /// 3. `Self` must be a `repr(transparent)` or `repr(C)` struct consisting only `Item`, arrays
 ///    of `Item`, arrays of arrays of `Item`, etc.
 ///    It also must contain at least one field of this kind. Even empty array types must have at
@@ -22,7 +22,9 @@ use core::marker::PhantomData;
 ///       Instead, an array wrapped in [`ManuallyDrop`] is considered an array of [`ManuallyDrop`].
 ///     - An array wrapped in [`MaybeUninit`] is considered an array of [`MaybeUninit`]
 ///     - This may be extended to other wrappers in the future where it makes sense.
-///
+///     - Note that this implies that for any two array implementors `A` and `B`, if `A::Item` can
+///       be safely casted/transmuted to `B::Item` and `A::Length == B::Length`, then so can `A`
+///       to `B`.
 ///
 /// [`ManuallyDrop`]: core::mem::ManuallyDrop
 /// [`MaybeUninit`]: core::mem::MaybeUninit
@@ -74,16 +76,29 @@ mod extra_impl;
 #[repr(transparent)]
 pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item> {
     pub inner: A,
-    // TODO: Should we have a phantom field here?
-    // _phantom: PhantomData<[T; 0]>,
 }
 
 mod arr_vec;
 
 /// A wrapper for a [`MaybeUninit`](core::mem::MaybeUninit) array that acts as a [`Vec`]
 /// (with limited capacity), as well as a drop guard for the initialized items.
+///
+/// # Drop implementation
+/// This type currently has drop glue that does nothing except drop its elements, regardless
+/// of whether the item type needs to be dropped.
+/// This may be annoying in some `const` code as there is currently no way to make the `Drop`
+/// implementation `const` for item types that can be dropped in `const`.
+///
+/// These workarounds exist:
+/// - Using [`drop_items`]/[`assert_empty`](Self::assert_empty) if it's just a local variable
+///   that needs to be dropped.
+/// - Wrapping this type in [`ManuallyDrop`](core::mem::ManuallyDrop) if the item type is known
+///   to have no drop glue. The contents of [`ManuallyDrop`](core::mem::ManuallyDrop) can be
+///   accessed in `const` using [`const_util::mem::man_drop_mut`].
+/// - Using [`Arr`]/[`CopyArr`] instead if the item type has a default value, or a layout niche
+///   with [`Option`].
 #[cfg_attr(not(doc), repr(transparent))]
-pub struct ArrVec<A: Array<Item = T>, T = <A as Array>::Item>(
+pub struct ArrVecApi<A: Array<Item = T>, T = <A as Array>::Item>(
     arr_vec::ArrVecDrop<A>,
     PhantomData<T>,
 );
@@ -93,13 +108,16 @@ mod arr_deq;
 /// A wrapper for a [`MaybeUninit`](core::mem::MaybeUninit) array that acts as a
 /// [`VecDeque`](std::collections::VecDeque) (with limited capacity), as well as
 /// a drop guard for the initialized items.
+///
+/// # Drop implementation
+/// See [`ArrVecApi#drop-implementation`]
 #[repr(transparent)]
-pub struct ArrDeq<A: Array<Item = T>, T = <A as Array>::Item>(
+pub struct ArrDeqApi<A: Array<Item = T>, T = <A as Array>::Item>(
     arr_deq::ArrDeqDrop<A>,
     PhantomData<T>,
 );
 
-/// Helper macro that drops an [`ArrApi`], [`ArrVec`] or [`ArrDeq`], including in
+/// Helper macro that drops an [`ArrApi`], [`ArrVecApi`] or [`ArrDeqApi`], including in
 /// const contexts, by dropping each of its items.
 ///
 /// Currently, dropping in const contexts is only possible if the item type does
