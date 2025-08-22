@@ -44,3 +44,13 @@ where
         write!(f, "{:?}", self.as_slice())
     }
 }
+
+impl<A: Array> Default for ArrVecApi<A> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<A: Array> type_const::DefaultConst for ArrVecApi<A> {
+    const DEFAULT: Self = Self::new();
+}

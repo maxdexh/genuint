@@ -1,3 +1,4 @@
+#![recursion_limit = "512"]
 #![cfg_attr(not(any(test, doc, feature = "std")), no_std)]
 #![warn(
     clippy::nursery,
@@ -22,6 +23,7 @@ pub trait ToUint {
 }
 
 pub mod array;
+pub mod capnum;
 pub mod consts;
 pub mod ops;
 pub mod uint;

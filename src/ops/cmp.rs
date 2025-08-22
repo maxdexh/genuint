@@ -60,12 +60,12 @@ pub type LtL<L, R> = Tern<
 pub type Lt<L, R> = LtL<L, R>;
 pub type Gt<L, R> = Lt<R, L>;
 
-#[apply(opaque)]
+#[apply(opaque! GeL)]
 pub type Ge<L, R> = BitNot<Lt<L, R>>;
 pub type Le<L, R> = Ge<L, R>;
 
-#[apply(opaque)]
-pub type Min<L, R> = Tern<Lt<L, R>, R, L>;
+#[apply(opaque! MinL)]
+pub type Min<L, R> = Tern<LtL<L, R>, R, L>;
 
-#[apply(opaque)]
-pub type Max<L, R> = Tern<Lt<L, R>, L, R>;
+#[apply(opaque! MaxL)]
+pub type Max<L, R> = Tern<LtL<L, R>, L, R>;

@@ -155,9 +155,9 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// ```
     /// use generic_uint::array::*;
     ///
-    /// assert_eq!(ArrDeqApi::full([1; 20]), [1; 20]);
+    /// assert_eq!(ArrDeqApi::new_full([1; 20]), [1; 20]);
     /// ```
-    pub const fn full(full: A) -> Self {
+    pub const fn new_full(full: A) -> Self {
         // SAFETY: All elements are initialized because we have a fully initialized array
         unsafe {
             Self::from_repr(ArrDeqRepr {
@@ -187,7 +187,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// use generic_uint::array::*;
     ///
     /// assert_eq!(ArrDeqApi::<[i32; 20]>::new().len(), 0);
-    /// assert_eq!(ArrDeqApi::full([1; 20]).len(), 20);
+    /// assert_eq!(ArrDeqApi::new_full([1; 20]).len(), 20);
     /// ```
     pub const fn len(&self) -> usize {
         repr!(self).len
@@ -200,7 +200,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// use generic_uint::array::*;
     ///
     /// assert_eq!(ArrDeqApi::<[i32; 20]>::new().is_empty(), true);
-    /// assert_eq!(ArrDeqApi::full([1; 20]).is_empty(), false);
+    /// assert_eq!(ArrDeqApi::new_full([1; 20]).is_empty(), false);
     /// ```
     pub const fn is_empty(&self) -> bool {
         self.len() == 0
@@ -213,7 +213,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// use generic_uint::array::*;
     ///
     /// assert_eq!(ArrDeqApi::<[i32; 20]>::new().is_full(), false);
-    /// assert_eq!(ArrDeqApi::full([1; 20]).is_full(), true);
+    /// assert_eq!(ArrDeqApi::new_full([1; 20]).is_full(), true);
     /// ```
     pub const fn is_full(&self) -> bool {
         self.len() >= self.capacity()
@@ -230,7 +230,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     ///     None
     /// );
     /// assert_eq!(
-    ///     ArrDeqApi::full(Arr::<_, U20>::from_fn(|i| i)).pop_front(),
+    ///     ArrDeqApi::new_full(Arr::<_, U20>::from_fn(|i| i)).pop_front(),
     ///     Some(0)
     /// );
     /// ```
@@ -258,7 +258,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     ///     None
     /// );
     /// assert_eq!(
-    ///     ArrDeqApi::full(Arr::<_, U20>::from_fn(|i| i)).pop_back(),
+    ///     ArrDeqApi::new_full(Arr::<_, U20>::from_fn(|i| i)).pop_back(),
     ///     Some(19)
     /// );
     /// ```
@@ -496,7 +496,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
         self.make_contiguous();
         let ArrDeqRepr { len, arr, head: _ } = self.into_repr();
         // SAFETY: `head == 0`, so the first `len` elements are initialized.
-        unsafe { ArrVecApi::from_repr(arr_vec::ArrVecRepr { arr, len }) }
+        unsafe { ArrVecApi::from_uninit_parts(arr, len) }
     }
 
     /// Makes this deque contiguous and then returns the elements as a full array.
@@ -511,23 +511,22 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// let mut deq = ArrDeqApi::<[i32; 2]>::new();
     /// deq.push_back(2);
     /// deq.push_front(1);
-    /// let [a, b] = deq.into_full();
+    /// let [a, b] = deq.assert_full();
     /// assert_eq!((a, b), (1, 2));
     /// ```
     #[track_caller]
-    pub const fn into_full(mut self) -> A {
+    pub const fn assert_full(mut self) -> A {
         if self.is_full() {
             self.make_contiguous();
             // SAFETY: The deque is full, hence all elements of the backing array are initialized
             unsafe { self.into_repr().arr.inner.assume_init() }
         } else {
-            const_fmt::concat_fmt![
-                "Call to `into_full` on `ArrDeqApi` with length ",
+            const_fmt::panic_fmt![
+                "Call to `assert_full` on `ArrDeqApi` with length ",
                 self.len(),
                 " out of ",
                 self.capacity()
             ]
-            .panic()
         }
     }
 
@@ -538,7 +537,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// ```
     /// use generic_uint::array::*;
     /// const fn works_in_const<A: Array<Item = i32>>(arr: A) -> i32 {
-    ///     let mut deq = ArrDeqApi::full(arr);
+    ///     let mut deq = ArrDeqApi::new_full(arr);
     ///     let mut sum = 0;
     ///     while let Some(item) = deq.pop_front() {
     ///         sum += item;
@@ -551,11 +550,10 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     #[track_caller]
     pub const fn assert_empty(self) {
         if !self.is_empty() {
-            const_fmt::concat_fmt![
+            const_fmt::panic_fmt![
                 "Call to `assert_empty` on `ArrDeqApi` with length ",
                 self.len()
             ]
-            .panic()
         }
         core::mem::forget(self);
     }

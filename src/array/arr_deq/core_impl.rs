@@ -53,3 +53,13 @@ where
         f.debug_list().entries(lhs).entries(rhs).finish()
     }
 }
+
+impl<A: Array> Default for ArrDeqApi<A> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<A: Array> type_const::DefaultConst for ArrDeqApi<A> {
+    const DEFAULT: Self = Self::new();
+}

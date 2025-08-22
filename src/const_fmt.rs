@@ -1,136 +1,173 @@
-use core::marker::PhantomData;
+#![allow(unused)]
+
+use crate::{
+    array::{ArrApi, Array},
+    maxint,
+    utils::subslice,
+};
+use core::{marker::PhantomData, mem::ManuallyDrop};
+
+pub(crate) const fn __unwrap_one([one]: [ConstFmt; 1]) -> ConstFmt {
+    one
+}
+
+macro_rules! fmt_one {
+    ($one:expr) => {
+        $crate::const_fmt::__unwrap_one($crate::const_fmt::ConstFmtWrap::new($one).fmt())
+    };
+}
+pub(crate) use fmt_one;
 
 /// ```rust_analyzer_infer_bracket
-/// concat_fmt![]
+/// fmt![]
 /// ```
-macro_rules! concat_fmt {
+macro_rules! fmt {
     [ $($ex:expr),* $(,)? ] => {
-        $crate::const_fmt::ConstFmtEnter([ $( $crate::const_fmt::ConstFmtEnter($ex).enter(), )* ])
+        $crate::const_fmt::ConstFmtWrap::new(
+            $crate::array::Arr::<$crate::const_fmt::ConstFmt, _>::from_arr([])
+                $( .concat($crate::const_fmt::ConstFmtWrap::new($ex).fmt()) )*
+        )
     };
 }
-pub(crate) use concat_fmt;
+pub(crate) use fmt;
 
 /// ```rust_analyzer_infer_bracket
-/// concat_fmt_if![]
+/// panic_fmt![]
 /// ```
-macro_rules! concat_fmt_if {
-    [ $cond:expr $(, $ex:expr)* $(,)? ] => {
-        if $cond {
-            Some($crate::const_fmt::concat_fmt![$($ex),*])
-        } else {
-            None
-        }
+macro_rules! panic_fmt {
+    [ $($ex:expr),* $(,)? ] => {
+        $crate::const_fmt::fmt![$($ex),*].panic()
     };
 }
-pub(crate) use concat_fmt_if;
-
-use crate::maxint;
-
-pub(crate) struct ConstFmtEnter<T>(pub T);
-impl<N: crate::ToUint> ConstFmtEnter<PhantomData<N>> {
-    pub(crate) const fn enter(self) -> ConstFmt<'static> {
-        ConstFmt::Str(crate::uint::to_str::<N::ToUint>())
-    }
-}
-impl ConstFmtEnter<usize> {
-    pub(crate) const fn enter(self) -> ConstFmt<'static> {
-        ConstFmt::PrimUint(self.0 as _)
-    }
-}
-#[expect(dead_code)] // not used atm
-impl ConstFmtEnter<u128> {
-    pub(crate) const fn enter(self) -> ConstFmt<'static> {
-        ConstFmt::PrimUint(self.0 as _)
-    }
-}
-impl<'a> ConstFmtEnter<&'a str> {
-    pub(crate) const fn enter(self) -> ConstFmt<'a> {
-        ConstFmt::Str(self.0)
-    }
-}
-#[expect(dead_code)] // not used atm
-impl<'a> ConstFmtEnter<&'a [ConstFmt<'a>]> {
-    pub(crate) const fn enter(self) -> ConstFmt<'a> {
-        ConstFmt::Concat(self.0)
-    }
-}
-impl<'a, const N: usize> ConstFmtEnter<[ConstFmt<'a>; N]> {
-    pub(crate) const fn enter(&self) -> ConstFmt<'_> {
-        ConstFmt::Concat(&self.0)
-    }
-
-    #[cold]
-    pub(crate) const fn panic(self) -> ! {
-        const_fmt_panic(self.enter())
-    }
-}
+pub(crate) use panic_fmt;
 
 #[derive(Clone, Copy)]
 pub(crate) enum ConstFmt<'a> {
-    Concat(&'a [ConstFmt<'a>]),
-    PrimUint(crate::maxint::UMaxInt),
+    PrimUint(maxint::UMaxInt),
     Str(&'a str),
+    Concat(&'a [ConstFmt<'a>]),
 }
-
-impl ConstFmt<'_> {
-    const fn write(self, mut out: &mut [u8]) -> (&mut [u8], bool) {
+impl<'a> ConstFmt<'a> {
+    const fn write(self, mut out: &mut [u8]) -> Option<&mut [u8]> {
         match self {
-            Self::Concat(mut parts) => {
-                while let [first, rem @ ..] = parts {
-                    parts = rem;
-                    out = match first.write(out) {
-                        (it, false) => it,
-                        t @ (_, true) => return t,
-                    };
+            Self::PrimUint(mut n) => {
+                if out.is_empty() {
+                    return None;
                 }
-            }
-            ConstFmt::PrimUint(n) => {
-                if out.len() < maxint::u_max_int_strlen(n) {
-                    return (out, true);
+                let mut ran_out = false;
+                while out.len() < maxint::u_max_int_strlen(n) {
+                    ran_out = true;
+                    n /= 10;
                 }
                 out = maxint::u_max_int_write(n, out);
+                if ran_out {
+                    debug_assert!(out.is_empty());
+                    return None;
+                }
             }
-            ConstFmt::Str(s) => {
+            Self::Str(s) => {
                 let s = s.as_bytes();
                 if out.len() < s.len() {
-                    let (_, s) = s.split_at(out.len());
-                    out.copy_from_slice(s);
-                    return (out.split_at_mut(out.len()).1, true);
+                    out.copy_from_slice(subslice![&s, _, out.len()]);
+                    return None;
                 }
                 let s_out;
                 (s_out, out) = out.split_at_mut(s.len());
                 s_out.copy_from_slice(s);
             }
+            Self::Concat(mut parts) => {
+                while let [first, rem_parts @ ..] = parts {
+                    parts = rem_parts;
+                    if let Some(rem_out) = first.write(out) {
+                        out = rem_out;
+                    } else {
+                        return None;
+                    }
+                }
+            }
         }
-        (out, false)
+
+        Some(out)
     }
 }
 
-#[cold]
-#[track_caller]
-pub(crate) const fn const_fmt_panic(msg: ConstFmt) -> ! {
+#[repr(transparent)]
+pub(crate) struct ConstFmtWrap<T>(ManuallyDrop<T>);
+impl<T> ConstFmtWrap<T> {
+    pub(crate) const fn new(t: T) -> Self {
+        Self(ManuallyDrop::new(t))
+    }
+    pub(crate) const fn into_inner(self) -> T {
+        ManuallyDrop::into_inner(self.0)
+    }
+}
+
+impl<'a, A: Array<Item = ConstFmt<'a>>> ConstFmtWrap<A> {
+    pub(crate) const fn fmt(self) -> A {
+        self.into_inner()
+    }
+
+    pub(crate) const fn panic(self) -> ! {
+        do_panic_fmt(ConstFmt::Concat(ArrApi::new(self.fmt()).as_slice()))
+    }
+}
+impl ConstFmtWrap<usize> {
+    pub(crate) const fn fmt(self) -> [ConstFmt<'static>; 1] {
+        [ConstFmt::PrimUint(self.into_inner() as _)]
+    }
+}
+impl<'a> ConstFmtWrap<&'a str> {
+    pub(crate) const fn fmt(self) -> [ConstFmt<'a>; 1] {
+        [ConstFmt::Str(self.into_inner())]
+    }
+}
+impl<'a> ConstFmtWrap<ConstFmt<'a>> {
+    pub(crate) const fn fmt(self) -> [ConstFmt<'a>; 1] {
+        [self.into_inner()]
+    }
+}
+#[expect(dead_code)]
+impl<'a> ConstFmtWrap<&'a [ConstFmt<'a>]> {
+    pub(crate) const fn fmt(self) -> [ConstFmt<'a>; 1] {
+        [ConstFmt::Concat(self.into_inner())]
+    }
+}
+impl<'a, const N: usize> ConstFmtWrap<&'a [ConstFmt<'a>; N]> {
+    pub(crate) const fn fmt(self) -> [ConstFmt<'a>; 1] {
+        [ConstFmt::Concat(self.into_inner())]
+    }
+}
+#[expect(dead_code)]
+impl<'a, A: Array<Item = ConstFmt<'a>>> ConstFmtWrap<ConstFmtWrap<A>> {
+    pub(crate) const fn fmt(self) -> A {
+        self.into_inner().into_inner()
+    }
+}
+impl<N: crate::ToUint> ConstFmtWrap<PhantomData<N>> {
+    pub(crate) const fn fmt(self) -> [ConstFmt<'static>; 1] {
+        ConstFmtWrap::new(crate::uint::to_str::<N::ToUint>()).fmt()
+    }
+}
+
+pub(crate) const fn do_panic_fmt(fmt: ConstFmt) -> ! {
     // Limit message size to 10KiB
     const MSG_SIZE: usize = 1 << 10;
 
-    let mut out = [0; MSG_SIZE];
-    let out = out.as_mut_slice();
+    let mut buf = [0; MSG_SIZE];
 
-    let (rest, ran_out) = msg.write(out);
-    let rest = rest.len();
-
-    let out = if ran_out {
-        const ELLISPIS: &[u8] = b"...";
-        let (out, _) = out.split_at_mut(MSG_SIZE - rest.saturating_sub(ELLISPIS.len()));
-        let (_, dots) = out.split_at_mut(out.len() - ELLISPIS.len());
-        dots.copy_from_slice(ELLISPIS);
-        out
+    let result = if let Some(rest) = fmt.write(&mut buf) {
+        let rest = rest.len();
+        buf.split_at(buf.len() - rest).0
     } else {
-        let (out, _) = out.split_at_mut(out.len() - rest);
-        out
+        const ELLISPIS: &[u8] = b"...";
+        buf.split_at_mut(MSG_SIZE - ELLISPIS.len())
+            .1
+            .copy_from_slice(ELLISPIS);
+        buf.as_slice()
     };
     panic!(
         "{}",
-        match core::str::from_utf8(out) {
+        match core::str::from_utf8(result) {
             Ok(out) => out,
             Err(_) => unreachable!(),
         }

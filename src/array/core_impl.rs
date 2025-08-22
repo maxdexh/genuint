@@ -2,19 +2,25 @@ mod cmp;
 mod convert;
 mod iter;
 
-use super::{ArrApi, ArrDeqApi, ArrVecApi, Array, extra::*};
+use super::{extra::*, *};
 use crate::Uint;
 
 impl<T, N: Uint, A> ArrApi<A>
 where
     A: Array<Item = T, Length = N>,
 {
-    /// Eqivalent of [`<[T; N]>::as_slice`](array::as_slice).
+    /// Returns a slice containing the entire array.
+    ///
+    /// In `const` contexts, this is the only way to do this.
+    ///
+    /// Equivalent of [`<[T; N]>::as_slice`](array::as_slice).
     ///
     /// # Panics
     /// If `N >= usize::MAX`.
     #[track_caller]
     pub const fn as_slice(&self) -> &[T] {
+        check_invariants!(Self);
+
         // SAFETY: `Array` layout guarantees
         unsafe {
             core::slice::from_raw_parts(
@@ -24,12 +30,18 @@ where
         }
     }
 
-    /// Eqivalent of [`<[T; N]>::as_mut_slice`](array::as_mut_slice).
+    /// Returns a mutable slice containing the entire array.
+    ///
+    /// In `const` contexts, this is the only way to do this.
+    ///
+    /// Equivalent of [`<[T; N]>::as_mut_slice`](array::as_mut_slice).
     ///
     /// # Panics
     /// If `N >= usize::MAX`.
     #[track_caller]
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
+        check_invariants!(Self);
+
         // SAFETY: `Array` layout guarantees
         unsafe {
             core::slice::from_raw_parts_mut(
@@ -39,39 +51,45 @@ where
         }
     }
 
-    /// Eqivalent of [`<[T; N]>::each_ref`](array::each_ref).
+    /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).
     pub const fn each_ref(&self) -> ArrApi<ImplArr![&T; N; Copy]> {
+        check_invariants!(Self, Arr<&T, N>);
+
         let mut out = ArrVecApi::<super::CopyArr<_, _>>::new();
         let mut this = self.as_slice();
         while let [first, rest @ ..] = this {
             out.push(first);
             this = rest;
         }
-        out.into_full()
+        out.assert_full()
     }
 
-    /// Eqivalent of [`<[T; N]>::each_mut`](array::each_mut).
+    /// Equivalent of [`<[T; N]>::each_mut`](array::each_mut).
     pub const fn each_mut(&mut self) -> ArrApi<ImplArr![&mut T; N]> {
-        let mut out = CanonVec::new();
+        check_invariants!(Self, Arr<&mut T, N>);
+
+        let mut out = ArrVec::new();
         let mut this = self.as_mut_slice();
         while let [first, rest @ ..] = this {
             out.push(first);
             this = rest;
         }
-        out.into_full()
+        out.assert_full()
     }
 
-    /// Eqivalent of [`<[T; N]>::map`](array::map).
+    /// Equivalent of [`<[T; N]>::map`](array::map).
     pub fn map<F, U>(self, mut f: F) -> ArrApi<ImplArr![U; N]>
     where
         F: FnMut(T) -> U,
     {
-        let mut out: ArrVecApi<ArrApi<_>> = CanonVec::new();
-        let mut inp = ArrDeqApi::full(self);
+        check_invariants!(Self, Arr<U, N>);
+
+        let mut out = ArrVec::new();
+        let mut inp = ArrDeqApi::new_full(self);
         while let Some(first) = inp.pop_front() {
             out.push(f(first));
         }
-        out.into_full()
+        out.assert_full()
     }
 }
 
@@ -80,6 +98,8 @@ where
     A: Array<Item: Clone>,
 {
     fn clone(&self) -> Self {
+        check_invariants!(Self);
+
         self.each_ref().map(Clone::clone).into_arr()
     }
 }
@@ -91,6 +111,12 @@ where
     fn default() -> Self {
         Self::from_fn(|_| Default::default())
     }
+}
+impl<A> type_const::DefaultConst for ArrApi<A>
+where
+    A: Array<Item: type_const::DefaultConst>,
+{
+    const DEFAULT: Self = Self::of_const::<type_const::DefaultOf<A::Item>>();
 }
 impl<A> core::fmt::Debug for ArrApi<A>
 where

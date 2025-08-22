@@ -1,3 +1,6 @@
+//! Provides a drop-in replacement for builtin `[T; N]` arrays that uses a [`Uint`](crate::Uint)
+//! for its length parameter
+
 use core::marker::PhantomData;
 
 /// # Safety
@@ -83,6 +86,9 @@ mod arr_vec;
 /// A wrapper for a [`MaybeUninit`](core::mem::MaybeUninit) array that acts as a [`Vec`]
 /// (with limited capacity), as well as a drop guard for the initialized items.
 ///
+/// Note that unlike [`ArrApi`], all methods on this type may panic if the array length
+/// exceeds [`usize::MAX`], without explicitly mentioning this in their docs.
+///
 /// # Drop implementation
 /// This type currently has drop glue that does nothing except drop its elements, regardless
 /// of whether the item type needs to be dropped.
@@ -103,11 +109,17 @@ pub struct ArrVecApi<A: Array<Item = T>, T = <A as Array>::Item>(
     PhantomData<T>,
 );
 
+/// Alias for [`ArrVecApi`] around [`Arr`].
+pub type ArrVec<T, N> = ArrVecApi<Arr<T, N>>;
+
 mod arr_deq;
 
 /// A wrapper for a [`MaybeUninit`](core::mem::MaybeUninit) array that acts as a
 /// [`VecDeque`](std::collections::VecDeque) (with limited capacity), as well as
 /// a drop guard for the initialized items.
+///
+/// Note that unlike [`ArrApi`], all methods on this type may panic if the array length
+/// exceeds [`usize::MAX`], without explicitly mentioning this in their docs.
 ///
 /// # Drop implementation
 /// See [`ArrVecApi#drop-implementation`]
@@ -116,6 +128,9 @@ pub struct ArrDeqApi<A: Array<Item = T>, T = <A as Array>::Item>(
     arr_deq::ArrDeqDrop<A>,
     PhantomData<T>,
 );
+
+/// Alias for [`ArrDeqApi`] around [`Arr`].
+pub type ArrDeq<T, N> = ArrDeqApi<Arr<T, N>>;
 
 /// Helper macro that drops an [`ArrApi`], [`ArrVecApi`] or [`ArrDeqApi`], including in
 /// const contexts, by dropping each of its items.

@@ -26,7 +26,7 @@ pub type ILogL<B, N> = Tern<
 #[apply(opaque)]
 pub type ILog<B, N> = ILogL<B, N>;
 
-#[apply(opaque)]
+#[apply(opaque! BaseLenL)]
 #[apply(test_op! test_base_len: {
     let mut n = N;
     let mut r = 1;

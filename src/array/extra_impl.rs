@@ -1,8 +1,8 @@
 use core::mem::{ManuallyDrop, MaybeUninit};
 
-use crate::{Uint, ops};
+use crate::{Uint, ops, uint, utils};
 
-use crate::array::{ArrApi, ArrVecApi, Array, extra::*};
+use crate::array::{extra::*, *};
 
 // Helpers
 impl<T, N: Uint, A> ArrApi<A> where A: Array<Item = T, Length = N> {}
@@ -18,6 +18,8 @@ where
     /// If the length of this type exceeds [`usize::MAX`].
     #[track_caller]
     pub const fn length() -> usize {
+        check_invariants!(Self);
+
         arr_len::<Self>()
     }
 
@@ -29,16 +31,20 @@ where
     /// assert_eq!(ArrApi::new([1, 2, 3]), [1, 2, 3]);
     /// ```
     pub const fn new(inner: A) -> Self {
+        check_invariants!(Self);
+
         Self { inner }
     }
 
     /// Returns the wrapped array of this [`ArrApi`].
     ///
-    /// For types that are always wrapped in [`ArrApi`] (such as [`Arr`](crate::array::Arr)),
+    /// For types that are always wrapped in [`ArrApi`] (such as [`Arr`]),
     /// the return type of this method can be named explicitly using [`ArrApiInner<Self>`](crate::array::extra::ArrApiInner).
     ///
     /// This method is primarily useful when dealing with [`ManuallyDrop`] or [`MaybeUninit`] inside of an [`ArrApi`].
     pub const fn into_inner(self) -> A {
+        check_invariants!(Self);
+
         // SAFETY: This is a known safe way of destructuring in a `const fn`
         unsafe {
             let this = core::mem::ManuallyDrop::new(self);
@@ -50,7 +56,7 @@ where
     /// Converts into an array with the same item and length.
     ///
     /// # Examples
-    /// Retyping [`Arr`](crate::array::Arr) to [`CopyArr`](crate::array::CopyArr):
+    /// Retyping [`Arr`] to [`CopyArr`]:
     /// ```
     /// use generic_uint::{array::*, consts::*};
     /// let arr = Arr::<_, U5>::from_fn(|i| i * i);
@@ -78,6 +84,8 @@ where
     /// assert_eq!(arr, back);
     /// ```
     pub const fn into_arr<Dst: Array<Item = T, Length = N>>(self) -> Dst {
+        check_invariants!(Self);
+
         arr_convert(self)
     }
 
@@ -86,13 +94,14 @@ where
     /// If the lengths are the same, the operation is successful. Otherwise, the original
     /// array is returned.
     ///
-    /// If you are having trouble using the returned [`Result`] in a const fn, consider using
-    /// functions from [`const_util::result`] or going through [`Self::into_manually_drop`]
-    /// first.
+    /// If you are having trouble destructuring the returned [`Result`] in a const fn, consider using
+    /// functions from [`const_util::result`] or going through [`ManuallyDrop`] first.
     pub const fn try_into_arr<Dst: Array<Item = T>>(self) -> Result<Dst, Self> {
+        check_invariants!(Self, Dst);
+
         match crate::uint::cmp::<N, Dst::Length>().is_eq() {
-            // SAFETY: Length equality was checked
-            true => Ok(unsafe { arr_convert_no_len_check(self) }),
+            // SAFETY: N == Dst::Length
+            true => Ok(unsafe { arr_convert_unchecked(self) }),
             false => Err(self),
         }
     }
@@ -112,7 +121,7 @@ where
     /// use generic_uint::{array::*};
     /// const fn takes_generic_array(arr: impl Array<Item = i32>) -> [i32; 3] {
     ///     if size_of_val(&arr) == 12 {
-    ///         ArrApi::new(arr).assert_len_eq().into_arr() // type inference!
+    ///         ArrApi::new(arr).assert_len_eq().into_arr() // type inference
     ///     } else {
     ///         drop_items!(arr);
     ///         [0; 3]
@@ -123,9 +132,11 @@ where
     /// ```
     #[track_caller]
     pub const fn assert_len_eq<M: Uint>(self) -> ArrApi<ImplArr![T; M]> {
-        assert_same_arr_len::<Self, CanonArr<T, M>>();
+        check_invariants!(Self);
+
+        assert_same_arr_len::<Self, Arr<T, M>>();
         // SAFETY: Length equality was checked
-        unsafe { arr_convert_no_len_check::<_, CanonArr<T, M>>(self) }
+        unsafe { arr_convert_unchecked::<_, Arr<T, M>>(self) }
     }
 
     /// Asserts in a `const` block that the length of the array is equal to the paramter and returns
@@ -165,11 +176,13 @@ where
     /// ```
     #[track_caller]
     pub const fn compile_assert_len_eq<M: Uint>(self) -> ArrApi<ImplArr![T; M]> {
+        check_invariants!(Self);
+
         const {
-            assert_same_arr_len::<Self, CanonArr<T, M>>();
+            assert_same_arr_len::<Self, Arr<T, M>>();
         }
         // SAFETY: Length equality was checked
-        unsafe { arr_convert_no_len_check::<_, CanonArr<_, _>>(self) }
+        unsafe { arr_convert_unchecked::<_, Arr<_, _>>(self) }
     }
 
     /// [`core::array::from_fn`], but as a method.
@@ -181,11 +194,13 @@ where
     /// assert_eq!(arr, [0, 1, 4, 9]);
     /// ```
     pub fn from_fn<F: FnMut(usize) -> T>(mut f: F) -> Self {
+        check_invariants!(Self);
+
         let mut out = ArrVecApi::new();
         while !out.is_full() {
             out.push(f(out.len()));
         }
-        out.into_full()
+        out.assert_full()
     }
 
     /// The same as `ArrApi::new(from).into_arr::<Self>()`.
@@ -197,6 +212,8 @@ where
     /// assert_eq!(arr, [1, 2, 3]);
     /// ```
     pub const fn from_arr<Src: Array<Item = T, Length = N>>(from: Src) -> Self {
+        check_invariants!(Self);
+
         arr_convert(from)
     }
 
@@ -205,19 +222,17 @@ where
     /// # Examples
     /// ```
     /// use generic_uint::{array::*, consts::*};
-    /// let arr = Arr::<_, U4>::of_copy(1);
+    /// let arr = Arr::<_, U4>::of(1);
     /// assert_eq!(arr, [1; 4]);
     /// ```
-    pub const fn of_copy(item: T) -> Self
+    pub const fn of(item: T) -> Self
     where
         T: Copy,
     {
+        check_invariants!(Self);
+
         let mut out = ArrApi::new(MaybeUninit::uninit());
-        let mut buf = out.as_mut_slice();
-        while let [first, rest @ ..] = buf {
-            *first = MaybeUninit::new(item);
-            buf = rest;
-        }
+        init_fill(out.as_mut_slice(), item);
         // SAFETY: All elements have been initialized
         unsafe { out.inner.assume_init() }
     }
@@ -240,41 +255,24 @@ where
     /// )
     /// ```
     pub const fn of_const<C: type_const::Const<Type = T>>() -> Self {
-        // There is nothing here that could panic, so we don't need a drop guard
+        check_invariants!(Self);
+
         let mut out = ArrApi::new(MaybeUninit::uninit());
-        let mut buf = out.as_mut_slice();
-        while let [first, rest @ ..] = buf {
-            *first = MaybeUninit::new(C::VALUE);
-            buf = rest;
-        }
+        init_fill_const::<C>(out.as_mut_slice());
         // SAFETY: All elements have been initialized
         unsafe { out.inner.assume_init() }
     }
 
     /// Like `<&[T] as TryInto<&[T; N]>>::try_into`, but as a const method.
     pub const fn try_from_slice(slice: &[T]) -> Result<&Self, TryFromSliceError> {
+        check_invariants!(Self);
+
         from_slice(slice)
     }
 
     /// Like `<&mut [T] as TryInto<&mut [T; N]>>::try_into`, but as a const method.
     pub const fn try_from_mut_slice(slice: &mut [T]) -> Result<&mut Self, TryFromSliceError> {
         from_mut_slice(slice)
-    }
-
-    /// Wraps the inner array in [`ManuallyDrop`].
-    ///
-    /// Because of the [`Array`] implementation for [`ManuallyDrop<impl Array>`],
-    /// the returned value implements [`Array<Item = ManuallyDrop<T>>`].
-    pub const fn into_manually_drop(self) -> ArrApi<ManuallyDrop<A>> {
-        ArrApi::new(ManuallyDrop::new(self.into_inner()))
-    }
-
-    /// Wraps the inner array in [`ManuallyDrop`].
-    ///
-    /// Because of the [`Array`] implementation for [`MaybeUninit<impl Array>`],
-    /// the returned value implements [`Array<Item = MaybeUninit<T>>`].
-    pub const fn into_maybe_uninit(self) -> ArrApi<MaybeUninit<A>> {
-        ArrApi::new(MaybeUninit::new(self.into_inner()))
     }
 
     /// Splits an owned array at a [`Uint`] position.
@@ -292,17 +290,19 @@ where
         ArrApi<ImplArr![T; ops::Min<N, I>]>,
         ArrApi<ImplArr![T; ops::SatSub<N, I>]>,
     ) {
+        check_invariants!(Self, ArrSplit<N, I, T>);
+
         #[repr(C)]
         struct ArrSplit<N: Uint, I: Uint, T> {
-            lhs: ManuallyDrop<CanonArr<T, ops::Min<N, I>>>,
-            rhs: ManuallyDrop<CanonArr<T, ops::SatSub<N, I>>>,
+            lhs: ManuallyDrop<Arr<T, ops::Min<N, I>>>,
+            rhs: ManuallyDrop<Arr<T, ops::SatSub<N, I>>>,
         }
         // SAFETY: repr(C), ManuallyDrop is repr(transparent), min(N, I) + saturating_sub(N, I) = N
         unsafe impl<N: Uint, I: Uint, T> Array for ArrSplit<N, I, T> {
             type Item = ManuallyDrop<T>;
             type Length = N;
         }
-        let ArrSplit::<N, I, _> { lhs, rhs } = arr_convert(ManuallyDrop::new(self));
+        let ArrSplit::<N, I, T> { lhs, rhs } = arr_convert(ManuallyDrop::new(self));
         (ManuallyDrop::into_inner(lhs), ManuallyDrop::into_inner(rhs))
     }
 
@@ -311,6 +311,8 @@ where
     where
         Rhs: Array<Item = T>,
     {
+        check_invariants!(Self, ArrConcat<Self, Rhs>);
+
         #[repr(C)]
         struct ArrConcat<A, B>(pub A, pub B);
         // SAFETY: repr(C)
@@ -318,13 +320,15 @@ where
             type Item = T;
             type Length = crate::ops::Add<A::Length, B::Length>;
         }
-        into_canon(ArrConcat(self, rhs))
+        Arr::from_arr(ArrConcat(self, rhs))
     }
 
     pub const fn flatten(self) -> ArrApi<ImplArr![T::Item; ops::Mul<N, T::Length>]>
     where
         T: Array,
     {
+        check_invariants!(Self, ArrFlatten<A>);
+
         #[repr(transparent)]
         struct ArrFlatten<A>(A);
         // SAFETY: Nested arrays are equivalent to flattened arrays with product size
@@ -332,7 +336,47 @@ where
             type Item = T::Item;
             type Length = ops::Mul<A::Length, T::Length>;
         }
-        into_canon(ArrFlatten(self))
+        Arr::from_arr(ArrFlatten(self))
+    }
+
+    /// Tries to turn the array into a builtin `[T; M]` array of the same size.
+    ///
+    /// # Examples
+    /// ```
+    /// use generic_uint::{array::*, consts::*};
+    ///
+    /// let arr = Arr::<_, U3>::from_fn(|i| i); // type inference
+    /// assert_eq!(arr.try_into_builtin_arr::<2>(), Err(arr));
+    /// assert_eq!(arr.try_into_builtin_arr::<3>(), Ok([0, 1, 2]));
+    /// assert_eq!(arr.try_into_builtin_arr::<4>(), Err(arr));
+    /// ```
+    pub const fn try_into_builtin_arr<const M: usize>(self) -> Result<[T; M], Self> {
+        check_invariants!(Self);
+
+        if let Some(n) = uint::to_usize::<N>()
+            && n == M
+        {
+            // SAFETY: M == N
+            Ok(unsafe { arr_to_builtin_unchecked(self) })
+        } else {
+            Err(self)
+        }
+    }
+
+    /// Resizes the array.
+    ///
+    /// If the new length is larger than the old length, the remaining elements will be filled with
+    /// `item`. Otherwise, the array will be truncated and the extra elements discarded.
+    pub(crate) const fn resize_with_fill<M: Uint>(self, item: T) -> ArrApi<ImplArr![T; M]>
+    where
+        T: Copy,
+    {
+        let mut out = ArrApi::new(MaybeUninit::new(self)).resize_uninit();
+        if let Some((_, uninit)) = out.as_mut_slice().split_at_mut_checked(Self::length()) {
+            init_fill(uninit, item);
+        }
+        // SAFETY: The first `Self::legnth()` items are already init. `init_fill` inits the rest.
+        unsafe { ArrApi::new(out.inner.assume_init()) }
     }
 }
 
@@ -341,15 +385,17 @@ where
     A: Array<Item = MaybeUninit<T>, Length = N>,
 {
     pub const fn resize_uninit<M: Uint>(self) -> ArrApi<MaybeUninit<ImplArr![T; M]>> {
+        check_invariants!(Self, Arr<T, M>, MaybeUninit<Arr<T, M>>);
+
         // SAFETY:
         // - if N >= M, then transmuting through a union forgets `N - M` elements,
         //   which is always safe.
         // - if N <= M, then transmuting through a union fills the rest of the array with
         //   uninitialized memory, which is valid in this context.
         unsafe {
-            crate::utils::union_transmute::<
+            utils::union_transmute::<
                 Self, //
-                ArrApi<MaybeUninit<CanonArr<_, _>>>,
+                ArrApi<MaybeUninit<Arr<_, _>>>,
             >(self)
         }
     }

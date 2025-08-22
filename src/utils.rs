@@ -26,7 +26,7 @@ pub(crate) const unsafe fn union_transmute<Src, Dst>(src: Src) -> Dst {
 /// Transmutes types of the same size.
 ///
 /// # Safety
-/// `Src` and `Dst` must be the same size and valid for transmutes
+/// `Src` and `Dst` must be the same size and be valid for transmutes
 pub(crate) const unsafe fn exact_transmute<Src, Dst>(src: Src) -> Dst {
     debug_assert!(size_of::<Src>() == size_of::<Dst>());
     // SAFETY: `Src` and `Dst` are valid for transmutes
@@ -69,3 +69,31 @@ pub(crate) const fn nonnull_from_const_ref<T: ?Sized>(r: &T) -> NonNull<T> {
     // SAFETY: References are never null
     unsafe { NonNull::new_unchecked(core::ptr::from_ref(r).cast_mut()) }
 }
+
+macro_rules! subslice {
+    ( & $slice:expr, $($range:tt)* ) => {
+        $crate::utils::subslice!(@split_at $slice, $($range)*)
+    };
+    ( &mut $slice:expr, $($range:tt)* ) => {
+        $crate::utils::subslice!(@split_at_mut $slice, $($range)*)
+    };
+    ( @$method:ident $slice:expr, _, $right:expr $(,)? ) => {
+        $slice.$method($right).0
+    };
+    ( @$method:ident $slice:expr, $left:expr, _ $(,)? ) => {
+        $slice.$method($left).1
+    };
+    ( @$method:ident $slice:expr, $left:expr, $right:expr $(,)? ) => {
+        $slice.$method($right).0.$method($left).1
+    };
+}
+pub(crate) use subslice;
+
+macro_rules! min {
+    ($lhs:expr, $rhs:expr) => {{
+        let __lhs = $lhs;
+        let __rhs = $rhs;
+        if __lhs < __rhs { __lhs } else { __rhs }
+    }};
+}
+pub(crate) use min;

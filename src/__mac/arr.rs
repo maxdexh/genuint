@@ -7,7 +7,7 @@ impl<A: Array> ArrDrop<A> {
     pub const fn enter(self) -> ArrDrop<ArrVecApi<A>> {
         // SAFETY: repr(transparent)
         let inner: A = unsafe { crate::utils::exact_transmute(self) };
-        ArrDrop(ArrVecApi::full(inner))
+        ArrDrop(ArrVecApi::new_full(inner))
     }
 }
 impl<A: Array> ArrDrop<ArrVecApi<A>> {
