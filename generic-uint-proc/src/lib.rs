@@ -2,7 +2,7 @@ use proc_macro::{Group, Punct, TokenStream, TokenTree};
 
 #[doc(hidden)]
 #[proc_macro_attribute]
-pub fn apply(attr: TokenStream, input: TokenStream) -> TokenStream {
+pub fn __apply(attr: TokenStream, input: TokenStream) -> TokenStream {
     let mut attr = attr.into_iter();
     let mut mac = Vec::new();
     for tok in &mut attr {

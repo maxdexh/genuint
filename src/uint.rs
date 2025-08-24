@@ -5,6 +5,8 @@ pub type FromUsize<const N: usize> = From<crate::consts::ConstUsize<N>>;
 pub type FromU128<const N: u128> = From<crate::consts::ConstU128<N>>;
 
 const fn to_u_max_int_overflowing<N: Uint>() -> (UMaxInt, bool) {
+    // NOTE: This does unnecessary work. We only need to look at the last UMaxInt::BITS.
+    // It might be worth it to perform a BitAnd on the `Uint` before plugging it in here.
     const {
         if to_bool::<N>() {
             let (h, o1) = to_u_max_int_overflowing::<ops::Half<N>>();

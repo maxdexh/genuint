@@ -1,4 +1,5 @@
 use core::{mem::MaybeUninit, ops::Range, ptr::NonNull};
+pub(crate) use generic_uint_proc::__apply as apply;
 
 // Internal API
 

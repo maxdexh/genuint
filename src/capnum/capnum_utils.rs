@@ -1,7 +1,4 @@
-use crate::{
-    Uint,
-    capnum::{CapUint, Digit},
-};
+use crate::capnum::Digit;
 
 pub(crate) const fn pop_or_zero(n: &[Digit]) -> (&[Digit], Digit) {
     match n {

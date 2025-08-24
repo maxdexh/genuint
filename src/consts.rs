@@ -20,15 +20,13 @@ macro_rules! bisect {
         generate! { $name, $val, $crate::internals::A<$half, $parity> }
     };
 }
-macro_rules! big {
-    ([ $($out:tt)* ]) => {
-        $($out)*
-    };
-    ([ $($out:tt)* ] $first:ident $($bits:ident)*) => {
-        big!([ $crate::internals::A<$($out)*, $first> ] $($bits)*)
-    };
-    ( $first:ident $($bits:ident)* ) => {
-        big!( [$first] $($bits)* )
-    };
-}
 include!(concat!(env!("OUT_DIR"), "/consts.rs"));
+
+/// [`usize::BITS`] as a [`Uint`](crate::Uint).
+// NOTE: This implementation assumes that size_of::<usize>() <= 256, i.e. it assumes at
+// most a 2048-bit platform (lol)
+pub type UsizeBits = crate::ops::Shl<crate::uint::FromUsize<{ size_of::<usize>() }>, U3>;
+const _: () = assert!(crate::uint::to_usize::<UsizeBits>().unwrap() == usize::BITS as usize);
+
+/// [`usize::MAX`] as a [`Uint`](crate::Uint).
+pub type UsizeMax = crate::ops::SatSub<crate::ops::Shl<U1, UsizeBits>, U1>;

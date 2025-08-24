@@ -1,5 +1,4 @@
-use crate::{consts::*, internals::PrimitiveOp, uint};
-use generic_uint_proc::apply;
+use crate::{consts::*, internals::PrimitiveOp, uint, utils::apply};
 
 macro_rules! lazy {
     (
@@ -55,7 +54,7 @@ macro_rules! opaque {
         $(#[$($attr:tt)*])*
         pub type $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty;
     ) => {
-        #[::generic_uint_proc::apply($crate::ops::lazy)]
+        #[$crate::utils::apply($crate::ops::lazy)]
         pub type $with_lazy<$($param),*> = $crate::uint::From<$val>;
 
         $crate::ops::opaque! {

@@ -22,6 +22,9 @@ pub trait ToUint {
     type ToUint: Uint;
 }
 
+pub trait UintEq<To: ToUint>: ToUint<ToUint = To::ToUint> {}
+impl<To: ToUint, N: ToUint<ToUint = To::ToUint>> UintEq<To> for N {}
+
 pub mod array;
 pub mod capnum;
 pub mod consts;

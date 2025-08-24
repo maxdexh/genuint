@@ -82,9 +82,8 @@ impl<A: Array> ArrApi<A> {
 
 /// Checks that `A` fulfills the required layout invariants wrt size and alignment
 pub(crate) const fn layout_invariant_check<A: Array<Item = T>, T>() {
+    #[cfg(feature = "__correctness_checks")]
     const {
-        #![cfg(all(debug_assertions, feature = "array-ub-checks"))]
-
         use crate::const_fmt::fmt_one;
 
         macro_rules! fmt_one_each {
@@ -166,7 +165,7 @@ pub(crate) const fn layout_invariant_check<A: Array<Item = T>, T>() {
                 equals!(item_size_expr, item_size),
             ])
         }
-    }
+    };
 }
 
 pub(crate) const fn init_fill<T: Copy>(mut buf: &mut [MaybeUninit<T>], item: T) {

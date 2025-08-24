@@ -1,4 +1,4 @@
-#![allow(unused)]
+#![allow(dead_code)]
 
 use crate::{
     array::{ArrApi, Array},
@@ -126,7 +126,6 @@ impl<'a> ConstFmtWrap<ConstFmt<'a>> {
         [self.into_inner()]
     }
 }
-#[expect(dead_code)]
 impl<'a> ConstFmtWrap<&'a [ConstFmt<'a>]> {
     pub(crate) const fn fmt(self) -> [ConstFmt<'a>; 1] {
         [ConstFmt::Concat(self.into_inner())]
@@ -137,7 +136,6 @@ impl<'a, const N: usize> ConstFmtWrap<&'a [ConstFmt<'a>; N]> {
         [ConstFmt::Concat(self.into_inner())]
     }
 }
-#[expect(dead_code)]
 impl<'a, A: Array<Item = ConstFmt<'a>>> ConstFmtWrap<ConstFmtWrap<A>> {
     pub(crate) const fn fmt(self) -> A {
         self.into_inner().into_inner()

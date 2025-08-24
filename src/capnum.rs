@@ -1,18 +1,51 @@
-use crate::{Uint, array::CopyArr, ops};
+use crate::{Uint, array::CopyArr, capnum::digits::PopLastDigit, ops, uint};
 
 mod capnum_utils;
 use capnum_utils::*;
 
 type Digit = usize;
 
-mod arrlen {
+mod digits {
     use super::Digit;
-    use crate::{Uint, consts::*, ops, uint};
-    use generic_uint_proc::apply;
+    use crate::Uint;
+    use crate::{consts::*, ops, ops::lazy, uint, utils::apply};
 
-    type DigitBitLen = ops::Shl<uint::FromUsize<{ size_of::<Digit>() }>, U3>;
+    pub use uint::to_usize as to_digit;
+    pub use uint::to_usize_overflowing as to_digit_overflowing;
 
-    #[apply(ops::lazy)]
+    pub type DigitBits = UsizeBits;
+    pub type DigitMax = UsizeMax;
+    pub type DigitBase = ops::Add<DigitMax, U1>;
+
+    /// Gets a number without the last digit, i.e. Div<N, DigitBase>.
+    /// Since our base is a power of two, this is the same as bit shifting like this.
+    pub type PopLastDigit<N> = ops::Shr<N, DigitBits>;
+
+    /// Gets the last Digit of a Uint
+    pub const fn to_digit_wrapping<N: Uint>() -> Digit {
+        // Since our base is a power of two, this wrapping conversion will leave
+        // exactly the last digit, since every other bit represents a multiple of our base
+        // and therefore contributes 0 to the wrapping conversion.
+        //
+        // We use the wrapping conversion here over `to_digit<BitAnd<N, DigitMax>>()`
+        // because its current implementation calculates all digits as intermediate values.
+        to_digit_overflowing::<N>().0
+    }
+
+    const _: () = {
+        assert!(uint::to_usize::<DigitBits>().unwrap() == Digit::BITS as usize);
+
+        assert!(matches!(to_digit_overflowing::<DigitBase>(), (0, true)));
+
+        let digit_max = to_digit::<DigitMax>().unwrap();
+        assert!(digit_max == Digit::MAX);
+
+        // our base is a power of two
+        assert!(digit_max.wrapping_add(1) == 0);
+        assert!(digit_max.count_zeros() == 0);
+    };
+
+    #[apply(lazy)]
     pub type ArrLenL<N> = ops::Tern<
         N,
         ops::Inc<
@@ -20,38 +53,31 @@ mod arrlen {
                 ops::Shr<
                     //
                     N,
-                    DigitBitLen,
+                    DigitBits,
                 >,
             >,
         >,
         U0,
     >;
 
-    pub trait ArrLenOf: Uint {
-        type Value: Uint;
-    }
-    impl<N: Uint> ArrLenOf for N {
-        type Value = uint::From<ArrLenL<N>>;
-    }
-    pub type ArrLen<N> = <N as ArrLenOf>::Value;
+    pub type DigitArrLen<N> = uint::From<ArrLenL<N>>;
 
     #[test]
     fn test_arr_len() {
-        fn arr_len<N: Uint>() -> usize {
-            uint::to_usize::<ArrLen<N>>().unwrap()
+        fn digit_arr_len<N: crate::Uint>() -> usize {
+            uint::to_usize::<DigitArrLen<N>>().unwrap()
         }
-        assert_eq!(uint::to_usize::<DigitBitLen>(), Some(Digit::BITS as usize));
+        assert_eq!(uint::to_usize::<DigitBits>(), Some(Digit::BITS as usize));
 
-        assert_eq!(arr_len::<U0>(), 0);
-        assert_eq!(arr_len::<U1>(), 1);
-        type DigitMaxInc = ops::Shl<U1, DigitBitLen>;
-        assert_eq!(arr_len::<ops::SatSub<DigitMaxInc, U1>>(), 1);
-        assert_eq!(arr_len::<DigitMaxInc>(), 2);
+        assert_eq!(digit_arr_len::<U0>(), 0);
+        assert_eq!(digit_arr_len::<U1>(), 1);
+        assert_eq!(digit_arr_len::<DigitMax>(), 1);
+        assert_eq!(digit_arr_len::<ops::Add<DigitMax, U1>>(), 2);
     }
 }
 
 type DigitArrBase<N> = CopyArr<Digit, N>;
-type DigitArr<N> = DigitArrBase<arrlen::ArrLen<N>>;
+type DigitArr<N> = DigitArrBase<digits::DigitArrLen<N>>;
 
 /// Holds a number that is from `0` to `N` (inclusive).
 pub struct CapUint<N: Uint> {
@@ -64,43 +90,84 @@ impl<N: Uint> Clone for CapUint<N> {
     }
 }
 impl<N: Uint> Copy for CapUint<N> {}
+impl<N: Uint> Default for CapUint<N> {
+    fn default() -> Self {
+        Self::ZERO
+    }
+}
 
 impl<N: Uint> CapUint<N> {
-    const MAX: Self = Self::try_of_uint::<N>().unwrap();
+    const unsafe fn from_digits_unchecked(digits: DigitArr<N>) -> Self {
+        Self { digits }
+    }
+
+    /// The zero instance of the uint type.
+    pub const ZERO: Self =
+        // SAFETY: 0 <= N
+        unsafe { Self::from_digits_unchecked(DigitArrBase::of(0)) };
+
+    pub const MAX: Self = {
+        // Break the const eval cycle using a const fn
+        const fn max<N: Uint>() -> CapUint<N> {
+            CapUint::<N>::MAX
+        }
+
+        match uint::to_bool::<N>() {
+            // SAFETY:
+            // By inductively assuming that max::<M>() == M for M < N, we get that
+            // this concats the digits of N / DigitBase with N % DigitBase, giving
+            // max::<N>() == DigitBase * (N / DigitBase) + N % DigitBase == N.
+            true => unsafe {
+                let prefix = max::<PopLastDigit<N>>().digits;
+                let last = digits::to_digit_wrapping::<N>();
+                Self::from_digits_unchecked(prefix.concat([last]).assert_len_eq().into_arr())
+            },
+            // max::<0>() == 0
+            false => Self::ZERO,
+        }
+    };
 
     const fn from_digits(digits: DigitArr<N>) -> Self {
         assert!(cmp_same_len(digits.as_slice(), Self::MAX.digits.as_slice()).is_le());
         Self { digits }
     }
+
     const fn as_digits(&self) -> &[Digit] {
         self.digits.as_slice()
-    }
-    pub const fn try_resize<M: Uint>(self) -> Option<CapUint<M>> {
-        let new_len = DigitArr::<M>::length();
-        let (truncated, _) = self
-            .as_digits()
-            .split_at(self.as_digits().len().saturating_sub(new_len));
-        if !is_zero(truncated) {
-            return None;
-        }
-        Some(CapUint::from_digits(
-            self.digits.resize_with_fill(0).into_arr(),
-        ))
     }
 }
 
 impl<N: Uint> CapUint<N> {
-    pub const fn try_of_uint<M: Uint>() -> Option<Self> {
-        todo!()
+    pub const fn try_resize<M: Uint>(self) -> Option<CapUint<M>> {
+        let new_len = DigitArr::<M>::length();
+
+        let (truncated, _) = self
+            .as_digits()
+            .split_at(self.as_digits().len().saturating_sub(new_len));
+
+        if !is_zero(truncated) {
+            return None;
+        }
+
+        Some(CapUint::from_digits(
+            self.digits.resize_with_fill(0).into_arr(),
+        ))
     }
+
+    pub const fn try_of_uint<M: Uint>() -> Option<Self> {
+        CapUint::<M>::MAX.try_resize()
+    }
+
     pub const fn add_const<M: Uint>(self, rhs: CapUint<M>) -> CapUint<ops::Add<N, M>> {
         let mut out = DigitArrBase::of(0);
         add(self.as_digits(), rhs.as_digits(), out.as_mut_slice());
         CapUint::from_digits(out)
     }
+
     pub const fn cmp_const<M: Uint>(self, rhs: CapUint<M>) -> core::cmp::Ordering {
         cmp(self.as_digits(), rhs.as_digits())
     }
+
     pub const fn min_const<M: Uint>(self, rhs: CapUint<M>) -> CapUint<ops::Min<N, M>> {
         match self.cmp_const(rhs).is_lt() {
             true => self.try_resize(),
