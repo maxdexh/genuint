@@ -13,6 +13,22 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+/// Turns an integer literal of arbitrary length into a [`Uint`].
+///
+/// If you have a small constant value that is not a literal, use [`uint::FromU128`].
+///
+/// # Examples
+/// ```
+/// use generic_uint::{lit, uint};
+/// assert_eq!(uint::to_u128::<lit!(1)>(), Some(1));
+/// ```
+#[macro_export]
+macro_rules! lit {
+    ($l:literal) => {
+        $crate::__mac::__lit!(($l) $crate)
+    };
+}
+
 mod internals;
 mod utils;
 

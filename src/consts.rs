@@ -1,30 +1,46 @@
-pub struct ConstUsize<const N: usize>;
-pub struct ConstU128<const N: u128>;
+macro_rules! meta_generate {
+    ($($struct:ident $prim:ident)*) => {
+        $(pub struct $struct<const N: $prim>;)*
 
-macro_rules! generate {
-    ($name:ident, $val:expr, $ty:ty) => {
-        pub type $name = $ty;
-        impl $crate::ToUint for ConstUsize<{ $val }> {
-            type ToUint = $name;
+        macro_rules! generate {
+            ($name:ident, $val:expr, $ty:ty) => {
+                pub type $name = $ty;
+                $(impl $crate::ToUint for $struct<{ $val }> {
+                    type ToUint = $name;
+                })*
+            };
         }
-        impl $crate::ToUint for ConstU128<{ $val }> {
+    };
+}
+meta_generate! {
+    ConstUsize usize
+    ConstU128 u128
+    ConstU64 u64
+    ConstU32 u32
+    ConstU16 u16
+}
+pub struct ConstU8<const N: u8>;
+
+macro_rules! generate_byte {
+    ($name:ident, $val:expr, $ty:ty) => {
+        generate!($name, $val, $ty);
+        impl $crate::ToUint for ConstU8<{ $val }> {
             type ToUint = $name;
         }
     };
 }
-generate!(_0, 0, crate::internals::O);
-generate!(_1, 1, crate::internals::I);
+
+generate_byte!(_0, 0, crate::internals::O);
+generate_byte!(_1, 1, crate::internals::I);
 
 macro_rules! bisect {
-    ($name:ident, $val:expr, $half:ty, $parity:ty) => {
-        generate! { $name, $val, $crate::internals::A<$half, $parity> }
+    ($name:ident, $val:expr, $half:ty, $parity:ty, $cb:ident) => {
+        $cb! { $name, $val, $crate::internals::A<$half, $parity> }
     };
 }
 include!(concat!(env!("OUT_DIR"), "/consts.rs"));
 
 /// [`usize::BITS`] as a [`Uint`](crate::Uint).
-// NOTE: This implementation assumes that size_of::<usize>() <= 256, i.e. it assumes at
-// most a 2048-bit platform (lol)
 pub type UsizeBits = crate::ops::Shl<crate::uint::FromUsize<{ size_of::<usize>() }>, _3>;
 const _: () = assert!(crate::uint::to_usize::<UsizeBits>().unwrap() == usize::BITS as usize);
 
