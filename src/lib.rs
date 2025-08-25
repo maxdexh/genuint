@@ -1,4 +1,4 @@
-#![recursion_limit = "1024"]
+#![cfg_attr(test, recursion_limit = "512")]
 #![cfg_attr(not(any(test, doc, feature = "std")), no_std)]
 #![warn(
     clippy::nursery,

@@ -1,12 +1,11 @@
-use crate::{
-    Uint, array::CopyArr, capnum::digits::PopLastDigit, consts::*, maxint::UMaxInt, ops, uint,
-};
+use crate::{Uint, array::CopyArr, capnum::digits::PopLastDigit, ops, uint};
 
 mod capnum_utils;
 use capnum_utils::*;
 
 type Digit = usize;
 
+#[cfg_attr(not(test), allow(unused))] // allow items only used in tests
 mod digits {
     use super::Digit;
     use crate::Uint;
@@ -34,6 +33,7 @@ mod digits {
         to_digit_overflowing::<N>().0
     }
 
+    #[cfg(test)]
     const _: () = {
         assert!(uint::to_usize::<DigitBits>().unwrap() == Digit::BITS as usize);
 
@@ -122,7 +122,7 @@ impl<N: Uint> CapUint<N> {
             true => unsafe {
                 let prefix = max::<PopLastDigit<N>>().digits;
                 let last = digits::to_digit_wrapping::<N>();
-                Self::from_digits_unchecked(prefix.concat([last]).assert_len_eq().into_arr())
+                Self::from_digits_unchecked(prefix.concat([last]).assert_len().into_arr())
             },
             // max::<0>() == 0
             false => Self::ZERO,
@@ -156,22 +156,26 @@ impl<N: Uint> CapUint<N> {
         ))
     }
 
-    pub const fn try_of_uint<M: Uint>() -> Option<Self> {
-        CapUint::<M>::MAX.try_resize()
+    pub const fn resize_overflowing<M: Uint>(self) -> (CapUint<M>, bool) {
+        if self.cmp(CapUint::<M>::MAX).is_gt() {
+            todo!() // TODO: modulo
+        } else {
+            (self.try_resize().unwrap(), false)
+        }
     }
 
-    pub const fn add_const<M: Uint>(self, rhs: CapUint<M>) -> CapUint<ops::Add<N, M>> {
+    pub const fn add<M: Uint>(self, rhs: CapUint<M>) -> CapUint<ops::Add<N, M>> {
         let mut out = DigitArrBase::of(0);
         add(self.as_digits(), rhs.as_digits(), out.as_mut_slice());
         CapUint::from_digits(out)
     }
 
-    pub const fn cmp_const<M: Uint>(self, rhs: CapUint<M>) -> core::cmp::Ordering {
+    pub const fn cmp<M: Uint>(self, rhs: CapUint<M>) -> core::cmp::Ordering {
         cmp(self.as_digits(), rhs.as_digits())
     }
 
-    pub const fn min_const<M: Uint>(self, rhs: CapUint<M>) -> CapUint<ops::Min<N, M>> {
-        match self.cmp_const(rhs).is_lt() {
+    pub const fn min<M: Uint>(self, rhs: CapUint<M>) -> CapUint<ops::Min<N, M>> {
+        match self.cmp(rhs).is_lt() {
             true => self.try_resize(),
             false => rhs.try_resize(),
         }

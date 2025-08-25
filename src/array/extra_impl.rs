@@ -121,7 +121,7 @@ where
     /// use generic_uint::{array::*};
     /// const fn takes_generic_array(arr: impl Array<Item = i32>) -> [i32; 3] {
     ///     if size_of_val(&arr) == 12 {
-    ///         ArrApi::new(arr).assert_len_eq().into_arr() // type inference
+    ///         ArrApi::new(arr).assert_len().into_arr() // type inference
     ///     } else {
     ///         drop_items!(arr);
     ///         [0; 3]
@@ -131,58 +131,12 @@ where
     /// assert_eq!(takes_generic_array([1, 2]), [0; 3]);
     /// ```
     #[track_caller]
-    pub const fn assert_len_eq<M: Uint>(self) -> ArrApi<ImplArr![T; M]> {
+    pub const fn assert_len<M: Uint>(self) -> ArrApi<ImplArr![T; M]> {
         check_invariants!(Self);
 
         assert_same_arr_len::<Self, Arr<T, M>>();
         // SAFETY: Length equality was checked
         unsafe { arr_convert_unchecked::<_, Arr<T, M>>(self) }
-    }
-
-    /// Asserts in a `const` block that the length of the array is equal to the paramter and returns
-    /// an new array of the adjusted type.
-    ///
-    /// This causes a monomorphization failure at compile time if the assertion is incorrect. As
-    /// error messages are confusing when this happens multiple levels deep, you should only use
-    /// this method to catch your own errors!
-    ///
-    /// This method is intended to be used for conversions where the length of the array can be
-    /// proven to have a certain value, particularly in generic context, and that this property
-    /// always holds (see examples below).
-    ///
-    /// # Examples
-    /// Simplifying the result of splitting and concatenating:
-    /// ```
-    /// use generic_uint::{Uint, array::*, ops};
-    ///
-    /// fn identity<N: Uint, I: Uint>(arr: Arr<i32, N>) -> Arr<i32, N> {
-    ///     let (lhs, rhs) = arr.split_at_uint::<I>();
-    ///     let arr = lhs.concat(rhs); // Length = Add<Min<N, I>, SatSub<N, I>>, simplifies to N
-    ///     arr.compile_assert_len_eq().into_arr()
-    /// }
-    /// fn into_lhs<N: Uint, I: Uint>(arr: Arr<i32, ops::Add<N, I>>) -> Arr<i32, I> {
-    ///     let (lhs, _) = arr.split_at_uint::<I>(); // Length = Min<Add<N, I>, I>, simplifies to I
-    ///     lhs.compile_assert_len_eq().into_arr()
-    /// }
-    /// ```
-    ///
-    /// Asserting commutativity:
-    /// ```
-    /// use generic_uint::{Uint, array::*, ops};
-    ///
-    /// fn commutative<A: Uint, B: Uint>(arr: Arr<i32, ops::Add<A, B>>) -> Arr<i32, ops::Add<B, A>> {
-    ///     arr.compile_assert_len_eq().into_arr()
-    /// }
-    /// ```
-    #[track_caller]
-    pub const fn compile_assert_len_eq<M: Uint>(self) -> ArrApi<ImplArr![T; M]> {
-        check_invariants!(Self);
-
-        const {
-            assert_same_arr_len::<Self, Arr<T, M>>();
-        }
-        // SAFETY: Length equality was checked
-        unsafe { arr_convert_unchecked::<_, Arr<_, _>>(self) }
     }
 
     /// [`core::array::from_fn`], but as a method.

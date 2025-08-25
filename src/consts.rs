@@ -1,5 +1,5 @@
 macro_rules! meta_generate {
-    ($($struct:ident $prim:ident)*) => {
+    ($($struct:ident $prim:ident,)*) => {
         $(pub struct $struct<const N: $prim>;)*
 
         macro_rules! generate {
@@ -13,11 +13,11 @@ macro_rules! meta_generate {
     };
 }
 meta_generate! {
-    ConstUsize usize
-    ConstU128 u128
-    ConstU64 u64
-    ConstU32 u32
-    ConstU16 u16
+    ConstUsize usize,
+    ConstU128 u128,
+    ConstU64 u64,
+    ConstU32 u32,
+    ConstU16 u16,
 }
 pub struct ConstU8<const N: u8>;
 
@@ -46,3 +46,17 @@ const _: () = assert!(crate::uint::to_usize::<UsizeBits>().unwrap() == usize::BI
 
 /// [`usize::MAX`] as a [`Uint`](crate::Uint).
 pub type UsizeMax = crate::ops::SatSub<crate::ops::Shl<_1, UsizeBits>, _1>;
+
+macro_rules! maxes {
+    ($($name:ident $bits:ident $tnamefordocs:ident,)*) => {$(
+        #[doc = concat!("[`", stringify!($tnamefordocs), "::MAX`], but as a [`Uint`](crate::Uint)")]
+        pub type $name = crate::ops::SatSub<crate::ops::Shl<_1, $bits>, _1>;
+    )*};
+}
+maxes! {
+    U8Max _8 u8,
+    U16Max _16 u16,
+    U32Max _32 u32,
+    U64Max _64 u64,
+    U128Max _128 u128,
+}

@@ -89,12 +89,3 @@ macro_rules! subslice {
     };
 }
 pub(crate) use subslice;
-
-macro_rules! min {
-    ($lhs:expr, $rhs:expr) => {{
-        let __lhs = $lhs;
-        let __rhs = $rhs;
-        if __lhs < __rhs { __lhs } else { __rhs }
-    }};
-}
-pub(crate) use min;
