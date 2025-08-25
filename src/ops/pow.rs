@@ -1,7 +1,7 @@
 use super::*;
 
 // Quad(N) := 4 * N
-type QuadL<N> = AppendL<AppendL<N, U0>, U0>;
+type QuadL<N> = AppendL<AppendL<N, _0>, _0>;
 
 // N = 2 * H + P, H = H(N), P = P(N)
 //
@@ -17,14 +17,14 @@ pub type SquareL<N> = Tern<
             //
             QuadL<SquareL<H<N>>>,
             QuadL<H<N>>,
-            U1,
+            _1,
         >,
         // P = 0
         // Pow(N, 2) = Pow(2 * H, 2) = 4 * Pow(H, 2)
         QuadL<SquareL<H<N>>>,
     >,
     // Pow(0, 2) = 0
-    U0,
+    _0,
 >;
 
 // MulIf(N, F, C) := if C { N * F } else { N }
@@ -47,7 +47,7 @@ pub type PowL<B, E> = Tern<
         P<E>,
     >,
     // Pow(B, 0) = 1 (including if B = 0)
-    U1,
+    _1,
 >;
 
 #[apply(opaque)]

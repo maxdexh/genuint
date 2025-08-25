@@ -5,7 +5,7 @@ use super::*;
 type AddIfL<C, L, R> = TernL<C, add::AddL<L, R>, L>;
 
 // Double(N) := 2 * N
-pub type DoubleL<N> = AppendL<N, U0>;
+pub type DoubleL<N> = AppendL<N, _0>;
 
 #[apply(lazy)]
 // H := H(L), P := P(L)
@@ -19,7 +19,7 @@ pub type MulL<L, R> = Tern<
     //       = AddIf(P, Double(H * R), R)
     AddIfL<P<L>, DoubleL<MulL<H<L>, R>>, R>,
     // 0 * R = 0
-    U0,
+    _0,
 >;
 
 #[apply(opaque)]

@@ -8,7 +8,7 @@ use super::*;
 // We also assume L <= R + C. For all other inputs, we do not care about the result.
 //
 // USub(L, R, C) := L - R - C
-pub type USubL<L, R, C = U0> = Tern<
+pub type USubL<L, R, C = _0> = Tern<
     R,
     //   L - R - C
     // = 2 * HL + PL - (2 * HR + PR) - C
@@ -66,5 +66,5 @@ pub type SatSub<L, R> = Tern<
     //
     cmp::LtL<R, L>,
     USubL<L, R>,
-    U0,
+    _0,
 >;

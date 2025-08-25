@@ -14,7 +14,7 @@ pub type BitAndL<L, R> = Tern<
         AndSC<P<L>, P<R>>,
     >,
     // 0 & R = 0
-    U0,
+    _0,
 >;
 
 #[apply(opaque)]
@@ -64,7 +64,7 @@ pub type CountOnesL<N> = Tern<
         CountOnesL<H<N>>,
         P<N>,
     >,
-    U0,
+    _0,
 >;
 
 #[apply(opaque)]

@@ -28,7 +28,7 @@ pub type URemL<L, R> = Tern<
     //
     L,
     URemInSL<L, R>,
-    U0,
+    _0,
 >;
 
 // H % R <= R - 1
@@ -49,7 +49,7 @@ pub type DivUncheckedL<L, R> = Tern<
         DivUncheckedL<Half<L>, R>,
         BitNot<cmp::LtL<URemL<L, R>, R>>,
     >,
-    U0,
+    _0,
 >;
 
 #[apply(lazy)]
@@ -62,7 +62,7 @@ pub type DivL<L, R> = Tern<R, DivUncheckedL<L, R>, DivL<L, R>>;
 ///
 /// ```compile_fail
 /// use generic_uint::{ops::Rem, consts::*};
-/// const _: fn(Rem<U1, U0>) = |_| {};
+/// const _: fn(Rem<_1, _0>) = |_| {};
 /// ```
 #[apply(opaque)]
 #[apply(test_op! test_rem: L.checked_rem(R).unwrap_or(0), .., 1..)]
@@ -72,7 +72,7 @@ pub type Rem<L, R> = RemL<L, R>;
 ///
 /// ```compile_fail
 /// use generic_uint::{ops::Div, consts::*};
-/// const _: fn(Div<U1, U0>) = |_| {};
+/// const _: fn(Div<_1, _0>) = |_| {};
 /// ```
 #[apply(opaque)]
 #[apply(test_op! test_div: L.checked_div(R).unwrap_or(0), .., 1..)]

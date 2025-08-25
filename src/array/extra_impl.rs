@@ -59,7 +59,7 @@ where
     /// Retyping [`Arr`] to [`CopyArr`]:
     /// ```
     /// use generic_uint::{array::*, consts::*};
-    /// let arr = Arr::<_, U5>::from_fn(|i| i * i);
+    /// let arr = Arr::<_, _5>::from_fn(|i| i * i);
     /// let converted: CopyArr<_, _> = arr.into_arr();
     /// let converted_copy = converted;
     /// assert_eq!(converted, converted_copy);
@@ -190,7 +190,7 @@ where
     /// # Examples
     /// ```
     /// use generic_uint::{array::*, consts::*};
-    /// let arr = Arr::<_, U4>::from_fn(|i| i * i);
+    /// let arr = Arr::<_, _4>::from_fn(|i| i * i);
     /// assert_eq!(arr, [0, 1, 4, 9]);
     /// ```
     pub fn from_fn<F: FnMut(usize) -> T>(mut f: F) -> Self {
@@ -222,7 +222,7 @@ where
     /// # Examples
     /// ```
     /// use generic_uint::{array::*, consts::*};
-    /// let arr = Arr::<_, U4>::of(1);
+    /// let arr = Arr::<_, _4>::of(1);
     /// assert_eq!(arr, [1; 4]);
     /// ```
     pub const fn of(item: T) -> Self
@@ -250,7 +250,7 @@ where
     ///
     /// use generic_uint::{array::*, consts::*};
     /// assert_eq!(
-    ///     Arr::<_, U4>::of_const::<EmptyVecConst<i32>>(),
+    ///     Arr::<_, _4>::of_const::<EmptyVecConst<i32>>(),
     ///     [const { Vec::<i32>::new() }; 4],
     /// )
     /// ```
@@ -345,7 +345,7 @@ where
     /// ```
     /// use generic_uint::{array::*, consts::*};
     ///
-    /// let arr = Arr::<_, U3>::from_fn(|i| i); // type inference
+    /// let arr = Arr::<_, _3>::from_fn(|i| i); // type inference
     /// assert_eq!(arr.try_into_builtin_arr::<2>(), Err(arr));
     /// assert_eq!(arr.try_into_builtin_arr::<3>(), Ok([0, 1, 2]));
     /// assert_eq!(arr.try_into_builtin_arr::<4>(), Err(arr));

@@ -15,7 +15,7 @@ mod digits {
 
     pub type DigitBits = UsizeBits;
     pub type DigitMax = UsizeMax;
-    pub type DigitBase = ops::Add<DigitMax, U1>;
+    pub type DigitBase = ops::Add<DigitMax, _1>;
 
     /// Gets a number without the last digit, i.e. Div<N, DigitBase>.
     /// Since our base is a power of two, this is the same as bit shifting like this.
@@ -57,7 +57,7 @@ mod digits {
                 >,
             >,
         >,
-        U0,
+        _0,
     >;
 
     pub type DigitArrLen<N> = uint::From<ArrLenL<N>>;
@@ -69,10 +69,10 @@ mod digits {
         }
         assert_eq!(uint::to_usize::<DigitBits>(), Some(Digit::BITS as usize));
 
-        assert_eq!(digit_arr_len::<U0>(), 0);
-        assert_eq!(digit_arr_len::<U1>(), 1);
+        assert_eq!(digit_arr_len::<_0>(), 0);
+        assert_eq!(digit_arr_len::<_1>(), 1);
         assert_eq!(digit_arr_len::<DigitMax>(), 1);
-        assert_eq!(digit_arr_len::<ops::Add<DigitMax, U1>>(), 2);
+        assert_eq!(digit_arr_len::<ops::Add<DigitMax, _1>>(), 2);
     }
 }
 

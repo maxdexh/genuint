@@ -80,19 +80,19 @@ macro_rules! test_op {
 }
 pub(crate) use test_op;
 
-/// More efficient implementation of [`Div<N, U2>`].
+/// More efficient implementation of [`Div<N, _2>`].
 ///
 /// This is currently a primitive operation.
 // H(N) := N / 2
 pub type Half<N> = PrimitiveOp!(uint::From<N>, ::Half);
 
-/// More efficient implementation of [`Rem<N, U2>`].
+/// More efficient implementation of [`Rem<N, _2>`].
 ///
 /// This is currently a primitive operation.
 // P(N) := N % 2
 pub type Parity<N> = PrimitiveOp!(uint::From<N>, ::Parity);
 
-/// More efficient implementation of `Add<Mul<N, U2>, Tern<P, U1, U0>>`.
+/// More efficient implementation of `Add<Mul<N, _2>, Tern<P, _1, _0>>`.
 ///
 /// Equivalent to `2 * N + (P != 0) as _` in basic arithmetic or `(N << 1) | (P != 0) as _`
 /// in bit manipulation. This operation is useful for building the output of operations

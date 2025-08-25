@@ -16,7 +16,7 @@ pub type EqL<L, R> = Tern<
     // iff And(Xnor(PL, PR), Eq(HL, HR)) = 1
     AndL<Xnor<P<L>, P<R>>, EqL<H<R>, H<L>>>,
     // case L = 0:  0 = R  iff  (if R { 0 } else { 1 }) = 1
-    TernL<R, U0, U1>,
+    TernL<R, _0, _1>,
 >;
 
 #[apply(opaque)]
@@ -31,7 +31,7 @@ pub type Ne<L, R> = BitNot<Eq<L, R>>;
 //
 // LtByLast(L, R) := Cond!(HL = HR and PL = 0 and PR = 1)
 pub type LtByLastL<L, R> = AndSC<
-    Tern<P<L>, U0, P<R>>, // Cond!(not PL and PR)
+    Tern<P<L>, _0, P<R>>, // Cond!(not PL and PR)
     EqL<H<L>, H<R>>,      // Cond!(HL = HR)
 >;
 
@@ -47,12 +47,12 @@ pub type LtL<L, R> = Tern<
         // iff 2 * HL + PL < 2 * HR + PR
         // iff HL < HR or HL = HR and PL = 0 and PR = 1
         // iff Lt(HL, HR) = 1 or LtByLast(L, R) = 1
-        TernL<LtL<H<L>, H<R>>, U1, LtByLastL<L, R>>,
+        TernL<LtL<H<L>, H<R>>, _1, LtByLastL<L, R>>,
         // 0 < R is true because R = 0 was already checked
-        U1,
+        _1,
     >,
     // L < 0 is false
-    U0,
+    _0,
 >;
 
 #[apply(opaque)]

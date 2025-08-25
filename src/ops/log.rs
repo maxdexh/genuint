@@ -4,7 +4,7 @@ use super::*;
 pub type ILogUncheckedL<B, N> = Tern<
     //
     cmp::LtL<N, B>,
-    U0,
+    _0,
     add::IncIfL<
         ILogUncheckedL<
             //
@@ -36,4 +36,4 @@ pub type ILog<B, N> = ILogL<B, N>;
     }
     r
 }, 2.., 1..)]
-pub type BaseLen<B, N> = Tern<N, add::IncIfL<ILogL<B, N>>, U1>;
+pub type BaseLen<B, N> = Tern<N, add::IncIfL<ILogL<B, N>>, _1>;

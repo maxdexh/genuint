@@ -402,7 +402,7 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     ///     None
     /// );
     /// assert_eq!(
-    ///     ArrVecApi::new_full(Arr::<_, U20>::from_fn(|i| i)).pop(),
+    ///     ArrVecApi::new_full(Arr::<_, _20>::from_fn(|i| i)).pop(),
     ///     Some(19)
     /// );
     /// ```

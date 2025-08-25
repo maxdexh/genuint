@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn write_small(mut out: impl std::fmt::Write) -> std::fmt::Result {
     for i in 2..=256 {
-        writeln!(out, "bisect!(U{i}, {i}, U{h}, U{p});", h = i / 2, p = i % 2)?;
+        writeln!(out, "bisect!(_{i}, {i}, _{h}, _{p});", h = i / 2, p = i % 2)?;
     }
     Ok(())
 }

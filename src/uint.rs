@@ -28,8 +28,8 @@ pub const fn to_str<N: ToUint>() -> &'static str {
         impl<N: Uint> type_const::Const for ConcatBytes<N> {
             type Type = &'static [&'static [u8]];
             const VALUE: Self::Type = &[
-                doit::<ops::Div<N, consts::U10>>(),
-                &[b'0' + to_usize::<ops::Rem<N, consts::U10>>().unwrap() as u8],
+                doit::<ops::Div<N, consts::_10>>(),
+                &[b'0' + to_usize::<ops::Rem<N, consts::_10>>().unwrap() as u8],
             ];
         }
         const fn doit<N: Uint>() -> &'static [u8] {

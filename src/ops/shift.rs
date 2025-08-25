@@ -1,7 +1,7 @@
 use super::*;
 
 // DoubleIf(N, C) := if C { 2 * N } else { N }
-type DoubleIfL<N, C> = TernL<C, AppendL<N, U0>, N>;
+type DoubleIfL<N, C> = TernL<C, AppendL<N, _0>, N>;
 
 // Shl(L, R) := L << R = L * Pow(2, R)
 //
