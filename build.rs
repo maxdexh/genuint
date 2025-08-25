@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-const MAX_SMALL: u64 = 1024;
+const MAX_SMALL: u64 = 512;
 
 fn write_nums(mut out: impl std::fmt::Write) -> std::fmt::Result {
     for i in 2..=MAX_SMALL {

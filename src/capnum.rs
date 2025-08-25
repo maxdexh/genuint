@@ -1,4 +1,6 @@
-use crate::{Uint, array::CopyArr, capnum::digits::PopLastDigit, ops, uint};
+use crate::{
+    Uint, array::CopyArr, capnum::digits::PopLastDigit, consts::*, maxint::UMaxInt, ops, uint,
+};
 
 mod capnum_utils;
 use capnum_utils::*;
@@ -176,3 +178,5 @@ impl<N: Uint> CapUint<N> {
         .unwrap()
     }
 }
+
+mod to_prim;

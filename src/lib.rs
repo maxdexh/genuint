@@ -1,4 +1,4 @@
-#![recursion_limit = "512"]
+#![recursion_limit = "1024"]
 #![cfg_attr(not(any(test, doc, feature = "std")), no_std)]
 #![warn(
     clippy::nursery,
@@ -19,8 +19,14 @@ extern crate alloc;
 ///
 /// # Examples
 /// ```
+/// #![recursion_limit = "1024"] // NOTE: `lit` doesn't recurse, this is for typing
+///
 /// use generic_uint::{lit, uint};
 /// assert_eq!(uint::to_u128::<lit!(1)>(), Some(1));
+/// assert_eq!(
+///     uint::to_u128::<lit!(0x100000000000000000000000000000)>(),
+///     Some(0x100000000000000000000000000000),
+/// )
 /// ```
 #[macro_export]
 macro_rules! lit {

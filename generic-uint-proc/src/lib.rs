@@ -76,7 +76,7 @@ pub fn __lit(input: TokenStream) -> TokenStream {
         lit = single
     }
     let TokenTree::Literal(lit) = lit else {
-        panic!("Expected literal, got {lit:?}");
+        return compile_error("Expected literal", lit.span());
     };
 
     let span = lit.span();
@@ -88,7 +88,7 @@ pub fn __lit(input: TokenStream) -> TokenStream {
     let doit = |digits, radix| -> Result<_, Box<dyn std::error::Error>> {
         let bits = {
             let num = ibig::UBig::from_str_radix(digits, radix)?;
-            (0..num.bit_len()).map(move |i| num.bit(i))
+            (0..num.bit_len()).rev().map(move |i| num.bit(i))
         };
         let append_depth = bits.len();
 
