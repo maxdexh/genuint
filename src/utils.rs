@@ -1,8 +1,6 @@
 use core::{mem::MaybeUninit, ops::Range, ptr::NonNull};
 pub(crate) use generic_uint_proc::__apply as apply;
 
-// Internal API
-
 /// Performs the operation of writing the argument into a `repr(C)` union
 /// of `Src` and `Dst` and reading out `Dst`.
 ///
@@ -58,6 +56,7 @@ pub(crate) const unsafe fn subslice_init_nonnull<T>(
     slice: NonNull<[MaybeUninit<T>]>,
     Range { start, end }: Range<usize>,
 ) -> NonNull<[T]> {
+    extern crate self as generic_uint;
     debug_assert!(start <= end);
     debug_assert!(end <= slice.len());
     // SAFETY: Must be

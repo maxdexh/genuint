@@ -1,4 +1,14 @@
+use std::iter;
+
 use proc_macro::{Delimiter, Group, Ident, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
+
+trait ExtendExt<T>: Extend<T> + Sized {
+    fn extended(mut self, iter: impl IntoIterator<Item = T>) -> Self {
+        self.extend(iter);
+        self
+    }
+}
+impl<T, I: Extend<T>> ExtendExt<T> for I {}
 
 macro_rules! spanned {
     ($ex:expr, $span:expr) => {{
@@ -11,11 +21,20 @@ fn pathseg(name: &str, span: Span) -> [TokenTree; 3] {
     [
         spanned!(Punct::new(':', Spacing::Joint), span),
         spanned!(Punct::new(':', Spacing::Alone), span),
-        Ident::new(name, span).into(),
+        ident(name, span),
     ]
 }
 fn punct(ch: char, span: Span) -> TokenTree {
     spanned!(Punct::new(ch, Spacing::Alone), span)
+}
+fn group(stream: TokenStream, delim: Delimiter, delim_span: Span) -> TokenTree {
+    spanned!(Group::new(delim, stream), delim_span)
+}
+fn litstr(str: &str, span: Span) -> TokenTree {
+    spanned!(Literal::string(str), span)
+}
+fn ident(name: &str, span: Span) -> TokenTree {
+    Ident::new(name, span).into()
 }
 
 fn compile_error(msg: &str, span: Span) -> TokenStream {
@@ -24,13 +43,7 @@ fn compile_error(msg: &str, span: Span) -> TokenStream {
         .chain(pathseg("compile_error", span))
         .chain([
             punct('!', span),
-            spanned!(
-                Group::new(
-                    Delimiter::Brace,
-                    [spanned!(Literal::string(msg), span)].into_iter().collect()
-                ),
-                span
-            ),
+            spanned!(Group::new(Delimiter::Brace, litstr(msg, span).into()), span),
         ])
         .collect()
 }
@@ -38,25 +51,29 @@ fn compile_error(msg: &str, span: Span) -> TokenStream {
 #[doc(hidden)]
 #[proc_macro_attribute]
 pub fn __apply(attr: TokenStream, input: TokenStream) -> TokenStream {
-    let mut attr = attr.into_iter();
-    let mut mac = Vec::new();
-    for tok in &mut attr {
-        if matches!(&tok, TokenTree::Punct(p) if p.as_char() == '!') {
-            break;
-        }
-        mac.push(tok);
-    }
-    mac.push(Punct::new('!', proc_macro::Spacing::Alone).into());
-    mac.push(
-        Group::new(
-            proc_macro::Delimiter::Brace,
-            core::iter::once(Group::new(proc_macro::Delimiter::Parenthesis, attr.collect()).into())
-                .chain(input)
-                .collect(),
-        )
-        .into(),
-    );
-    TokenStream::from_iter(mac)
+    let mut attr = Vec::from_iter(attr);
+
+    let args = attr
+        .iter()
+        .position(|tok| matches!(&tok, TokenTree::Punct(p) if p.as_char() == '!'))
+        .map(|i| attr.split_off(i + 1))
+        .unwrap_or_else(|| {
+            attr.push(punct('!', Span::call_site()));
+            Default::default()
+        });
+
+    attr.extended([group(
+        TokenStream::from(group(
+            TokenStream::from_iter(args),
+            Delimiter::Parenthesis,
+            Span::call_site(),
+        ))
+        .extended(input),
+        Delimiter::Brace,
+        Span::call_site(),
+    )])
+    .into_iter()
+    .collect()
 }
 
 #[doc(hidden)]
@@ -69,9 +86,16 @@ pub fn __lit(input: TokenStream) -> TokenStream {
     };
 
     while let TokenTree::Group(g) = lit {
-        let Ok([single]) = <[_; 1]>::try_from(Vec::from_iter(g.stream())) else {
-            return compile_error("Input must be a single literal token tree", g.span());
+        let mut tokens = g.stream().into_iter();
+        let Some(single) = tokens.next() else {
+            return compile_error("Unexpected end of input", g.span());
         };
+        if let Some(leftover) = tokens.next() {
+            return compile_error(
+                "Leftover tokens. Input must be a single literal token without sign",
+                leftover.span(),
+            );
+        }
 
         lit = single
     }
@@ -93,12 +117,11 @@ pub fn __lit(input: TokenStream) -> TokenStream {
         let append_depth = bits.len();
 
         // [`crate::consts::_0`, `crate::consts::_1`]
-        let mut consts = crate_path.clone();
-        consts.extend(pathseg("consts", span));
-        let consts = [(consts.clone(), false), (consts, true)].map(|(mut consts, bit)| {
-            consts.extend(pathseg(if bit { "_1" } else { "_0" }, span));
-            consts
-        });
+        let consts = {
+            let prefix = crate_path.clone().extended(pathseg("consts", span));
+            [(prefix.clone(), "_0"), (prefix, "_1")]
+                .map(|(c, name)| c.extended(pathseg(name, span)))
+        };
 
         // first bit, `crate::consts::_0`
         let first = consts[0].clone();
@@ -113,8 +136,7 @@ pub fn __lit(input: TokenStream) -> TokenStream {
         });
 
         // `crate::ops::AppendBit<`
-        let mut append = crate_path;
-        append.extend(
+        let append = crate_path.extended(
             pathseg("ops", span)
                 .into_iter()
                 .chain(pathseg("AppendBit", span))
@@ -122,7 +144,7 @@ pub fn __lit(input: TokenStream) -> TokenStream {
         );
 
         // `crate::ops::AppendBit<..., crate::consts::_X>`
-        Ok(core::iter::repeat_n(append, append_depth)
+        Ok(iter::repeat_n(append, append_depth)
             .chain([first])
             .chain(bits.map(|bit| consts_and_puncts[usize::from(bit)].clone()))
             .collect())

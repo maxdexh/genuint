@@ -109,10 +109,6 @@ where
     /// Asserts that the length of the array is equal to the paramter and returns an new array of the
     /// adjusted type.
     ///
-    /// This method is intended to be used in branches where the length has been checked to take on
-    /// a certain value at runtime. If the equality is already known to hold regardless of any
-    /// branches at runtime, consider using [`Self::compile_assert_len_eq`].
-    ///
     /// # Panics
     /// If the length of the array is not equal to `M`
     ///
