@@ -118,7 +118,7 @@ pub(crate) fn run_tests_reduce_all<L: Tests>() {
             get_leaf::<L>()
         } else {
             // no need to guard here. if the range is empty, ReduceTest<L> = L and we
-            // just get the current instance of the function back
+            // just get the current instance of the function, which is already monomorphized
             run_tests_reduce_all::<<L::Ranges as UintRanges>::ReduceTest<L>>
         }
     };
@@ -160,7 +160,8 @@ macro_rules! test_op {
         fn $name() {
             struct Leaf;
             impl crate::ops::testing::Tests for Leaf {
-                type Ranges = crate::ops::testing::make_ranges!(
+                type Ranges = crate::ops::testing::test_op!(
+                    @ranges
                     [ $first $($param)* ]
                     $(( $($lo)?, $($hi)? ))*
                 );
@@ -208,31 +209,31 @@ macro_rules! test_op {
 
             crate::ops::testing::run_tests_reduce_all::<Leaf>()
         }
-    }
-}
-pub(crate) use test_op;
-macro_rules! make_ranges {
+    };
     (
+        @ranges
         []
     ) => {
         ()
     };
     (
+        @ranges
         []
         $($rest:tt)+
     ) => {
         core::compile_error! { "Leftover ranges" }
     };
     (
+        @ranges
         [ $_:ident $($rest:ident)* ]
         $( ($($lo:expr)?, $($hi:expr)?)  $($rest2:tt)* )?
     ) => {
         (
             (
-                crate::ops::testing::make_ranges!(@bound DefaultLo $($($lo)?)? ),
-                crate::ops::testing::make_ranges!(@bound DefaultHi $($($hi)?)? ),
+                crate::ops::testing::test_op!(@bound DefaultLo $($($lo)?)? ),
+                crate::ops::testing::test_op!(@bound DefaultHi $($($hi)?)? ),
             ),
-            crate::ops::testing::make_ranges!([$($rest)*] $($($rest2)*)?),
+            crate::ops::testing::test_op!(@ranges [$($rest)*] $($($rest2)*)?),
         )
     };
     (
@@ -249,4 +250,4 @@ macro_rules! make_ranges {
         crate::uint::FromU128<{$ex}>
     };
 }
-pub(crate) use make_ranges;
+pub(crate) use test_op;
