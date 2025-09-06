@@ -1,8 +1,6 @@
 //! Provides a drop-in replacement for builtin `[T; N]` arrays that uses a [`Uint`](crate::Uint)
 //! for its length parameter
 
-use core::marker::PhantomData;
-
 /// # Safety
 /// 1. `Self` must not have *any* safety invariants over arrays. It must be safe
 ///    to implement any auto traits for (arrays of) it if the item type implements them, regardless
@@ -64,7 +62,7 @@ unsafe impl<A: Array> Array for ArrApi<A> {
     type Length = A::Length;
 }
 
-pub use crate::internals::arr_reexports::*;
+pub use crate::internals::array_types::*;
 
 mod core_impl;
 mod extra_impl;
@@ -108,7 +106,7 @@ mod arr_vec;
 #[cfg_attr(not(doc), repr(transparent))]
 pub struct ArrVecApi<A: Array<Item = T>, T = <A as Array>::Item>(
     arr_vec::ArrVecDrop<A>,
-    PhantomData<T>,
+    core::marker::PhantomData<T>,
 );
 
 /// Alias for [`ArrVecApi`] around [`Arr`].
@@ -128,7 +126,7 @@ mod arr_deq;
 #[repr(transparent)]
 pub struct ArrDeqApi<A: Array<Item = T>, T = <A as Array>::Item>(
     arr_deq::ArrDeqDrop<A>,
-    PhantomData<T>,
+    core::marker::PhantomData<T>,
 );
 
 /// Alias for [`ArrDeqApi`] around [`Arr`].

@@ -34,32 +34,30 @@ const fn to_umaxint_overflowing(mut digits: &[Digit]) -> (Umax, bool) {
     (wrapped, overflow)
 }
 
-macro_rules! generate_methods {
-    ($($normal:ident $overflowing:ident $prim:ty,)*) => {$(
-        #[doc = concat!("Converts the number to a ", stringify!($prim), ", wrapping around if necessary and returning whether wrapping occurred.")]
-        pub const fn $overflowing(self) -> ($prim, bool) {
-            let (u, o) = to_umaxint_overflowing(self.as_digits());
-            (u as _, u > <$prim>::MAX as crate::maxint::Umax || o)
-        }
-
-        #[doc = concat!("Converts the number to a ", stringify!($prim), ", returning [`None`] if it doesn't fit.")]
-        pub const fn $normal(self) -> Option<$prim> {
-            match self.$overflowing() {
-                (n, false) => Some(n),
-                (_, true) => None,
-            }
-        }
-    )*};
-}
-
 impl<N: Uint> CapUint<N> {
-    generate_methods! {
-        to_usize to_usize_overflowing usize,
-        to_u8 to_u8_overflowing u8,
-        to_u16 to_u16_overflowing u16,
-        to_u32 to_u32_overflowing u32,
-        to_u64 to_u64_overflowing u64,
-        to_u128 to_u128_overflowing u128,
+    crate::utils::expand! {
+        [to_prim to_prim_overflowing prim]
+        {$(
+            #[doc = concat!("Converts the number to a ", stringify!($prim), ", wrapping around if necessary and returning whether wrapping occurred.")]
+            pub const fn $to_prim_overflowing(self) -> ($prim, bool) {
+                let (u, o) = to_umaxint_overflowing(self.as_digits());
+                (u as _, u > <$prim>::MAX as Umax || o)
+            }
+
+            #[doc = concat!("Converts the number to a ", stringify!($prim), ", returning [`None`] if it doesn't fit.")]
+            pub const fn $to_prim(self) -> Option<$prim> {
+                match self.$to_prim_overflowing() {
+                    (n, false) => Some(n),
+                    (_, true) => None,
+                }
+            }
+        )}
+        [ to_usize to_usize_overflowing usize ]
+        [ to_u8 to_u8_overflowing u8 ]
+        [ to_u16 to_u16_overflowing u16 ]
+        [ to_u32 to_u32_overflowing u32 ]
+        [ to_u64 to_u64_overflowing u64 ]
+        [ to_u128 to_u128_overflowing u128 ]
     }
 }
 

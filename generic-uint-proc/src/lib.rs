@@ -37,13 +37,48 @@ fn ident(name: &str, span: Span) -> TokenTree {
     Ident::new(name, span).into()
 }
 
-fn compile_error(msg: &str, span: Span) -> TokenStream {
-    pathseg("core", span)
+struct SpanRange(Span, Span);
+impl Default for SpanRange {
+    fn default() -> Self {
+        Self(Span::call_site(), Span::call_site())
+    }
+}
+impl From<Span> for SpanRange {
+    fn from(value: Span) -> Self {
+        Self(value, value)
+    }
+}
+impl<T: Into<SpanRange>> From<Option<T>> for SpanRange {
+    fn from(value: Option<T>) -> Self {
+        value.map(Into::into).unwrap_or_default()
+    }
+}
+impl From<TokenStream> for SpanRange {
+    fn from(value: TokenStream) -> Self {
+        let mut iter = value.into_iter();
+        iter.next().map_or_else(Default::default, |first| {
+            let start = first.span();
+            Self(start, iter.last().map_or(start, |last| last.span()))
+        })
+    }
+}
+impl From<&[TokenTree]> for SpanRange {
+    fn from(value: &[TokenTree]) -> Self {
+        match value {
+            [] => Default::default(),
+            [single] => single.span().into(),
+            [start, .., end] => Self(start.span(), end.span()),
+        }
+    }
+}
+fn compile_error(msg: &str, span: impl Into<SpanRange>) -> TokenStream {
+    let SpanRange(start, end) = span.into();
+    pathseg("core", start)
         .into_iter()
-        .chain(pathseg("compile_error", span))
+        .chain(pathseg("compile_error", start))
         .chain([
-            punct('!', span),
-            spanned!(Group::new(Delimiter::Brace, litstr(msg, span).into()), span),
+            punct('!', start),
+            spanned!(Group::new(Delimiter::Brace, litstr(msg, end).into()), end),
         ])
         .collect()
 }
@@ -87,17 +122,18 @@ pub fn __lit(input: TokenStream) -> TokenStream {
 
     while let TokenTree::Group(g) = lit {
         let mut tokens = g.stream().into_iter();
-        let Some(single) = tokens.next() else {
-            return compile_error("Unexpected end of input", g.span());
+
+        lit = match tokens.next() {
+            Some(x) => x,
+            None => return compile_error("Unexpected end of input", g.span_close()),
         };
+
         if let Some(leftover) = tokens.next() {
             return compile_error(
                 "Leftover tokens. Input must be a single literal token without sign",
                 leftover.span(),
             );
         }
-
-        lit = single
     }
     let TokenTree::Literal(lit) = lit else {
         return compile_error("Expected literal", lit.span());
@@ -157,4 +193,149 @@ pub fn __lit(input: TokenStream) -> TokenStream {
         _ => doit(lit, 10),
     }
     .unwrap_or_else(|err| compile_error(&err.to_string(), span))
+}
+
+#[proc_macro]
+#[doc(hidden)]
+pub fn __expand(input: TokenStream) -> TokenStream {
+    let mut input = input.into_iter();
+
+    let (inputs, unwrap): (Vec<_>, Vec<_>) = match input.next() {
+        Some(TokenTree::Group(g)) => {
+            match g
+                .stream()
+                .into_iter()
+                .map(|tok| match tok {
+                    TokenTree::Group(g) => {
+                        let unwrapped = g.stream().into_iter().collect::<Vec<_>>();
+                        if let [TokenTree::Ident(ident)] = &*unwrapped {
+                            Ok((ident.to_string(), g.delimiter() != Delimiter::None))
+                        } else {
+                            Err(compile_error(
+                                "Expected group to be of single ident",
+                                &*unwrapped,
+                            ))
+                        }
+                    }
+                    TokenTree::Ident(ident) => Ok((ident.to_string(), false)),
+                    tt => Err(compile_error(
+                        "Expected ident or group with ident",
+                        tt.span(),
+                    )),
+                })
+                .collect()
+            {
+                Ok(inputs) => inputs,
+                Err(err) => return err,
+            }
+        }
+        None => return compile_error("Unexpected end of input", Span::call_site()),
+        Some(tt) => return compile_error("Expected group", tt.span()),
+    };
+
+    let out = match input.next() {
+        Some(TokenTree::Group(g)) => g,
+        None => return compile_error("Unexpected end of input", Span::call_site()),
+        Some(tt) => return compile_error("Expected group", tt.span()),
+    };
+
+    fn expand(
+        template: &Group,
+        inputs: &[String],
+        input_vals: &[TokenStream],
+        result: &mut Vec<TokenTree>,
+    ) {
+        let mut template = Vec::from_iter(template.stream()).into_iter();
+        loop {
+            match template.as_slice() {
+                [] => break,
+                [TokenTree::Punct(dollar), TokenTree::Ident(ident), ..]
+                    if dollar.as_char() == '$' =>
+                {
+                    let name = ident.to_string();
+                    if let Some(sub) = inputs
+                        .iter()
+                        .position(|in_name| in_name == &name)
+                        .and_then(|idx| input_vals.get(idx))
+                    {
+                        result.extend(sub.clone());
+                        _ = template.nth(1);
+                        continue;
+                    }
+                }
+                [TokenTree::Group(g), ..] => {
+                    let mut inner = Vec::new();
+                    expand(g, inputs, input_vals, &mut inner);
+                    result.push(group(
+                        TokenStream::from_iter(inner),
+                        g.delimiter(),
+                        g.span(),
+                    ));
+                    _ = template.next();
+                    continue;
+                }
+                _ => (),
+            }
+            result.extend(template.next());
+        }
+    }
+    fn expand_outer(
+        template: &Group,
+        inputs: &[String],
+        input_vals: &[Vec<TokenStream>],
+        result: &mut Vec<TokenTree>,
+    ) {
+        let mut template = Vec::from_iter(template.stream()).into_iter();
+        loop {
+            match template.as_slice() {
+                [] => break,
+                [TokenTree::Punct(dollar), TokenTree::Group(g), ..]
+                    if dollar.as_char() == '$' && g.delimiter() != Delimiter::None =>
+                {
+                    for vals in input_vals {
+                        expand(g, inputs, vals, result)
+                    }
+                    _ = template.nth(1);
+                    continue;
+                }
+                [TokenTree::Group(g), ..] => {
+                    let mut inner = Vec::new();
+                    expand_outer(g, inputs, input_vals, &mut inner);
+                    result.push(group(
+                        TokenStream::from_iter(inner),
+                        g.delimiter(),
+                        g.span(),
+                    ));
+                    _ = template.next();
+                    continue;
+                }
+                _ => (),
+            }
+            result.extend(template.next());
+        }
+    }
+
+    let input_vals: Vec<Vec<_>> = match input
+        .map(|tok| match tok {
+            TokenTree::Group(g) => g
+                .stream()
+                .into_iter()
+                .zip(&unwrap)
+                .map(|p| match p {
+                    (tt, false) => Ok(tt.into()),
+                    (TokenTree::Group(g), true) => Ok(g.stream()),
+                    (tok, _) => Err(compile_error("Unwrap delimiter mismatch", tok.span())),
+                })
+                .collect(),
+            tt => Err(compile_error("Expected group", tt.span())),
+        })
+        .collect()
+    {
+        Ok(v) => v,
+        Err(err) => return err,
+    };
+
+    let mut result = Vec::new();
+    expand_outer(&out, &inputs, &input_vals, &mut result);
+    result.into_iter().collect()
 }

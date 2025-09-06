@@ -88,3 +88,10 @@ macro_rules! subslice {
     };
 }
 pub(crate) use subslice;
+
+macro_rules! expand {
+    ($($t:tt)*) => {
+        ::generic_uint_proc::__expand! { $($t)* }
+    };
+}
+pub(crate) use expand;

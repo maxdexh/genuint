@@ -12,7 +12,7 @@ pub trait UintSealed: 'static {
     type __Ops: _Uint;
 }
 
-pub trait _Uint: Arrays + 'static {
+pub trait _Uint: _Arrays + 'static {
     const IS_NONZERO: bool;
 
     type Ternary<T: ToUint, F: ToUint>: ToUint;
@@ -91,52 +91,74 @@ pub trait ArrBound<T, N: Uint> {
 #[derive(Clone, Copy)]
 pub struct ArrBisect<A, P>([A; 2], P);
 
+/// Implementation detail of the different recursive array implementors that uses a sentinel `Bound`
+/// type to distinguish between them.
 #[repr(transparent)]
-pub struct ArrImpl<T, N: Uint, Bound: ArrBound<T, N>>(Bound::Arr);
+pub struct ArrImpl<Bound: ArrBound<T, N>, T, N: Uint>(Bound::Arr);
+
 // SAFETY: repr(transparent); `Bound::Arr` was recursively constructed to be a valid implementor
-unsafe impl<T, N: Uint, Bound: ArrBound<T, N>> Array for ArrImpl<T, N, Bound> {
+unsafe impl<T, N: Uint, Bound: ArrBound<T, N>> Array for ArrImpl<Bound, T, N> {
     type Item = T;
     type Length = N;
 }
-impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Copy for ArrImpl<T, N, Bound> {}
-impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Clone for ArrImpl<T, N, Bound> {
+impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Copy for ArrImpl<Bound, T, N> {}
+impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Clone for ArrImpl<Bound, T, N> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-macro_rules! gen_arr_internals {
-    (
-        $($name:ident[$($($bound:tt)+)?])*
-    ) => {
-        pub trait Arrays {
-            $(type $name<T: $($($bound)+)?> $(: $($bound)+)?;)*
-        }
-        impl Arrays for O {
-            $(type $name<T: $($($bound)+)?> = [T; 0];)*
-        }
-        impl Arrays for I {
-            $(type $name<T: $($($bound)+)?> = [T; 1];)*
-        }
-        impl<H: _Pint, P: _Bit> Arrays for A<H, P> {
-            $(type $name<T: $($($bound)+)?> = ArrBisect<H::$name<T>, P::$name<T>>;)*
-        }
-        mod bounds {
-            $(pub struct $name;)*
-        }
-        $(impl<T: $($($bound)+)?, N: Uint> ArrBound<T, N> for bounds::$name {
-            type Arr = <N::__Ops as Arrays>::$name<T>;
-        })*
+crate::utils::expand! {
+    [{doc} out name (bound)] // Seperate `out` and `name` so lsps show the right docs
+    {
+        pub trait _Arrays {$(
+            type $name<T: $bound>: $bound;
+        )}
+        // `_Arrays` is a supertrait of `_Uint`, so it can be implemented using seperate
+        // impls for each `_Uint` implementor while still working with generics.
+        impl _Arrays for O {$(
+            type $name<T: $bound> = [T; 0];
+        )}
+        impl _Arrays for I {$(
+            type $name<T: $bound> = [T; 1];
+        )}
+        impl<H: _Pint, P: _Bit> _Arrays for A<H, P> {$(
+            type $name<T: $bound> = ArrBisect<H::$name<T>, P::$name<T>>;
+        )}
 
-        pub mod arr_reexports {
-            $(pub type $name<T, N> = crate::array::ArrApi<super::ArrImpl<T, N, super::bounds::$name>>;)*
-        }
-    };
-}
+        // bound type sentinels
+        mod bounds {$(
+            pub struct $name;
+            impl<T: $bound, N: crate::Uint> super::ArrBound<T, N> for $name {
+                type Arr = <N::__Ops as super::_Arrays>::$name<T>;
+            }
+        )}
 
-gen_arr_internals! {
-    Arr[Sized]
-    CopyArr[Copy]
+        pub mod array_types { use crate::{internals::*, array::*}; $(
+            $doc
+            pub type $out<T, N> = ArrApi<ArrImpl<bounds::$name, T, N>>;
+        )}
+    }
+    [
+        {
+            /// Implementation of `Array` for arbitrary `N: Uint`.
+            ///
+            /// Wrapped in [`ArrApi`](crate::array::ArrApi).
+        }
+        Arr
+        Arr
+        (Sized)
+    ]
+    [
+        {
+            /// Implementation of `Array + Copy` for arbitrary `N: Uint`.
+            ///
+            /// Wrapped in [`ArrApi`](crate::array::ArrApi).
+        }
+        CopyArr
+        CopyArr
+        (Copy)
+    ]
 }
 
 pub trait _ArrApi {

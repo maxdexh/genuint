@@ -1,6 +1,7 @@
 mod cmp;
 mod convert;
 mod iter;
+mod tuple_convert;
 
 use crate::Uint;
 use crate::array::{helper::*, *};

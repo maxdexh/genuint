@@ -73,38 +73,6 @@ where
     }
 }
 
-macro_rules! tuple_impl {
-    () => {};
-    ($F:ident $($T:ident)*) => {
-        tuple_impl!($($T)*);
-
-        const _: () = {
-            const COUNT: usize = 1 $(+ { stringify!($T); 1 })*;
-            impl<A, $F> From<ArrApi<A>> for ($F, $($T),*)
-            where
-                A: Array<Item = $F, Length = crate::uint::FromUsize<COUNT>>,
-            {
-                fn from(value: ArrApi<A>) -> Self {
-                    crate::array::helper::arr_convert::<_, [_; COUNT]>(value).into()
-                }
-            }
-            impl<A, $F> From<($F, $($T),*)> for ArrApi<A>
-            where
-                A: Array<Item = $F, Length = crate::uint::FromUsize<COUNT>>
-            {
-                fn from(value: ($F, $($T),*)) -> Self {
-                    crate::array::helper::arr_convert(<[_; COUNT]>::from(value))
-                }
-            }
-        };
-    };
-}
-tuple_impl! {
-    T T T T
-    T T T T
-    T T T T
-}
-
 #[cfg(feature = "alloc")]
 impl<'a, T, A> From<&'a ArrApi<A>> for alloc::borrow::Cow<'a, [T]>
 where
