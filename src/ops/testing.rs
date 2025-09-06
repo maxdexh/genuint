@@ -1,10 +1,14 @@
+#![cfg(test)]
+
+pub(crate) type SatDec<N> = crate::uint::From<crate::ops::satdec::SatDecIfL<N>>;
+
 // Test decrementing itself before we use it in all other tests.
 #[test]
 fn test_decrement() {
     macro_rules! tests {
         ($($val:literal)*) => {$(
             assert_eq!(
-                crate::uint::to_u128::<crate::ops::SatDecForTest<crate::uint::FromU128<$val>>>(),
+                crate::uint::to_u128::<crate::ops::testing::SatDec<crate::uint::FromU128<$val>>>(),
                 Some(u128::saturating_sub($val, 1)),
             );
         )*};
@@ -122,7 +126,7 @@ pub fn run_tests<T: Tests>() {
 
                 if n > lo {
                     const fn next_traverse<T: Tests, N: Uint>() -> fn() {
-                        traverse::<T, crate::ops::SatDecForTest<N>>
+                        traverse::<T, crate::ops::testing::SatDec<N>>
                     }
                     next_traverse::<T, N>()
                 } else if n == lo {
@@ -145,7 +149,7 @@ pub fn run_tests<T: Tests>() {
 
                 if n > lo {
                     const fn next_traverse<T: Tests, N: Uint>() -> fn() {
-                        traverse::<T, crate::ops::SatDecForTest<N>>
+                        traverse::<T, crate::ops::testing::SatDec<N>>
                     }
                     next_traverse::<T, N>()
                 } else if n == lo {

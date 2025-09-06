@@ -71,7 +71,7 @@ macro_rules! test_op {
         $(#[$($attr:tt)*])*
         $v:vis $kw:ident $tname:ident<$($param:ident $(= $def:ty)?),* $(,)?> $($rest:tt)*
     ) => {
-        #[cfg(all(test, not(miri)))]
+        #[cfg(test)]
         crate::ops::testing::test_op! { $name: $($param)*, $tname<$($param),*>, $($args)* }
 
         $(#[$($attr)*])*
@@ -142,11 +142,6 @@ pub(crate) use helper::*;
 
 mod satdec;
 
-#[cfg(all(test, not(miri)))]
-// We need this to iterate over ranges of uints in tests
-pub type SatDecForTest<N> = uint::From<satdec::SatDecIfL<N>>;
-
-#[cfg(all(test, not(miri)))]
 mod testing;
 
 mod bitmath;

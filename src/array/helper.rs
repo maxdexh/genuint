@@ -1,4 +1,4 @@
-use core::mem::MaybeUninit;
+use core::{marker::PhantomData, mem::MaybeUninit};
 
 use crate::{
     Uint,
