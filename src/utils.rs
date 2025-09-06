@@ -72,10 +72,10 @@ pub(crate) const fn nonnull_from_const_ref<T: ?Sized>(r: &T) -> NonNull<T> {
 
 macro_rules! subslice {
     ( & $slice:expr, $($range:tt)* ) => {
-        $crate::utils::subslice!(@split_at $slice, $($range)*)
+        crate::utils::subslice!(@split_at $slice, $($range)*)
     };
     ( &mut $slice:expr, $($range:tt)* ) => {
-        $crate::utils::subslice!(@split_at_mut $slice, $($range)*)
+        crate::utils::subslice!(@split_at_mut $slice, $($range)*)
     };
     ( @$method:ident $slice:expr, _, $right:expr $(,)? ) => {
         $slice.$method($right).0

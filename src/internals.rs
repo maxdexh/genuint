@@ -1,83 +1,85 @@
 use crate::{ToUint, Uint, array::Array};
 
+pub struct U<N>(N);
 pub struct I;
 pub struct O;
 pub struct A<H, P>(H, P);
 
+pub(crate) type _0 = U<O>;
+pub(crate) type _1 = U<I>;
+
 pub trait UintSealed: 'static {
-    type __Ops: PrimOps;
+    type __Ops: _Uint;
 }
-pub trait PrimOps: Arrays {
+
+pub trait _Uint: Arrays + 'static {
     const IS_NONZERO: bool;
+
     type Ternary<T: ToUint, F: ToUint>: ToUint;
+    type Opaque<N: ToUint>: ToUint;
+
     type Half: Uint;
     type Parity: Uint;
-    type AsBit: UintBit;
     type AppendAsBit<B: Uint>: Uint;
-    type Opaque<N: ToUint>: ToUint;
+
+    type _AsBit: _Bit;
 }
-macro_rules! PrimitiveOp {
-    ($Self:ty, $($item:tt)*) => {
-        <<$Self as $crate::internals::UintSealed>::__Ops as $crate::internals::PrimOps>$($item)*
+pub(crate) type _PrimOps<N> = <N as UintSealed>::__Ops;
+macro_rules! InternalOp {
+    ($N:ty, $($item:tt)*) => {
+        <crate::internals::_PrimOps<$N> as crate::internals::_Uint>$($item)*
     };
 }
-pub(crate) use PrimitiveOp;
-
-pub trait UintBit: Uint<__Ops: PrimOps<AsBit = Self>> {}
-impl<N: Uint<__Ops: PrimOps<AsBit = Self>>> UintBit for N {}
-
-pub trait UintPos: Uint<__Ops: PrimOps<AsBit = I>> {}
-impl<N: Uint<__Ops: PrimOps<AsBit = I>>> UintPos for N {}
-
-impl Uint for O {}
-impl ToUint for O {
-    type ToUint = Self;
-}
-impl UintSealed for O {
-    type __Ops = Self;
-}
-impl PrimOps for O {
+pub(crate) use InternalOp;
+impl _Uint for O {
     const IS_NONZERO: bool = false;
+
     type Ternary<T: ToUint, F: ToUint> = F;
-    type Half = Self;
-    type Parity = Self;
-    type AsBit = Self;
-    type AppendAsBit<B: Uint> = PrimitiveOp!(B, ::AsBit);
     type Opaque<N: ToUint> = N;
+
+    type Half = _0;
+    type Parity = _0;
+    type AppendAsBit<B: Uint> = U<InternalOp!(B, ::_AsBit)>;
+
+    type _AsBit = Self;
+}
+impl _Uint for I {
+    const IS_NONZERO: bool = true;
+
+    type Ternary<T: ToUint, F: ToUint> = T;
+    type Opaque<N: ToUint> = N;
+
+    type Half = _0;
+    type Parity = _1;
+    type AppendAsBit<B: Uint> = U<A<Self, InternalOp!(B, ::_AsBit)>>;
+
+    type _AsBit = Self;
+}
+impl<H: _Pint, P: _Bit> _Uint for A<H, P> {
+    const IS_NONZERO: bool = true;
+
+    type Ternary<T: ToUint, F: ToUint> = T;
+    type Opaque<N: ToUint> = N;
+
+    type Half = U<H>;
+    type Parity = U<P>;
+    type AppendAsBit<B: Uint> = U<A<Self, InternalOp!(B, ::_AsBit)>>;
+
+    type _AsBit = I;
 }
 
-impl Uint for I {}
-impl ToUint for I {
-    type ToUint = Self;
-}
-impl UintSealed for I {
-    type __Ops = Self;
-}
-impl PrimOps for I {
-    const IS_NONZERO: bool = true;
-    type Ternary<T: ToUint, F: ToUint> = T;
-    type Half = O;
-    type Parity = Self;
-    type AsBit = Self;
-    type AppendAsBit<B: Uint> = A<Self, PrimitiveOp!(B, ::AsBit)>;
-    type Opaque<N: ToUint> = N;
-}
+pub trait _Bit: _Uint<_AsBit = Self> {}
+impl<N: _Uint<_AsBit = Self>> _Bit for N {}
 
-impl<H: UintPos, P: UintBit> UintSealed for A<H, P> {
-    type __Ops = Self;
+pub trait _Pint: _Uint<_AsBit = I> {}
+impl<N: _Uint<_AsBit = I>> _Pint for N {}
+
+impl<N: _Uint> UintSealed for U<N> {
+    type __Ops = N;
 }
-impl<H: UintPos, P: UintBit> ToUint for A<H, P> {
+impl<N: _Uint> Uint for U<N> {}
+impl<N: _Uint> ToUint for U<N> {
     type ToUint = Self;
-}
-impl<H: UintPos, P: UintBit> Uint for A<H, P> {}
-impl<H: UintPos, P: UintBit> PrimOps for A<H, P> {
-    const IS_NONZERO: bool = true;
-    type Ternary<T: ToUint, F: ToUint> = T;
-    type Half = H;
-    type Parity = P;
-    type AsBit = I;
-    type AppendAsBit<B: Uint> = A<Self, PrimitiveOp!(B, ::AsBit)>;
-    type Opaque<N: ToUint> = N;
 }
 
 /// # Safety
@@ -116,8 +118,8 @@ macro_rules! gen_arr_internals {
         impl Arrays for I {
             $(type $name<T: $($($bound)+)?> = [T; 1];)*
         }
-        impl<HA: Arrays, PA: Arrays, H: UintPos<__Ops = HA>, P: UintBit<__Ops = PA>> Arrays for A<H, P> {
-            $(type $name<T: $($($bound)+)?> = ArrBisect<HA::$name<T>, PA::$name<T>>;)*
+        impl<H: _Pint, P: _Bit> Arrays for A<H, P> {
+            $(type $name<T: $($($bound)+)?> = ArrBisect<H::$name<T>, P::$name<T>>;)*
         }
         mod bounds {
             $(pub struct $name;)*

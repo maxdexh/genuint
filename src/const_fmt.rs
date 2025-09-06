@@ -1,4 +1,5 @@
-#![allow(unused)]
+//! implementation detail for some error messages
+#![doc(hidden)]
 
 use crate::{
     array::{ArrApi, Array},
@@ -13,7 +14,7 @@ pub(crate) const fn __unwrap_one([one]: [ConstFmt; 1]) -> ConstFmt {
 
 macro_rules! fmt_one {
     ($one:expr) => {
-        $crate::const_fmt::__unwrap_one($crate::const_fmt::ConstFmtWrap::new($one).fmt())
+        crate::const_fmt::__unwrap_one(crate::const_fmt::ConstFmtWrap::new($one).fmt())
     };
 }
 pub(crate) use fmt_one;
@@ -23,9 +24,9 @@ pub(crate) use fmt_one;
 /// ```
 macro_rules! fmt {
     [ $($ex:expr),* $(,)? ] => {
-        $crate::const_fmt::ConstFmtWrap::new(
-            $crate::array::Arr::<$crate::const_fmt::ConstFmt, _>::from_arr([])
-                $( .concat($crate::const_fmt::ConstFmtWrap::new($ex).fmt()) )*
+        crate::const_fmt::ConstFmtWrap::new(
+            crate::array::Arr::<crate::const_fmt::ConstFmt, _>::from_arr([])
+                $( .concat(crate::const_fmt::ConstFmtWrap::new($ex).fmt()) )*
         )
     };
 }
@@ -36,7 +37,7 @@ pub(crate) use fmt;
 /// ```
 macro_rules! panic_fmt {
     [ $($ex:expr),* $(,)? ] => {
-        $crate::const_fmt::fmt![$($ex),*].panic()
+        crate::const_fmt::fmt![$($ex),*].panic()
     };
 }
 pub(crate) use panic_fmt;
@@ -127,6 +128,7 @@ impl<'a> ConstFmtWrap<ConstFmt<'a>> {
     }
 }
 impl<'a> ConstFmtWrap<&'a [ConstFmt<'a>]> {
+    #[expect(dead_code)]
     pub(crate) const fn fmt(self) -> [ConstFmt<'a>; 1] {
         [ConstFmt::Concat(self.into_inner())]
     }
@@ -137,6 +139,7 @@ impl<'a, const N: usize> ConstFmtWrap<&'a [ConstFmt<'a>; N]> {
     }
 }
 impl<'a, A: Array<Item = ConstFmt<'a>>> ConstFmtWrap<ConstFmtWrap<A>> {
+    #[expect(dead_code)]
     pub(crate) const fn fmt(self) -> A {
         self.into_inner().into_inner()
     }

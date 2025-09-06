@@ -20,7 +20,7 @@ macro_rules! check_invariants {
     [ $($t:ty),* $(,)? ] => {
         const {
             $(
-                let () = { *<$crate::array::ArrApi<$t>>::INVARIANT_CHECK };
+                let () = { *<crate::array::ArrApi<$t>>::INVARIANT_CHECK };
             )+
         }
     };
@@ -88,7 +88,7 @@ pub(crate) const fn layout_invariant_check<A: Array<Item = T>, T>() {
 
         macro_rules! fmt_one_each {
             ( $($ex:expr),* $(,)? ) => {
-                [ $($crate::const_fmt::fmt_one!($ex)),* ]
+                [ $(crate::const_fmt::fmt_one!($ex)),* ]
             };
         }
         macro_rules! fmt_one_slice {

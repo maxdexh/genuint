@@ -4,7 +4,7 @@ fn test_decrement() {
     macro_rules! tests {
         ($($val:literal)*) => {$(
             assert_eq!(
-                crate::uint::to_u128::<crate::ops::SatDecForTest<$crate::uint::FromU128<$val>>>(),
+                crate::uint::to_u128::<crate::ops::SatDecForTest<crate::uint::FromU128<$val>>>(),
                 Some(u128::saturating_sub($val, 1)),
             );
         )*};
@@ -29,26 +29,26 @@ macro_rules! test_op {
         #[test]
         fn $name() {
             struct __Callback<$($param),*>($($param),*);
-            impl<$($param: $crate::Uint),*> $crate::ops::testing::Tests for __Callback<$($param),*> {
-                type Hi = $crate::uint::FromU128<{ $crate::ops::testing::__expr_or!($($($($hi)?)?)?, 10) }>;
-                const LO: u128 = $crate::ops::testing::__expr_or!($($($($lo)?)?)?, 0);
-                type Partial<$first: $crate::Uint> = Self;
+            impl<$($param: crate::Uint),*> crate::ops::testing::Tests for __Callback<$($param),*> {
+                type Hi = crate::uint::FromU128<{ crate::ops::testing::__expr_or!($($($($hi)?)?)?, 10) }>;
+                const LO: u128 = crate::ops::testing::__expr_or!($($($($lo)?)?)?, 0);
+                type Partial<$first: crate::Uint> = Self;
 
                 const IS_LEAF: bool = true;
 
                 #[allow(non_snake_case)]
-                fn leaf_test<$first: $crate::Uint>() {
-                    let $first = $crate::uint::to_u128::<$first>().unwrap();
-                    $(let $param = $crate::uint::to_u128::<$param>().unwrap();)*
+                fn leaf_test<$first: crate::Uint>() {
+                    let $first = crate::uint::to_u128::<$first>().unwrap();
+                    $(let $param = crate::uint::to_u128::<$param>().unwrap();)*
                     assert_eq!(
-                        $crate::uint::to_u128::<$got>(),
+                        crate::uint::to_u128::<$got>(),
                         Some($expect),
                         "params={:?}",
                         ($($param),*)
                     );
                 }
             }
-            $crate::ops::testing::__test_op_inner! {
+            crate::ops::testing::__test_op_inner! {
                 $($param)*,
                 __Callback
                 $($($($rest)*)?)?
@@ -69,12 +69,12 @@ macro_rules! __test_op_inner {
         )?)?
     ) => {{
         struct $first<$($param),*>($($param),*);
-        impl<$($param: $crate::Uint),*> $crate::ops::testing::Tests for $first<$($param),*> {
-            type Hi = $crate::uint::FromU128<{ $crate::ops::testing::__expr_or!($($($($hi)?)?)?, 10) }>;
-            const LO: u128 = $crate::ops::testing::__expr_or!($($($($lo)?)?)?, 0);
-            type Partial<$first: $crate::Uint> = $callback<$first, $($param),*>;
+        impl<$($param: crate::Uint),*> crate::ops::testing::Tests for $first<$($param),*> {
+            type Hi = crate::uint::FromU128<{ crate::ops::testing::__expr_or!($($($($hi)?)?)?, 10) }>;
+            const LO: u128 = crate::ops::testing::__expr_or!($($($($lo)?)?)?, 0);
+            type Partial<$first: crate::Uint> = $callback<$first, $($param),*>;
         }
-        $crate::ops::testing::__test_op_inner! {
+        crate::ops::testing::__test_op_inner! {
             $($param)*,
             $first
             $($($($rest)*)?)?
@@ -84,7 +84,7 @@ macro_rules! __test_op_inner {
         ,
         $callback:ident $(,)?
     ) => {{
-        $crate::ops::testing::run_tests::<$callback>()
+        crate::ops::testing::run_tests::<$callback>()
     }}
 }
 pub(crate) use __test_op_inner;

@@ -20,7 +20,7 @@ const fn to_u_max_int_overflowing<N: Uint>() -> (UMaxInt, bool) {
 }
 
 pub const fn to_bool<N: ToUint>() -> bool {
-    crate::internals::PrimitiveOp!(N::ToUint, ::IS_NONZERO)
+    crate::internals::InternalOp!(N::ToUint, ::IS_NONZERO)
 }
 pub const fn to_str<N: ToUint>() -> &'static str {
     const fn to_byte_str_naive<N: Uint>() -> &'static [u8] {

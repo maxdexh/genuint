@@ -5,7 +5,7 @@ macro_rules! meta_generate {
         macro_rules! generate {
             ($name:ident, $val:expr, $ty:ty) => {
                 pub type $name = $ty;
-                $(impl $crate::ToUint for $struct<{ $val }> {
+                $(impl crate::ToUint for $struct<{ $val }> {
                     type ToUint = $name;
                 })*
             };
@@ -24,18 +24,18 @@ pub struct ConstU8<const N: u8>;
 macro_rules! generate_byte {
     ($name:ident, $val:expr, $ty:ty) => {
         generate!($name, $val, $ty);
-        impl $crate::ToUint for ConstU8<{ $val }> {
+        impl crate::ToUint for ConstU8<{ $val }> {
             type ToUint = $name;
         }
     };
 }
 
-generate_byte!(_0, 0, crate::internals::O);
-generate_byte!(_1, 1, crate::internals::I);
+generate_byte!(_0, 0, crate::internals::_0);
+generate_byte!(_1, 1, crate::internals::_1);
 
 macro_rules! bisect {
     ($name:ident, $val:expr, $half:ty, $parity:ty, $cb:ident) => {
-        $cb! { $name, $val, $crate::internals::A<$half, $parity> }
+        $cb! { $name, $val, crate::ops::AppendBit<$half, $parity> }
     };
 }
 include!(concat!(env!("OUT_DIR"), "/consts.rs"));

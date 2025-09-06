@@ -1,4 +1,4 @@
-use crate::{consts::*, internals::PrimitiveOp, uint, utils::apply};
+use crate::{consts::*, internals::InternalOp, uint, utils::apply};
 
 macro_rules! lazy {
     (
@@ -15,7 +15,7 @@ macro_rules! lazy {
 }
 pub(crate) use lazy;
 
-pub(crate) type Opaque<P, Val> = PrimitiveOp!(uint::From<P>, ::Opaque<Val>);
+pub(crate) type Opaque<P, Val> = InternalOp!(uint::From<P>, ::Opaque<Val>);
 pub(crate) type OpaqueEv<P, Val> = uint::From<Opaque<P, Val>>;
 pub(crate) type OpaqueEv2<P1, P2, Val> = uint::From<Opaque<P1, Opaque<P2, Val>>>;
 
@@ -72,7 +72,7 @@ macro_rules! test_op {
         $v:vis $kw:ident $tname:ident<$($param:ident $(= $def:ty)?),* $(,)?> $($rest:tt)*
     ) => {
         #[cfg(all(test, not(miri)))]
-        $crate::ops::testing::test_op! { $name: $($param)*, $tname<$($param),*>, $($args)* }
+        crate::ops::testing::test_op! { $name: $($param)*, $tname<$($param),*>, $($args)* }
 
         $(#[$($attr)*])*
         $v $kw $tname<$($param $(= $def)?),*> $($rest)*
@@ -84,13 +84,13 @@ pub(crate) use test_op;
 ///
 /// This is currently a primitive operation.
 // H(N) := N / 2
-pub type Half<N> = PrimitiveOp!(uint::From<N>, ::Half);
+pub type Half<N> = InternalOp!(uint::From<N>, ::Half);
 
 /// More efficient implementation of [`Rem<N, _2>`].
 ///
 /// This is currently a primitive operation.
 // P(N) := N % 2
-pub type Parity<N> = PrimitiveOp!(uint::From<N>, ::Parity);
+pub type Parity<N> = InternalOp!(uint::From<N>, ::Parity);
 
 /// More efficient implementation of `Add<Mul<N, _2>, Tern<P, _1, _0>>`.
 ///
@@ -100,7 +100,7 @@ pub type Parity<N> = PrimitiveOp!(uint::From<N>, ::Parity);
 ///
 /// This is currently a primitive operation.
 // Append(N, P) := 2 * N + if P { 1 } else { 0 }
-pub type AppendBit<N, P> = PrimitiveOp!(uint::From<N>, ::AppendAsBit<uint::From<P>>);
+pub type AppendBit<N, P> = InternalOp!(uint::From<N>, ::AppendAsBit<uint::From<P>>);
 
 /// If-else/Ternary operation.
 ///
@@ -135,7 +135,7 @@ pub type AppendBit<N, P> = PrimitiveOp!(uint::From<N>, ::AppendAsBit<uint::From<
 /// ```
 //
 // Tern(C, T, F) := if C { T } else { F }
-pub type Tern<C, T, F> = uint::From<PrimitiveOp!(uint::From<C>, ::Ternary<T, F>)>;
+pub type Tern<C, T, F> = uint::From<InternalOp!(uint::From<C>, ::Ternary<T, F>)>;
 
 mod helper;
 pub(crate) use helper::*;
