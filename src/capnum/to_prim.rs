@@ -36,7 +36,6 @@ const fn to_umaxint_overflowing(mut digits: &[Digit]) -> (Umax, bool) {
 
 impl<N: Uint> CapUint<N> {
     crate::utils::expand! {
-        [to_prim to_prim_overflowing prim]
         {$(
             #[doc = concat!("Converts the number to a ", stringify!($prim), ", wrapping around if necessary and returning whether wrapping occurred.")]
             pub const fn $to_prim_overflowing(self) -> ($prim, bool) {
@@ -52,12 +51,41 @@ impl<N: Uint> CapUint<N> {
                 }
             }
         )}
-        [ to_usize to_usize_overflowing usize ]
-        [ to_u8 to_u8_overflowing u8 ]
-        [ to_u16 to_u16_overflowing u16 ]
-        [ to_u32 to_u32_overflowing u32 ]
-        [ to_u64 to_u64_overflowing u64 ]
-        [ to_u128 to_u128_overflowing u128 ]
+        [
+            to_prim
+            to_prim_overflowing
+            prim
+        ]
+        [
+            to_usize
+            to_usize_overflowing
+            usize
+        ]
+        [
+            to_u8
+            to_u8_overflowing
+            u8
+        ]
+        [
+            to_u16
+            to_u16_overflowing
+            u16
+        ]
+        [
+            to_u32
+            to_u32_overflowing
+            u32
+        ]
+        [
+            to_u64
+            to_u64_overflowing
+            u64
+        ]
+        [
+            to_u128
+            to_u128_overflowing
+            u128
+        ]
     }
 }
 

@@ -24,8 +24,8 @@ extern crate alloc;
 /// use generic_uint::{lit, uint};
 /// assert_eq!(uint::to_u128::<lit!(1)>(), Some(1));
 /// assert_eq!(
-///     uint::to_u128::<lit!(0x100000000000000000000000000000)>(),
-///     Some(0x100000000000000000000000000000),
+///     uint::to_u128::<lit!(100000000000000000000000000000)>(),
+///     Some(100000000000000000000000000000),
 /// )
 /// ```
 #[macro_export]
@@ -44,9 +44,6 @@ pub trait ToUint {
     type ToUint: Uint;
 }
 
-pub trait UintEq<To: ToUint>: ToUint<ToUint = To::ToUint> {}
-impl<To: ToUint, N: ToUint<ToUint = To::ToUint>> UintEq<To> for N {}
-
 pub mod array;
 pub mod capnum;
 pub mod consts;
@@ -56,7 +53,5 @@ pub mod uint;
 #[doc(hidden)]
 pub mod __mac;
 
-#[doc(hidden)]
 mod const_fmt;
-#[doc(hidden)]
 mod maxint;

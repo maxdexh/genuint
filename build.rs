@@ -23,9 +23,9 @@ fn write_nums(mut out: impl std::fmt::Write) -> std::fmt::Result {
             h = i / 2,
             p = i % 2,
             cb = if i <= u8::MAX as u64 {
-                "generate_byte"
+                "new_byte_alias"
             } else {
-                "generate"
+                "new_alias"
             },
         )?;
     }

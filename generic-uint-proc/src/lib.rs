@@ -200,6 +200,12 @@ pub fn __lit(input: TokenStream) -> TokenStream {
 pub fn __expand(input: TokenStream) -> TokenStream {
     let mut input = input.into_iter();
 
+    let out = match input.next() {
+        Some(TokenTree::Group(g)) => g,
+        None => return compile_error("Unexpected end of input", Span::call_site()),
+        Some(tt) => return compile_error("Expected group", tt.span()),
+    };
+
     let (inputs, unwrap): (Vec<_>, Vec<_>) = match input.next() {
         Some(TokenTree::Group(g)) => {
             match g
@@ -229,12 +235,6 @@ pub fn __expand(input: TokenStream) -> TokenStream {
                 Err(err) => return err,
             }
         }
-        None => return compile_error("Unexpected end of input", Span::call_site()),
-        Some(tt) => return compile_error("Expected group", tt.span()),
-    };
-
-    let out = match input.next() {
-        Some(TokenTree::Group(g)) => g,
         None => return compile_error("Unexpected end of input", Span::call_site()),
         Some(tt) => return compile_error("Expected group", tt.span()),
     };

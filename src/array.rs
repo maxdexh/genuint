@@ -35,7 +35,6 @@ pub unsafe trait Array {
 }
 
 pub mod extra;
-#[doc(hidden)]
 pub(crate) mod helper;
 
 // SAFETY: Allowed by definition

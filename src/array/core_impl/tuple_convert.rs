@@ -15,12 +15,12 @@ macro_rules! tuple_impl {
         @
         $out:tt,
         $_:expr,
-        $($types:tt $count:tt)*
+        $($tuple:tt $count:tt)*
     ) => {
         crate::utils::expand! {
-            [ tuple count ]
             $out
-            $( [$types $count] )*
+            [ tuple count ]
+            $( [$tuple $count] )*
         }
     };
     (

@@ -108,7 +108,6 @@ impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Clone for ArrImpl<Bound
 }
 
 crate::utils::expand! {
-    [{doc} out name (bound)] // Seperate `out` and `name` so lsps show the right docs
     {
         pub trait _Arrays {$(
             type $name<T: $bound>: $bound;
@@ -133,16 +132,27 @@ crate::utils::expand! {
             }
         )}
 
-        pub mod array_types { use crate::{internals::*, array::*}; $(
-            $doc
-            pub type $out<T, N> = ArrApi<ArrImpl<bounds::$name, T, N>>;
-        )}
+        pub mod array_types {
+            use crate::{internals::*, array::*};
+            $(
+                $doc
+                pub type $out<T, N> = ArrApi<ArrImpl<bounds::$name, T, N>>;
+            )
+        }
     }
+    [
+        {doc}
+        // Seperate `$out` and `$name` so LSPs show the right docs (since `$name`
+        // is used for and therefore spans multiple declarations)
+        out
+        name
+        (bound)
+    ]
     [
         {
             /// Implementation of `Array` for arbitrary `N: Uint`.
             ///
-            /// Wrapped in [`ArrApi`](crate::array::ArrApi).
+            /// Wrapped in [`ArrApi`].
         }
         Arr
         Arr
@@ -152,7 +162,7 @@ crate::utils::expand! {
         {
             /// Implementation of `Array + Copy` for arbitrary `N: Uint`.
             ///
-            /// Wrapped in [`ArrApi`](crate::array::ArrApi).
+            /// Wrapped in [`ArrApi`].
         }
         CopyArr
         CopyArr
