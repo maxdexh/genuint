@@ -3,7 +3,6 @@ use crate::{ToUint, Uint, array::Array};
 pub struct U<N>(N);
 pub struct I;
 pub struct O;
-pub struct A<H, P>(H, P);
 
 pub(crate) type _0 = U<O>;
 pub(crate) type _1 = U<I>;
@@ -51,11 +50,11 @@ impl _Uint for I {
 
     type Half = _0;
     type Parity = _1;
-    type AppendAsBit<B: Uint> = U<A<Self, InternalOp!(B, ::_AsBit)>>;
+    type AppendAsBit<B: Uint> = U<(Self, InternalOp!(B, ::_AsBit))>;
 
     type _AsBit = Self;
 }
-impl<H: _Pint, P: _Bit> _Uint for A<H, P> {
+impl<H: _Pint, P: _Bit> _Uint for (H, P) {
     const IS_NONZERO: bool = true;
 
     type Ternary<T: ToUint, F: ToUint> = T;
@@ -63,7 +62,7 @@ impl<H: _Pint, P: _Bit> _Uint for A<H, P> {
 
     type Half = U<H>;
     type Parity = U<P>;
-    type AppendAsBit<B: Uint> = U<A<Self, InternalOp!(B, ::_AsBit)>>;
+    type AppendAsBit<B: Uint> = U<(Self, InternalOp!(B, ::_AsBit))>;
 
     type _AsBit = I;
 }
@@ -122,7 +121,7 @@ crate::utils::expand! {
         impl _Arrays for I {$(
             type $name<T: $bound> = [T; 1];
         )}
-        impl<H: _Pint, P: _Bit> _Arrays for A<H, P> {$(
+        impl<H: _Pint, P: _Bit> _Arrays for (H, P) {$(
             type $name<T: $bound> = ArrBisect<H::$name<T>, P::$name<T>>;
         )}
 

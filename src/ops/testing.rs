@@ -1,16 +1,23 @@
 #![cfg(test)]
 
-pub(crate) type SatDec<N> = crate::uint::From<crate::ops::satdec::SatDecIfL<N>>;
+use crate::{Uint, uint};
 
-// Test decrementing itself before we use it in all other tests.
+pub(crate) type SatDec<N> = uint::From<crate::ops::satdec::SatDecIfL<N>>;
+pub(crate) const DEFAULT_LO: u128 = 0;
+pub(crate) type DefaultHi = crate::consts::_10;
+
 #[test]
-fn test_decrement() {
+/// Make sure the test runner is actually testing anything, since it uses SatDec to traverse ranges.
+fn test_satdec() {
+    fn doit<const N: u128, V: Uint>()
+    where
+        crate::consts::ConstU128<N>: crate::ToUint<ToUint = V>,
+    {
+        assert_eq!(uint::to_u128::<SatDec<V>>(), Some(N.saturating_sub(1)),)
+    }
     macro_rules! tests {
         ($($val:literal)*) => {$(
-            assert_eq!(
-                crate::uint::to_u128::<crate::ops::testing::SatDec<crate::uint::FromU128<$val>>>(),
-                Some(u128::saturating_sub($val, 1)),
-            );
+            doit::<$val, _>();
         )*};
     }
     tests! { 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 }
@@ -34,13 +41,13 @@ macro_rules! test_op {
         fn $name() {
             struct __Callback<$($param),*>($($param),*);
             impl<$($param: crate::Uint),*> crate::ops::testing::Tests for __Callback<$($param),*> {
-                type Hi = crate::uint::FromU128<{ crate::ops::testing::__expr_or!($($($($hi)?)?)?, 10) }>;
-                const LO: u128 = crate::ops::testing::__expr_or!($($($($lo)?)?)?, 0);
+                type Hi = crate::ops::testing::__hi_or_default![ $($($( $hi )?)?)? ];
+                const LO: u128 = crate::ops::testing::__lo_or_default![ $($($( $lo )?)?)? ];
                 type Partial<$first: crate::Uint> = Self;
 
                 const IS_LEAF: bool = true;
 
-                #[allow(non_snake_case)]
+                #[expect(non_snake_case)]
                 fn leaf_test<$first: crate::Uint>() {
                     let $first = crate::uint::to_u128::<$first>().unwrap();
                     $(let $param = crate::uint::to_u128::<$param>().unwrap();)*
@@ -74,8 +81,8 @@ macro_rules! __test_op_inner {
     ) => {{
         struct $first<$($param),*>($($param),*);
         impl<$($param: crate::Uint),*> crate::ops::testing::Tests for $first<$($param),*> {
-            type Hi = crate::uint::FromU128<{ crate::ops::testing::__expr_or!($($($($hi)?)?)?, 10) }>;
-            const LO: u128 = crate::ops::testing::__expr_or!($($($($lo)?)?)?, 0);
+            type Hi = crate::ops::testing::__hi_or_default![ $($($( $hi )?)?)? ];
+            const LO: u128 = crate::ops::testing::__lo_or_default![ $($($( $lo )?)?)? ];
             type Partial<$first: crate::Uint> = $callback<$first, $($param),*>;
         }
         crate::ops::testing::__test_op_inner! {
@@ -93,17 +100,24 @@ macro_rules! __test_op_inner {
 }
 pub(crate) use __test_op_inner;
 
-macro_rules! __expr_or {
-    (, $def:expr) => {
-        $def
+macro_rules! __hi_or_default {
+    ($hi:expr) => {
+        crate::uint::FromU128<{ $hi }>
     };
-    ($val:expr, $_:expr) => {
-        $val
+    () => {
+        crate::ops::testing::DefaultHi
+    }
+}
+pub(crate) use __hi_or_default;
+macro_rules! __lo_or_default {
+    ($lo:expr) => {
+        $lo
+    };
+    () => {
+        crate::ops::testing::DEFAULT_LO
     };
 }
-pub(crate) use __expr_or;
-
-use crate::Uint;
+pub(crate) use __lo_or_default;
 
 pub trait Tests {
     type Hi: Uint;
@@ -115,64 +129,27 @@ pub trait Tests {
 }
 
 pub fn run_tests<T: Tests>() {
-    fn run_leaf<T: Tests>() {
-        const { debug_assert!(T::IS_LEAF) }
-        fn traverse<T: Tests, N: Uint>() {
-            T::leaf_test::<N>();
+    fn traverse<T: Tests, N: Uint>() {
+        T::leaf_test::<N>();
+        if !T::IS_LEAF {
+            run_tests::<T::Partial<N>>()
+        }
 
-            (const {
-                let n = crate::uint::to_u128::<N>().unwrap();
-                let lo = T::LO;
+        (const {
+            let n = uint::to_u128::<N>().unwrap();
+            let lo = T::LO;
 
-                if n > lo {
-                    const fn next_traverse<T: Tests, N: Uint>() -> fn() {
-                        traverse::<T, crate::ops::testing::SatDec<N>>
-                    }
-                    next_traverse::<T, N>()
-                } else if n == lo {
-                    || {}
-                } else {
-                    panic!("Unnecessary monomorphization")
+            if n > lo {
+                const fn next_traverse<T: Tests, N: Uint>() -> fn() {
+                    traverse::<T, SatDec<N>>
                 }
-            })()
-        }
-        traverse::<T, T::Hi>();
-    }
-    fn run_non_leaf<T: Tests>() {
-        const { debug_assert!(!T::IS_LEAF) }
-        fn traverse<T: Tests, N: Uint>() {
-            run_tests::<T::Partial<N>>();
-
-            (const {
-                let n = crate::uint::to_u128::<N>().unwrap();
-                let lo = T::LO;
-
-                if n > lo {
-                    const fn next_traverse<T: Tests, N: Uint>() -> fn() {
-                        traverse::<T, crate::ops::testing::SatDec<N>>
-                    }
-                    next_traverse::<T, N>()
-                } else if n == lo {
-                    || {}
-                } else {
-                    panic!("Unnecessary monomorphization")
-                }
-            })();
-        }
-        traverse::<T, T::Hi>();
-    }
-
-    (const {
-        if T::IS_LEAF {
-            const fn get_leaf_runner<T: Tests>() -> fn() {
-                run_leaf::<T>
+                next_traverse::<T, N>()
+            } else if n == lo {
+                || {}
+            } else {
+                panic!("Unnecessary monomorphization")
             }
-            get_leaf_runner::<T>()
-        } else {
-            const fn get_non_leaf_runner<T: Tests>() -> fn() {
-                run_non_leaf::<T>
-            }
-            get_non_leaf_runner::<T>()
-        }
-    })();
+        })();
+    }
+    traverse::<T, T::Hi>();
 }
