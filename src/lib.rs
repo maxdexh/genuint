@@ -56,5 +56,7 @@ pub mod uint;
 #[doc(hidden)]
 pub mod __mac;
 
+#[doc(hidden)]
 mod const_fmt;
+#[doc(hidden)]
 mod maxint;

@@ -1,15 +1,15 @@
-use crate::{ToUint, Uint, consts, maxint::UMaxInt, ops};
+use crate::{ToUint, Uint, consts, maxint::Umax, ops};
 
 pub type From<N> = <N as ToUint>::ToUint;
 pub type FromUsize<const N: usize> = From<crate::consts::ConstUsize<N>>;
 pub type FromU128<const N: u128> = From<crate::consts::ConstU128<N>>;
 
-const fn to_u_max_int_overflowing<N: Uint>() -> (UMaxInt, bool) {
+const fn to_umax_overflowing<N: Uint>() -> (Umax, bool) {
     // NOTE: This does unnecessary work. We only need to look at the last UMaxInt::BITS.
     // It might be worth it to perform a BitAnd on the `Uint` before plugging it in here.
     const {
         if to_bool::<N>() {
-            let (h, o1) = to_u_max_int_overflowing::<ops::Half<N>>();
+            let (h, o1) = to_umax_overflowing::<ops::Half<N>>();
             let (t, o2) = h.overflowing_mul(2);
             let (n, o3) = t.overflowing_add(to_bool::<ops::Parity<N>>() as _);
             (n, o1 || o2 || o3)
@@ -50,12 +50,12 @@ pub const fn to_str<N: ToUint>() -> &'static str {
     const fn doit<N: Uint>() -> &'static str {
         const {
             let fast_eval = const {
-                const MAXLEN: usize = crate::maxint::u_max_int_strlen(UMaxInt::MAX);
+                const MAXLEN: usize = crate::maxint::umax_strlen(Umax::MAX);
 
-                if let (n, false) = to_u_max_int_overflowing::<N>() {
-                    let len = crate::maxint::u_max_int_strlen(n);
+                if let (n, false) = to_umax_overflowing::<N>() {
+                    let len = crate::maxint::umax_strlen(n);
                     let mut out = [0; MAXLEN];
-                    crate::maxint::u_max_int_write(n, &mut out);
+                    crate::maxint::umax_write(n, &mut out);
                     Some((&{ out }, len))
                 } else {
                     None
@@ -76,8 +76,8 @@ pub const fn to_str<N: ToUint>() -> &'static str {
 }
 
 pub const fn to_usize_overflowing<N: ToUint>() -> (usize, bool) {
-    let (n, o1) = to_u_max_int_overflowing::<N::ToUint>();
-    (n as _, o1 || n > usize::MAX as UMaxInt)
+    let (n, o1) = to_umax_overflowing::<N::ToUint>();
+    (n as _, o1 || n > usize::MAX as Umax)
 }
 pub const fn to_usize<N: ToUint>() -> Option<usize> {
     match to_usize_overflowing::<N>() {
@@ -86,8 +86,8 @@ pub const fn to_usize<N: ToUint>() -> Option<usize> {
     }
 }
 pub const fn to_u128_overflowing<N: ToUint>() -> (u128, bool) {
-    let (n, o1) = to_u_max_int_overflowing::<N::ToUint>();
-    (n as _, o1 || n > u128::MAX as UMaxInt)
+    let (n, o1) = to_umax_overflowing::<N::ToUint>();
+    (n as _, o1 || n > u128::MAX as Umax)
 }
 pub const fn to_u128<N: ToUint>() -> Option<u128> {
     match to_u128_overflowing::<N>() {

@@ -7,7 +7,7 @@ use core::{
 
 use crate::{const_fmt, utils};
 
-use super::{ArrApi, ArrDeqApi, Array, extra::*};
+use super::{ArrApi, ArrDeqApi, Array, helper::*};
 
 #[repr(transparent)]
 pub struct ArrDeqDrop<A: Array<Item = T>, T = <A as Array>::Item>(ArrDeqRepr<A>, PhantomData<T>);

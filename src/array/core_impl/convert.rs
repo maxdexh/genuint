@@ -1,4 +1,4 @@
-use crate::array::{ArrApi, Array, extra::*};
+use crate::array::{ArrApi, Array, extra::*, helper::*};
 
 impl<T, A> AsRef<[T]> for ArrApi<A>
 where
@@ -85,7 +85,7 @@ macro_rules! tuple_impl {
                 A: Array<Item = $F, Length = crate::uint::FromUsize<COUNT>>,
             {
                 fn from(value: ArrApi<A>) -> Self {
-                    crate::array::extra::arr_convert::<_, [_; COUNT]>(value).into()
+                    crate::array::helper::arr_convert::<_, [_; COUNT]>(value).into()
                 }
             }
             impl<A, $F> From<($F, $($T),*)> for ArrApi<A>
@@ -93,7 +93,7 @@ macro_rules! tuple_impl {
                 A: Array<Item = $F, Length = crate::uint::FromUsize<COUNT>>
             {
                 fn from(value: ($F, $($T),*)) -> Self {
-                    crate::array::extra::arr_convert(<[_; COUNT]>::from(value))
+                    crate::array::helper::arr_convert(<[_; COUNT]>::from(value))
                 }
             }
         };

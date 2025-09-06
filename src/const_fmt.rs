@@ -1,5 +1,4 @@
 //! implementation detail for some error messages
-#![doc(hidden)]
 
 use crate::{
     array::{ArrApi, Array},
@@ -7,17 +6,6 @@ use crate::{
     utils::subslice,
 };
 use core::{marker::PhantomData, mem::ManuallyDrop};
-
-pub(crate) const fn __unwrap_one([one]: [ConstFmt; 1]) -> ConstFmt {
-    one
-}
-
-macro_rules! fmt_one {
-    ($one:expr) => {
-        crate::const_fmt::__unwrap_one(crate::const_fmt::ConstFmtWrap::new($one).fmt())
-    };
-}
-pub(crate) use fmt_one;
 
 /// ```rust_analyzer_infer_bracket
 /// fmt![]
@@ -44,7 +32,7 @@ pub(crate) use panic_fmt;
 
 #[derive(Clone, Copy)]
 pub(crate) enum ConstFmt<'a> {
-    PrimUint(maxint::UMaxInt),
+    PrimUint(maxint::Umax),
     Str(&'a str),
     Concat(&'a [ConstFmt<'a>]),
 }
@@ -56,11 +44,11 @@ impl<'a> ConstFmt<'a> {
                     return None;
                 }
                 let mut ran_out = false;
-                while out.len() < maxint::u_max_int_strlen(n) {
+                while out.len() < maxint::umax_strlen(n) {
                     ran_out = true;
                     n /= 10;
                 }
-                out = maxint::u_max_int_write(n, out);
+                out = maxint::umax_write(n, out);
                 if ran_out {
                     debug_assert!(out.is_empty());
                     return None;
@@ -104,6 +92,7 @@ impl<T> ConstFmtWrap<T> {
 }
 
 impl<'a, A: Array<Item = ConstFmt<'a>>> ConstFmtWrap<A> {
+    #[allow(dead_code)]
     pub(crate) const fn fmt(self) -> A {
         self.into_inner()
     }
@@ -113,38 +102,43 @@ impl<'a, A: Array<Item = ConstFmt<'a>>> ConstFmtWrap<A> {
     }
 }
 impl ConstFmtWrap<usize> {
+    #[allow(dead_code)]
     pub(crate) const fn fmt(self) -> [ConstFmt<'static>; 1] {
         [ConstFmt::PrimUint(self.into_inner() as _)]
     }
 }
 impl<'a> ConstFmtWrap<&'a str> {
+    #[allow(dead_code)]
     pub(crate) const fn fmt(self) -> [ConstFmt<'a>; 1] {
         [ConstFmt::Str(self.into_inner())]
     }
 }
 impl<'a> ConstFmtWrap<ConstFmt<'a>> {
+    #[allow(dead_code)]
     pub(crate) const fn fmt(self) -> [ConstFmt<'a>; 1] {
         [self.into_inner()]
     }
 }
 impl<'a> ConstFmtWrap<&'a [ConstFmt<'a>]> {
-    #[expect(dead_code)]
+    #[allow(dead_code)]
     pub(crate) const fn fmt(self) -> [ConstFmt<'a>; 1] {
         [ConstFmt::Concat(self.into_inner())]
     }
 }
 impl<'a, const N: usize> ConstFmtWrap<&'a [ConstFmt<'a>; N]> {
+    #[allow(dead_code)]
     pub(crate) const fn fmt(self) -> [ConstFmt<'a>; 1] {
         [ConstFmt::Concat(self.into_inner())]
     }
 }
 impl<'a, A: Array<Item = ConstFmt<'a>>> ConstFmtWrap<ConstFmtWrap<A>> {
-    #[expect(dead_code)]
+    #[allow(dead_code)]
     pub(crate) const fn fmt(self) -> A {
         self.into_inner().into_inner()
     }
 }
 impl<N: crate::ToUint> ConstFmtWrap<PhantomData<N>> {
+    #[allow(dead_code)]
     pub(crate) const fn fmt(self) -> [ConstFmt<'static>; 1] {
         ConstFmtWrap::new(crate::uint::to_str::<N::ToUint>()).fmt()
     }

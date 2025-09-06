@@ -7,11 +7,9 @@ mod core_impl;
 
 use crate::{
     Uint,
-    array::{ArrVec, extra::ImplArr},
+    array::{ArrApi, ArrVec, ArrVecApi, Array, helper::*},
     const_fmt, ops, uint,
 };
-
-use super::{ArrApi, ArrVecApi, Array, extra::arr_len};
 
 #[repr(transparent)]
 pub struct ArrVecDrop<A: Array<Item = T>, T = <A as Array>::Item>(ArrVecRepr<A>, PhantomData<T>);

@@ -1,11 +1,11 @@
 use crate::{
     Uint,
     capnum::{CapUint, Digit, capnum_utils::*},
-    maxint::UMaxInt,
+    maxint::Umax,
 };
 
-const fn to_umaxint_overflowing(mut digits: &[Digit]) -> (UMaxInt, bool) {
-    let mut buf = [0u8; size_of::<UMaxInt>().next_multiple_of(size_of::<Digit>())];
+const fn to_umaxint_overflowing(mut digits: &[Digit]) -> (Umax, bool) {
+    let mut buf = [0u8; size_of::<Umax>().next_multiple_of(size_of::<Digit>())];
     let mut out = buf.as_mut_slice();
     while let Some((first_out, rem_out)) = out.split_at_mut_checked(size_of::<Digit>()) {
         out = rem_out;
@@ -14,7 +14,7 @@ const fn to_umaxint_overflowing(mut digits: &[Digit]) -> (UMaxInt, bool) {
         (digits, last_digit) = pop_or_zero(digits);
         first_out.copy_from_slice(&last_digit.to_le_bytes());
     }
-    let (actual, mut leftover) = buf.split_at(size_of::<UMaxInt>());
+    let (actual, mut leftover) = buf.split_at(size_of::<Umax>());
 
     let overflow = 'check_leftover: {
         while let [rem @ .., last] = leftover {
@@ -26,7 +26,7 @@ const fn to_umaxint_overflowing(mut digits: &[Digit]) -> (UMaxInt, bool) {
         false
     } || !is_zero(digits);
 
-    let wrapped = UMaxInt::from_le_bytes(match crate::array::ArrApi::try_from_slice(actual) {
+    let wrapped = Umax::from_le_bytes(match crate::array::ArrApi::try_from_slice(actual) {
         Ok(ok) => ok.inner,
         Err(_) => unreachable!(),
     });
@@ -36,10 +36,10 @@ const fn to_umaxint_overflowing(mut digits: &[Digit]) -> (UMaxInt, bool) {
 
 macro_rules! generate_methods {
     ($($normal:ident $overflowing:ident $prim:ty,)*) => {$(
-        #[doc = concat!("Converts the number to a ", stringify!($prim), ", wrapping around if necessary and returning whether any wrapping occurred.")]
+        #[doc = concat!("Converts the number to a ", stringify!($prim), ", wrapping around if necessary and returning whether wrapping occurred.")]
         pub const fn $overflowing(self) -> ($prim, bool) {
             let (u, o) = to_umaxint_overflowing(self.as_digits());
-            (u as _, u > <$prim>::MAX as UMaxInt || o)
+            (u as _, u > <$prim>::MAX as crate::maxint::Umax || o)
         }
 
         #[doc = concat!("Converts the number to a ", stringify!($prim), ", returning [`None`] if it doesn't fit.")]

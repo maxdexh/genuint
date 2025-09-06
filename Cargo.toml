@@ -14,6 +14,5 @@ generic-uint-proc = { path = "generic-uint-proc" }
 
 
 [features]
-__correctness_checks = []
 alloc = []
 std = ["alloc"]

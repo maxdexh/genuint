@@ -2,7 +2,7 @@ use core::mem::{ManuallyDrop, MaybeUninit};
 
 use crate::{Uint, ops, uint, utils};
 
-use crate::array::{extra::*, *};
+use crate::array::{extra::*, helper::*, *};
 
 // Helpers
 impl<T, N: Uint, A> ArrApi<A> where A: Array<Item = T, Length = N> {}
@@ -18,7 +18,7 @@ where
     /// If the length of this type exceeds [`usize::MAX`].
     #[track_caller]
     pub const fn length() -> usize {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         arr_len::<Self>()
     }
@@ -31,7 +31,7 @@ where
     /// assert_eq!(ArrApi::new([1, 2, 3]), [1, 2, 3]);
     /// ```
     pub const fn new(inner: A) -> Self {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         Self { inner }
     }
@@ -43,7 +43,7 @@ where
     ///
     /// This method is primarily useful when dealing with [`ManuallyDrop`] or [`MaybeUninit`] inside of an [`ArrApi`].
     pub const fn into_inner(self) -> A {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         // SAFETY: This is a known safe way of destructuring in a `const fn`
         unsafe {
@@ -84,7 +84,7 @@ where
     /// assert_eq!(arr, back);
     /// ```
     pub const fn into_arr<Dst: Array<Item = T, Length = N>>(self) -> Dst {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         arr_convert(self)
     }
@@ -97,7 +97,7 @@ where
     /// If you are having trouble destructuring the returned [`Result`] in a const fn, consider using
     /// functions from [`const_util::result`] or going through [`ManuallyDrop`] first.
     pub const fn try_into_arr<Dst: Array<Item = T>>(self) -> Result<Dst, Self> {
-        check_invariants!(Self, Dst);
+        check_layout!(Self, Dst);
 
         match crate::uint::cmp::<N, Dst::Length>().is_eq() {
             // SAFETY: N == Dst::Length
@@ -128,7 +128,7 @@ where
     /// ```
     #[track_caller]
     pub const fn assert_len<M: Uint>(self) -> ArrApi<ImplArr![T; M]> {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         assert_same_arr_len::<Self, Arr<T, M>>();
         // SAFETY: Length equality was checked
@@ -144,7 +144,7 @@ where
     /// assert_eq!(arr, [0, 1, 4, 9]);
     /// ```
     pub fn from_fn<F: FnMut(usize) -> T>(mut f: F) -> Self {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         let mut out = ArrVecApi::new();
         while !out.is_full() {
@@ -162,7 +162,7 @@ where
     /// assert_eq!(arr, [1, 2, 3]);
     /// ```
     pub const fn from_arr<Src: Array<Item = T, Length = N>>(from: Src) -> Self {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         arr_convert(from)
     }
@@ -179,7 +179,7 @@ where
     where
         T: Copy,
     {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         let mut out = ArrApi::new(MaybeUninit::uninit());
         init_fill(out.as_mut_slice(), item);
@@ -205,7 +205,7 @@ where
     /// )
     /// ```
     pub const fn of_const<C: type_const::Const<Type = T>>() -> Self {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         let mut out = ArrApi::new(MaybeUninit::uninit());
         init_fill_const::<C>(out.as_mut_slice());
@@ -215,7 +215,7 @@ where
 
     /// Like `<&[T] as TryInto<&[T; N]>>::try_into`, but as a const method.
     pub const fn try_from_slice(slice: &[T]) -> Result<&Self, TryFromSliceError> {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         from_slice(slice)
     }
@@ -240,7 +240,7 @@ where
         ArrApi<ImplArr![T; ops::Min<N, I>]>,
         ArrApi<ImplArr![T; ops::SatSub<N, I>]>,
     ) {
-        check_invariants!(Self, ArrSplit<N, I, T>);
+        check_layout!(Self, ArrSplit<N, I, T>);
 
         #[repr(C)]
         struct ArrSplit<N: Uint, I: Uint, T> {
@@ -261,7 +261,7 @@ where
     where
         Rhs: Array<Item = T>,
     {
-        check_invariants!(Self, ArrConcat<Self, Rhs>);
+        check_layout!(Self, ArrConcat<Self, Rhs>);
 
         #[repr(C)]
         struct ArrConcat<A, B>(pub A, pub B);
@@ -277,7 +277,7 @@ where
     where
         T: Array,
     {
-        check_invariants!(Self, ArrFlatten<A>);
+        check_layout!(Self, ArrFlatten<A>);
 
         #[repr(transparent)]
         struct ArrFlatten<A>(A);
@@ -301,7 +301,7 @@ where
     /// assert_eq!(arr.try_into_builtin_arr::<4>(), Err(arr));
     /// ```
     pub const fn try_into_builtin_arr<const M: usize>(self) -> Result<[T; M], Self> {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         if let Some(n) = uint::to_usize::<N>()
             && n == M
@@ -335,7 +335,7 @@ where
     A: Array<Item = MaybeUninit<T>, Length = N>,
 {
     pub const fn resize_uninit<M: Uint>(self) -> ArrApi<MaybeUninit<ImplArr![T; M]>> {
-        check_invariants!(Self, Arr<T, M>, MaybeUninit<Arr<T, M>>);
+        check_layout!(Self, Arr<T, M>, MaybeUninit<Arr<T, M>>);
 
         // SAFETY:
         // - if N >= M, then transmuting through a union forgets `N - M` elements,

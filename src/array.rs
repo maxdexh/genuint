@@ -37,6 +37,8 @@ pub unsafe trait Array {
 }
 
 pub mod extra;
+#[doc(hidden)]
+pub(crate) mod helper;
 
 // SAFETY: Allowed by definition
 unsafe impl<T, N: crate::Uint, const L: usize> Array for [T; L]

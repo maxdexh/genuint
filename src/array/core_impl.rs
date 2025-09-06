@@ -2,8 +2,8 @@ mod cmp;
 mod convert;
 mod iter;
 
-use super::{extra::*, *};
 use crate::Uint;
+use crate::array::{helper::*, *};
 
 impl<T, N: Uint, A> ArrApi<A>
 where
@@ -19,7 +19,7 @@ where
     /// If `N >= usize::MAX`.
     #[track_caller]
     pub const fn as_slice(&self) -> &[T] {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         // SAFETY: `Array` layout guarantees
         unsafe {
@@ -40,7 +40,7 @@ where
     /// If `N >= usize::MAX`.
     #[track_caller]
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         // SAFETY: `Array` layout guarantees
         unsafe {
@@ -53,7 +53,7 @@ where
 
     /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).
     pub const fn each_ref(&self) -> ArrApi<ImplArr![&T; N; Copy]> {
-        check_invariants!(Self, Arr<&T, N>);
+        check_layout!(Self, Arr<&T, N>);
 
         let mut out = ArrVecApi::<super::CopyArr<_, _>>::new();
         let mut this = self.as_slice();
@@ -66,7 +66,7 @@ where
 
     /// Equivalent of [`<[T; N]>::each_mut`](array::each_mut).
     pub const fn each_mut(&mut self) -> ArrApi<ImplArr![&mut T; N]> {
-        check_invariants!(Self, Arr<&mut T, N>);
+        check_layout!(Self, Arr<&mut T, N>);
 
         let mut out = ArrVec::new();
         let mut this = self.as_mut_slice();
@@ -82,7 +82,7 @@ where
     where
         F: FnMut(T) -> U,
     {
-        check_invariants!(Self, Arr<U, N>);
+        check_layout!(Self, Arr<U, N>);
 
         let mut out = ArrVec::new();
         let mut inp = ArrDeqApi::new_full(self);
@@ -98,7 +98,7 @@ where
     A: Array<Item: Clone>,
 {
     fn clone(&self) -> Self {
-        check_invariants!(Self);
+        check_layout!(Self);
 
         self.each_ref().map(Clone::clone).into_arr()
     }
