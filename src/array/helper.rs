@@ -6,7 +6,7 @@ use crate::{
     const_fmt, uint,
 };
 
-/// ```rust_analyzer_bracket_infer
+/// ```rust_analyzer_prefer_brackets
 /// ImplArr![]
 /// ```
 macro_rules! ImplArr {

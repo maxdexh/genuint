@@ -7,7 +7,7 @@ use crate::{
 };
 use core::{marker::PhantomData, mem::ManuallyDrop};
 
-/// ```rust_analyzer_infer_bracket
+/// ```rust_analyzer_prefer_brackets
 /// fmt![]
 /// ```
 macro_rules! fmt {
@@ -20,7 +20,7 @@ macro_rules! fmt {
 }
 pub(crate) use fmt;
 
-/// ```rust_analyzer_infer_bracket
+/// ```rust_analyzer_prefer_brackets
 /// panic_fmt![]
 /// ```
 macro_rules! panic_fmt {

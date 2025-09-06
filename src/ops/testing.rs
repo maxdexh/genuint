@@ -1,5 +1,9 @@
 #![cfg(test)]
 
+use crate::{Uint, consts::_0, uint};
+
+pub(crate) type SatDec<N> = uint::From<crate::ops::satdec::SatDecIfL<N>>;
+
 #[test]
 /// Make sure the test runner is actually testing anything, since it uses SatDec to traverse ranges.
 fn test_satdec() {
@@ -17,72 +21,85 @@ fn test_satdec() {
     tests! { 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 }
 }
 
-use crate::{
-    Uint,
-    consts::{_0, _1},
-    uint,
-};
-
-pub(crate) type SatDec<N> = uint::From<crate::ops::satdec::SatDecIfL<N>>;
 pub(crate) type DefaultHi = crate::consts::_10;
 pub(crate) type DefaultLo = crate::consts::_0;
 
-pub trait UintList {
-    type IsEmpty: Uint;
-
+/// A type-level linked list of `Uint`s
+pub(crate) trait UintList {
+    const EMPTY: bool;
     type First: Uint;
-    type Rest: UintList;
+    type Tail: UintList;
 }
-impl UintList for () {
-    type IsEmpty = _1;
-
-    type First = _0;
-    type Rest = Self;
-}
-impl<N: Uint, L: UintList> UintList for (N, L) {
-    type IsEmpty = _0;
-
-    type First = N;
-    type Rest = L;
-}
-pub trait UintRanges {
+/// A type-level linked list of pairs of `UInt`s
+/// representing an n-dimensional range of inputs
+/// to be tested.
+pub(crate) trait UintRanges {
     const EMPTY: bool;
     type FirstLo: Uint;
     type FirstHi: Uint;
-    type Rest: UintRanges;
+    type Tail: UintRanges;
 
-    type ReduceLeaf<L: TestLeaf>: TestLeaf;
+    /// Reduces a `Tests` type by running `run_tests::<(N, L)>`
+    /// for N ranging from `FirstLo` to `FirstHi`. The reduced
+    /// tests will hence require one less parameter than before.
+    type ReduceTest<L: Tests<Ranges = Self>>: Tests<Ranges = Self::Tail>;
+}
+pub(crate) trait Tests {
+    /// The n-dimensional input range
+    type Ranges: UintRanges;
+    fn run_tests<L: UintList>();
+}
+
+// The empty list must be cyclical for `Tail` and `ReduceTests` when recursing over it,
+// so that we don't need to monomorphize infinitely many functions.
+impl UintList for () {
+    const EMPTY: bool = true;
+    type First = _0;
+    type Tail = Self;
 }
 impl UintRanges for () {
     const EMPTY: bool = true;
     type FirstLo = _0;
     type FirstHi = _0;
-    type Rest = Self;
-    type ReduceLeaf<T: TestLeaf> = T;
+    type Tail = Self;
+    type ReduceTest<T: Tests<Ranges = Self>> = T;
+}
+
+impl<N: Uint, L: UintList> UintList for (N, L) {
+    const EMPTY: bool = false;
+    type First = N;
+    type Tail = L;
 }
 impl<L: Uint, H: Uint, R: UintRanges> UintRanges for ((L, H), R) {
     const EMPTY: bool = false;
     type FirstLo = L;
     type FirstHi = H;
-    type Rest = R;
-    type ReduceLeaf<T: TestLeaf> = ReducedLeaf<T>;
+    type Tail = R;
+    type ReduceTest<T: Tests<Ranges = Self>> = ReducedTests<T>;
 }
-pub struct ReducedLeaf<T>(T);
-impl<T: TestLeaf> TestLeaf for ReducedLeaf<T> {
-    type Ranges = <T::Ranges as UintRanges>::Rest;
-    fn leaf_test<L: UintList>() {
-        fn traverse<T: TestLeaf, L: UintList, N: Uint>() {
-            T::leaf_test::<(N, L)>();
+
+pub(crate) struct ReducedTests<T>(T);
+/// Implement the functionality specified by `ReduceTest`.
+impl<T: Tests> Tests for ReducedTests<T> {
+    type Ranges = <T::Ranges as UintRanges>::Tail;
+    fn run_tests<L: UintList>() {
+        fn traverse<T: Tests, L: UintList, N: Uint>() {
+            T::run_tests::<(N, L)>();
             let next = const {
+                use core::cmp::Ordering;
                 match uint::cmp::<N, <T::Ranges as UintRanges>::FirstLo>() {
-                    core::cmp::Ordering::Less => unreachable!(),
-                    core::cmp::Ordering::Equal => || {},
-                    core::cmp::Ordering::Greater => {
-                        const fn next_traverse<T: TestLeaf, L: UintList, N: Uint>() -> fn() {
+                    Ordering::Greater => {
+                        // Avoid monomorphizing functions with params below `Lo`. While not
+                        // strictly guaranteed by the compiler, this saves us from
+                        // instantiating some unused versions of `traverse`. Not needed for
+                        // termination since we will always reach a cycle at SatDec<0> = 0.
+                        const fn next_traverse<T: Tests, L: UintList, N: Uint>() -> fn() {
                             traverse::<T, L, SatDec<N>>
                         }
                         next_traverse::<T, L, N>()
                     }
+                    Ordering::Less => unreachable!(),
+                    Ordering::Equal => || {},
                 }
             };
             next()
@@ -90,28 +107,25 @@ impl<T: TestLeaf> TestLeaf for ReducedLeaf<T> {
         traverse::<T, L, <T::Ranges as UintRanges>::FirstHi>()
     }
 }
-pub trait TestLeaf {
-    type Ranges: UintRanges;
-    fn leaf_test<L: UintList>();
-}
-pub fn run_test_leaf<L: TestLeaf>() {
+/// Recursively apply `ReduceTest` until we have no parameters left.
+pub(crate) fn run_tests_reduce_all<L: Tests>() {
     let reduced = const {
         if L::Ranges::EMPTY {
-            const fn get_leaf<L: TestLeaf>() -> fn() {
-                L::leaf_test::<()>
+            // avoid unnecessary monomorphizations
+            const fn get_leaf<L: Tests>() -> fn() {
+                L::run_tests::<()>
             }
             get_leaf::<L>()
         } else {
-            const fn reduce_leaf<L: TestLeaf>() -> fn() {
-                run_test_leaf::<<L::Ranges as UintRanges>::ReduceLeaf<L>>
-            }
-            reduce_leaf::<L>()
+            // no need to guard here. if the range is empty, ReduceTest<L> = L and we
+            // just get the current instance of the function back
+            run_tests_reduce_all::<<L::Ranges as UintRanges>::ReduceTest<L>>
         }
     };
     reduced()
 }
 
-/// ```rust_analyzer_brace_infer
+/// ```rust_analyzer_prefer_braces
 /// test_op! {}
 /// ```
 macro_rules! test_op {
@@ -126,7 +140,8 @@ macro_rules! test_op {
             @shift
             $name
             [$first $($param)*],
-            [$($param)* Extra],
+            // Shift the params left and add an extra param.
+            [$($param)* __Extra],
             $got,
             $expect,
             [$($($lo)?..$(=$hi)?),*]
@@ -144,26 +159,38 @@ macro_rules! test_op {
         #[test]
         fn $name() {
             struct Leaf;
-            impl crate::ops::testing::TestLeaf for Leaf {
+            impl crate::ops::testing::Tests for Leaf {
                 type Ranges = crate::ops::testing::make_ranges!(
                     [ $first $($param)* ]
                     $(( $($lo)?, $($hi)? ))*
                 );
-                fn leaf_test<L: crate::ops::testing::UintList>() {
+                fn run_tests<L: crate::ops::testing::UintList>() {
                     Flattener::<L>::doit()
                 }
             }
             struct Flattener<L>(L);
             impl<
+                // Name a list using each param. The tail of the list
+                // is the parameter after it. For the last parameter,
+                // the tail doesn't matter, so use an extra dummy param.
                 $first: crate::ops::testing::UintList<
-                    Rest = $fshifted
+                    Tail = $fshifted
                 >
                 $(, $param: crate::ops::testing::UintList<
-                    Rest = $shifted
+                    Tail = $shifted
                 >)*
-                , Extra: crate::ops::testing::UintList
+                , __Extra: crate::ops::testing::UintList
             > Flattener<$first> {
                 fn doit() {
+                    // By generating code that has an explicit name for each
+                    // tail list, we can now directly name all items of the
+                    // list. As a bonus, we can use the dummy param to check
+                    // that the input list has the correct length.
+                    const {
+                        debug_assert!(__Extra::EMPTY);
+                        debug_assert!(!$first::EMPTY);
+                        $(debug_assert!(!$param::EMPTY);)*
+                    }
                     doit::<$first::First $(, $param::First)*>()
                 }
             }
@@ -179,7 +206,7 @@ macro_rules! test_op {
                 );
             }
 
-            crate::ops::testing::run_test_leaf::<Leaf>()
+            crate::ops::testing::run_tests_reduce_all::<Leaf>()
         }
     }
 }
