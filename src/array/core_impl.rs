@@ -20,8 +20,6 @@ where
     /// If `N >= usize::MAX`.
     #[track_caller]
     pub const fn as_slice(&self) -> &[T] {
-        check_layout!(Self);
-
         // SAFETY: `Array` layout guarantees
         unsafe {
             core::slice::from_raw_parts(
@@ -41,8 +39,6 @@ where
     /// If `N >= usize::MAX`.
     #[track_caller]
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
-        check_layout!(Self);
-
         // SAFETY: `Array` layout guarantees
         unsafe {
             core::slice::from_raw_parts_mut(
@@ -54,8 +50,6 @@ where
 
     /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).
     pub const fn each_ref(&self) -> ArrApi<ImplArr![&T; N; Copy]> {
-        check_layout!(Self, Arr<&T, N>);
-
         let mut out = ArrVecApi::<super::CopyArr<_, _>>::new();
         let mut this = self.as_slice();
         while let [first, rest @ ..] = this {
@@ -67,8 +61,6 @@ where
 
     /// Equivalent of [`<[T; N]>::each_mut`](array::each_mut).
     pub const fn each_mut(&mut self) -> ArrApi<ImplArr![&mut T; N]> {
-        check_layout!(Self, Arr<&mut T, N>);
-
         let mut out = ArrVec::new();
         let mut this = self.as_mut_slice();
         while let [first, rest @ ..] = this {
@@ -83,8 +75,6 @@ where
     where
         F: FnMut(T) -> U,
     {
-        check_layout!(Self, Arr<U, N>);
-
         let mut out = ArrVec::new();
         let mut inp = ArrDeqApi::new_full(self);
         while let Some(first) = inp.pop_front() {
@@ -99,8 +89,6 @@ where
     A: Array<Item: Clone>,
 {
     fn clone(&self) -> Self {
-        check_layout!(Self);
-
         self.each_ref().map(Clone::clone).into_arr()
     }
 }

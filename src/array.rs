@@ -1,35 +1,11 @@
 //! Provides a drop-in replacement for builtin `[T; N]` arrays that uses a [`Uint`](crate::Uint)
 //! for its length parameter
 
+use crate::internals::ArraySealed;
+
 /// # Safety
-/// 1. `Self` must not have *any* safety invariants over arrays. It must be safe
-///    to implement any auto traits for (arrays of) it if the item type implements them, regardless
-///    of the safety invariants of the auto trait (even `unsafe` auto traits) and this is not limited
-///    to auto traits from the standard library.
-///     - This implies that it must not have a non-trivial [`Drop`] implementation and that it
-///       should inherit the drop glue of its items.
-/// 2. `Self` has the same layout and ownership semantics as `[Item; to_usize::<Length>().unwrap()]`.
-///    Even if `Length` exceeds the maximum `usize`, it still must behave *as if* it had
-///    ownership over exactly `Length` items, in particular with respect to [`Drop`] implementations.
-///     - Even for `ZST`s, the layout requirement still includes the alignment of an
-///       array, which is always the same as that of the item.
-///     - Note that the layout requirements make it impossible to construct an array of size
-///       greater than [`isize::MAX`] unless `Item` (and therefore `Self`) is a ZST.
-/// 3. `Self` must be a `repr(transparent)` or `repr(C)` struct consisting only `Item`, arrays
-///    of `Item`, arrays of arrays of `Item`, etc.
-///    It also must contain at least one field of this kind. Even empty array types must have at
-///    least a field, such as one of type `[Item; 0]`.
-///     - [`ManuallyDrop`] is not considered valid for this purpose.
-///       Instead, an array wrapped in [`ManuallyDrop`] is considered an array of [`ManuallyDrop`].
-///     - An array wrapped in [`MaybeUninit`] is considered an array of [`MaybeUninit`]
-///     - This may be extended to other wrappers in the future where it makes sense.
-///     - Note that this implies that for any two array implementors `A` and `B`, if `A::Item` can
-///       be safely casted/transmuted to `B::Item` and `A::Length == B::Length`, then so can `A`
-///       to `B`.
-///
-/// [`ManuallyDrop`]: core::mem::ManuallyDrop
-/// [`MaybeUninit`]: core::mem::MaybeUninit
-pub unsafe trait Array {
+/// Currently cannot be implemented by downstream crates.
+pub unsafe trait Array: Sized + ArraySealed {
     type Item;
     type Length: crate::Uint;
 }
@@ -37,30 +13,38 @@ pub unsafe trait Array {
 pub mod extra;
 pub(crate) mod helper;
 
-// SAFETY: Allowed by definition
-unsafe impl<T, N: crate::Uint, const L: usize> Array for [T; L]
+// SAFETY: By definition
+unsafe impl<T, const N: usize> Array for [T; N]
 where
-    crate::consts::ConstUsize<L>: crate::ToUint<ToUint = N>,
+    crate::consts::ConstUsize<N>: crate::ToUint,
 {
     type Item = T;
-    type Length = N;
+    type Length = crate::uint::FromUsize<N>;
 }
-// SAFETY: Allowed by definition
+impl<T, const N: usize> ArraySealed for [T; N] where crate::consts::ConstUsize<N>: crate::ToUint {}
+
+// SAFETY: repr(transparent)
 unsafe impl<A: Array> Array for core::mem::ManuallyDrop<A> {
     type Item = core::mem::ManuallyDrop<A::Item>;
     type Length = A::Length;
 }
-// SAFETY: Allowed by definition
+impl<A: Array> ArraySealed for core::mem::ManuallyDrop<A> {}
+
+// SAFETY: MaybeUninit<[T; N]> is equivalent to [MaybeUninit<T>; N]
 unsafe impl<A: Array> Array for core::mem::MaybeUninit<A> {
     type Item = core::mem::MaybeUninit<A::Item>;
     type Length = A::Length;
 }
+impl<A: Array> ArraySealed for core::mem::MaybeUninit<A> {}
+
 // SAFETY: repr(transparent)
 unsafe impl<A: Array> Array for ArrApi<A> {
     type Item = A::Item;
     type Length = A::Length;
 }
+impl<A: Array> ArraySealed for ArrApi<A> {}
 
+// TODO: Move types into own module
 pub use crate::internals::array_types::*;
 
 mod core_impl;
@@ -153,5 +137,3 @@ macro_rules! __drop_items {
     }};
 }
 pub use __drop_items as drop_items;
-
-// TODO: BufDeq and BufVec as wrappers around &[MaybeUninit<T>] (seperate crate)

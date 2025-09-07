@@ -7,6 +7,8 @@ pub struct O;
 pub(crate) type _0 = U<O>;
 pub(crate) type _1 = U<I>;
 
+pub trait ArraySealed {}
+
 pub trait UintSealed: 'static {
     type __Ops: _Uint;
 }
@@ -100,6 +102,8 @@ unsafe impl<T, N: Uint, Bound: ArrBound<T, N>> Array for ArrImpl<Bound, T, N> {
     type Item = T;
     type Length = N;
 }
+impl<T, N: Uint, Bound: ArrBound<T, N>> ArraySealed for ArrImpl<Bound, T, N> {}
+
 impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Copy for ArrImpl<Bound, T, N> {}
 impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Clone for ArrImpl<Bound, T, N> {
     fn clone(&self) -> Self {
