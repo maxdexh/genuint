@@ -113,9 +113,10 @@ where
         use alloc::sync::Arc;
 
         let mut arc = Self::new_uninit_slice(arr_len::<A>());
+        *Arc::get_mut(&mut arc)
+            .and_then(|buf| from_mut_slice(buf).ok())
+            .unwrap_or_else(|| unreachable!()) = core::mem::MaybeUninit::new(value);
 
-        let buf = Arc::get_mut(&mut arc).unwrap();
-        *from_mut_slice(buf).unwrap() = core::mem::MaybeUninit::new(value);
         // SAFETY: The elements were initialized
         unsafe { arc.assume_init() }
     }
@@ -129,9 +130,10 @@ where
         use alloc::rc::Rc;
 
         let mut rc = Self::new_uninit_slice(arr_len::<A>());
+        *Rc::get_mut(&mut rc)
+            .and_then(|buf| from_mut_slice(buf).ok())
+            .unwrap_or_else(|| unreachable!()) = core::mem::MaybeUninit::new(value);
 
-        let buf = Rc::get_mut(&mut rc).unwrap();
-        *from_mut_slice(buf).unwrap() = core::mem::MaybeUninit::new(value);
         // SAFETY: The elements were initialized
         unsafe { rc.assume_init() }
     }
@@ -143,7 +145,8 @@ where
 {
     fn from(value: ArrApi<A>) -> Self {
         let mut out = Self::new_uninit_slice(arr_len::<A>());
-        *from_mut_slice(&mut out).unwrap() = core::mem::MaybeUninit::new(value);
+        *from_mut_slice(&mut out).unwrap_or_else(|_| unreachable!()) =
+            core::mem::MaybeUninit::new(value);
         // SAFETY: The elements were initialized
         unsafe { out.assume_init() }
     }

@@ -2,12 +2,14 @@
 #![cfg_attr(not(any(test, doc, feature = "std")), no_std)]
 #![warn(
     clippy::nursery,
-    clippy::undocumented_unsafe_blocks, // enforce "SAFETY" comments
+    // enforce "SAFETY" comments
+    clippy::undocumented_unsafe_blocks,
 )]
 #![allow(
-    clippy::fallible_impl_from, // intrusive for infallible unwraps
-    clippy::redundant_pub_crate, // changing pub(crate) to pub reduces clarity
-    clippy::unit_arg, // justice for `=> Ok({ ... })`
+    // use of pub(crate) over pub is for clarity
+    clippy::redundant_pub_crate,
+    // `Ok({ ... })`
+    clippy::unit_arg,
 )]
 
 #[cfg(feature = "alloc")]
@@ -19,7 +21,7 @@ extern crate alloc;
 ///
 /// # Examples
 /// ```
-/// #![recursion_limit = "1024"] // NOTE: `lit` doesn't recurse, this is for typing
+/// #![recursion_limit = "1024"] // `lit!` doesn't recurse, the type is just long
 ///
 /// use generic_uint::{lit, uint};
 /// assert_eq!(uint::to_u128::<lit!(1)>(), Some(1));
