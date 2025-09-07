@@ -1,4 +1,5 @@
 use core::mem::{ManuallyDrop, MaybeUninit};
+use core::ptr;
 
 use crate::{Uint, ops, uint, utils};
 
@@ -15,6 +16,32 @@ where
     /// Alias for `Self { inner }`
     pub const fn new(inner: A) -> Self {
         Self { inner }
+    }
+
+    pub const fn from_inner_ref(inner: &A) -> &Self {
+        // SAFETY: repr(transparent)
+        unsafe { &*ptr::from_ref(inner).cast() }
+    }
+
+    pub const fn from_inner_mut(inner: &mut A) -> &mut Self {
+        // SAFETY: repr(transparent)
+        unsafe { &mut *ptr::from_mut(inner).cast() }
+    }
+
+    #[cfg(feature = "alloc")]
+    pub(crate) fn unsize_box(self: alloc::boxed::Box<Self>) -> alloc::boxed::Box<[T]> {
+        // SAFETY: `Array` to slice cast
+        unsafe { alloc::boxed::Box::from_raw(unsize_raw_mut(alloc::boxed::Box::into_raw(self))) }
+    }
+    #[cfg(feature = "alloc")]
+    pub(crate) fn unsize_rc(self: alloc::rc::Rc<Self>) -> alloc::rc::Rc<[T]> {
+        // SAFETY: `Array` to slice cast
+        unsafe { alloc::rc::Rc::from_raw(unsize_raw(alloc::rc::Rc::into_raw(self))) }
+    }
+    #[cfg(feature = "alloc")]
+    pub(crate) fn unsize_arc(self: alloc::sync::Arc<Self>) -> alloc::sync::Arc<[T]> {
+        // SAFETY: `Array` to slice cast
+        unsafe { alloc::sync::Arc::from_raw(unsize_raw(alloc::sync::Arc::into_raw(self))) }
     }
 
     /// Returns the length that arrays of this type have.
