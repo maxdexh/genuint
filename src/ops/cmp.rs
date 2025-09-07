@@ -20,7 +20,7 @@ pub type EqL<L, R> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_eq: (L == R) as _)]
+#[apply(test_op! test_eq, (L == R) as _)]
 pub type Eq<L, R> = EqL<L, R>;
 
 #[apply(opaque)]
@@ -56,7 +56,7 @@ pub type LtL<L, R> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_lt: (L < R) as _)]
+#[apply(test_op! test_lt, (L < R) as _)]
 pub type Lt<L, R> = LtL<L, R>;
 pub type Gt<L, R> = Lt<R, L>;
 

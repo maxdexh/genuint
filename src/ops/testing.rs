@@ -21,7 +21,7 @@ fn test_satdec() {
     tests! { 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 }
 }
 
-pub(crate) type DefaultHi = crate::consts::_10;
+pub(crate) type DefaultHi = crate::consts::_100;
 pub(crate) type DefaultLo = crate::consts::_0;
 
 /// A type-level linked list of `Uint`s
@@ -42,7 +42,7 @@ pub(crate) trait UintRanges {
     /// Reduces a `Tests` type by running `run_tests::<(N, L)>`
     /// for N ranging from `FirstLo` to `FirstHi`. The reduced
     /// tests will hence require one less parameter than before.
-    type ReduceTest<L: Tests<Ranges = Self>>: Tests<Ranges = Self::Tail>;
+    type ReduceTests<L: Tests<Ranges = Self>>: Tests<Ranges = Self::Tail>;
 }
 pub(crate) trait Tests {
     /// The n-dimensional input range
@@ -62,7 +62,7 @@ impl UintRanges for () {
     type FirstLo = _0;
     type FirstHi = _0;
     type Tail = Self;
-    type ReduceTest<T: Tests<Ranges = Self>> = T;
+    type ReduceTests<T: Tests<Ranges = Self>> = T;
 }
 
 impl<N: Uint, L: UintList> UintList for (N, L) {
@@ -75,12 +75,12 @@ impl<L: Uint, H: Uint, R: UintRanges> UintRanges for ((L, H), R) {
     type FirstLo = L;
     type FirstHi = H;
     type Tail = R;
-    type ReduceTest<T: Tests<Ranges = Self>> = ReducedTests<T>;
+    type ReduceTests<T: Tests<Ranges = Self>> = ReduceTests<T>;
 }
 
-pub(crate) struct ReducedTests<T>(T);
+pub(crate) struct ReduceTests<T>(T);
 /// Implement the functionality specified by `ReduceTest`.
-impl<T: Tests> Tests for ReducedTests<T> {
+impl<T: Tests> Tests for ReduceTests<T> {
     type Ranges = <T::Ranges as UintRanges>::Tail;
     fn run_tests<L: UintList>() {
         fn traverse<T: Tests, L: UintList, N: Uint>() {
@@ -104,7 +104,19 @@ impl<T: Tests> Tests for ReducedTests<T> {
             };
             next()
         }
-        traverse::<T, L, <T::Ranges as UintRanges>::FirstHi>()
+        let checked = const {
+            if uint::cmp::<<T::Ranges as UintRanges>::FirstLo, <T::Ranges as UintRanges>::FirstHi>()
+                .is_le()
+            {
+                const fn get_traverse<T: Tests, L: UintList>() -> fn() {
+                    traverse::<T, L, <T::Ranges as UintRanges>::FirstHi>
+                }
+                get_traverse::<T, L>()
+            } else {
+                || {}
+            }
+        };
+        checked()
     }
 }
 /// Recursively apply `ReduceTest` until we have no parameters left.
@@ -119,7 +131,7 @@ pub(crate) fn run_tests_reduce_all<L: Tests>() {
         } else {
             // no need to guard here. if the range is empty, ReduceTest<L> = L and we
             // just get the current instance of the function, which is already monomorphized
-            run_tests_reduce_all::<<L::Ranges as UintRanges>::ReduceTest<L>>
+            run_tests_reduce_all::<<L::Ranges as UintRanges>::ReduceTests<L>>
         }
     };
     reduced()
@@ -134,7 +146,7 @@ macro_rules! test_op {
         $first:ident $($param:ident)*,
         $got:ty,
         $expect:expr
-        $(, $($lo:literal)?..$(=$hi:literal)?)* $(,)?
+        $(, $( $range:tt )* )?
     ) => {
         crate::ops::testing::test_op! {
             @shift
@@ -144,7 +156,7 @@ macro_rules! test_op {
             [$($param)* __Extra],
             $got,
             $expect,
-            [$($($lo)?..$(=$hi)?),*]
+            [$(, $( $range )*)?]
         }
     };
     (
@@ -154,7 +166,7 @@ macro_rules! test_op {
         [$fshifted:ident $($shifted:ident)*],
         $got:ty,
         $expect:expr,
-        [$($($lo:literal)?..$(=$hi:literal)?),*]
+        [$($range:tt)*]
     ) => {
         #[test]
         fn $name() {
@@ -163,7 +175,7 @@ macro_rules! test_op {
                 type Ranges = crate::ops::testing::test_op!(
                     @ranges
                     [ $first $($param)* ]
-                    $(( $($lo)?, $($hi)? ))*
+                    $($range)*
                 );
                 fn run_tests<L: crate::ops::testing::UintList>() {
                     Flattener::<L>::doit()
@@ -213,6 +225,7 @@ macro_rules! test_op {
     (
         @ranges
         []
+        $(,)?
     ) => {
         ()
     };
@@ -221,33 +234,62 @@ macro_rules! test_op {
         []
         $($rest:tt)+
     ) => {
-        core::compile_error! { "Leftover ranges" }
+        core::compile_error! { core::concat!("Leftover ranges: ", stringify!($($rest)+)) }
     };
     (
         @ranges
         [ $_:ident $($rest:ident)* ]
-        $( ($($lo:expr)?, $($hi:expr)?)  $($rest2:tt)* )?
     ) => {
         (
-            (
-                crate::ops::testing::test_op!(@bound DefaultLo $($($lo)?)? ),
-                crate::ops::testing::test_op!(@bound DefaultHi $($($hi)?)? ),
-            ),
-            crate::ops::testing::test_op!(@ranges [$($rest)*] $($($rest2)*)?),
+            (crate::ops::testing::DefaultLo, crate::ops::testing::DefaultHi),
+            crate::ops::testing::test_op!(@ranges [$($rest)*]),
         )
     };
     (
-        @bound
-        $default:ident
+        @ranges
+        [ $_:ident $($rest:ident)* ]
+        , ..
+        $(, $($range_rest:tt)*)?
     ) => {
-        crate::ops::testing::$default
+        (
+            (crate::ops::testing::DefaultLo, crate::ops::testing::DefaultHi),
+            crate::ops::testing::test_op!(@ranges [$($rest)*] $(, $($range_rest)*)?),
+        )
     };
     (
-        @bound
-        $default:ident
-        $ex:expr
+        @ranges
+        [ $_:ident $($rest:ident)* ]
+        , $lo:tt..
+        $(, $($range_rest:tt)*)?
     ) => {
-        crate::uint::FromU128<{$ex}>
+        (
+            (crate::ops::testing::test_op!(@bound $lo), crate::ops::testing::DefaultHi),
+            crate::ops::testing::test_op!(@ranges [$($rest)*] $(, $($range_rest)*)?),
+        )
     };
+    (
+        @ranges
+        [ $_:ident $($rest:ident)* ]
+        , ..=$hi:tt
+        $(, $($range_rest:tt)*)?
+    ) => {
+        (
+            (crate::ops::testing::DefaultLo, crate::ops::testing::test_op!(@bound $hi)),
+            crate::ops::testing::test_op!(@ranges [$($rest)*] $(, $($range_rest)*)?),
+        )
+    };
+    (
+        @ranges
+        [ $_:ident $($rest:ident)* ]
+        , $lo:tt..=$hi:tt
+        $(, $($range_rest:tt)*)?
+    ) => {
+        (
+            (crate::ops::testing::test_op!(@bound $lo), crate::ops::testing::test_op!(@bound $hi)),
+            crate::ops::testing::test_op!(@ranges [$($rest)*] $(, $($range_rest)*)?),
+        )
+    };
+    (@bound $n:ty) => { $n };
+    (@bound $n:expr) => { crate::uint::FromU128<{$n}> };
 }
 pub(crate) use test_op;

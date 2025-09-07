@@ -51,5 +51,10 @@ pub type PowL<B, E> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_pow: B.pow(E.try_into().unwrap()))]
+#[apply(test_op!
+    test_pow,
+    B.pow(E.try_into().unwrap()),
+    ..,
+    ..=10,
+)]
 pub type Pow<B, E> = PowL<B, E>;

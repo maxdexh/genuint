@@ -51,7 +51,7 @@ pub type USubL<L, R, C = _0> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_abs_diff: L.abs_diff(R))]
+#[apply(test_op! test_abs_diff, L.abs_diff(R))]
 // AbsDiff(L, R) := |L - R| = if L < R { R - L } else { L - R }
 pub type AbsDiff<L, R> = Tern<
     //
@@ -61,7 +61,7 @@ pub type AbsDiff<L, R> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_sat_sub: L.saturating_sub(R))]
+#[apply(test_op! test_sat_sub, L.saturating_sub(R))]
 pub type SatSub<L, R> = Tern<
     //
     cmp::LtL<R, L>,

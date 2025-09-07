@@ -18,7 +18,7 @@ pub type BitAndL<L, R> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_bit_and: L & R)]
+#[apply(test_op! test_bit_and, L & R)]
 pub type BitAnd<L, R> = BitAndL<L, R>;
 
 #[apply(lazy)]
@@ -35,7 +35,7 @@ pub type BitOrL<L, R> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_bit_or: L | R)]
+#[apply(test_op! test_bit_or, L | R)]
 pub type BitOr<L, R> = BitOrL<L, R>;
 
 #[apply(lazy)]
@@ -52,7 +52,7 @@ pub type BitXorL<L, R> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_bit_xor: L ^ R)]
+#[apply(test_op! test_bit_xor, L ^ R)]
 pub type BitXor<L, R> = BitXorL<L, R>;
 
 #[apply(lazy)]
@@ -68,5 +68,5 @@ pub type CountOnesL<N> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_count_ones: N.count_ones().into())]
+#[apply(test_op! test_count_ones, N.count_ones().into())]
 pub type CountOnes<N> = CountOnesL<N>;

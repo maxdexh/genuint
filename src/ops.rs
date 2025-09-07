@@ -67,7 +67,7 @@ pub(crate) use opaque;
 
 macro_rules! test_op {
     (
-        ($name:ident: $($args:tt)*)
+        ($name:ident, $($args:tt)*)
         $(#[$($attr:tt)*])*
         $v:vis $kw:ident $tname:ident<$($param:ident $(= $def:ty)?),* $(,)?> $($rest:tt)*
     ) => {

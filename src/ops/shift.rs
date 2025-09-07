@@ -26,7 +26,12 @@ pub type ShlL<L, R> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_shl: L << R)]
+#[apply(test_op!
+    test_shl,
+    L << R,
+    ..,
+    ..=15,
+)]
 pub type Shl<L, R> = ShlL<L, R>;
 
 // HalfIf(N, C) := if C { H(N) } else { N }
@@ -53,5 +58,10 @@ pub type ShrL<L, R> = Tern<
     L,
 >;
 #[apply(opaque)]
-#[apply(test_op! test_shr: L >> R)]
+#[apply(test_op!
+    test_shr,
+    L >> R,
+    ..,
+    ..=15,
+)]
 pub type Shr<L, R> = ShrL<L, R>;

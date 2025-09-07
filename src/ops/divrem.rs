@@ -65,7 +65,12 @@ pub type DivL<L, R> = Tern<R, DivUncheckedL<L, R>, DivL<L, R>>;
 /// const _: fn(Rem<_1, _0>) = |_| {};
 /// ```
 #[apply(opaque)]
-#[apply(test_op! test_rem: L.checked_rem(R).unwrap_or(0), .., 1..)]
+#[apply(test_op!
+    test_rem,
+    L % R,
+    ..,
+    1..
+)]
 pub type Rem<L, R> = RemL<L, R>;
 
 /// Dividing by zero gives a "overflow while evaluating" error.
@@ -75,5 +80,10 @@ pub type Rem<L, R> = RemL<L, R>;
 /// const _: fn(Div<_1, _0>) = |_| {};
 /// ```
 #[apply(opaque)]
-#[apply(test_op! test_div: L.checked_div(R).unwrap_or(0), .., 1..)]
+#[apply(test_op!
+    test_div,
+    L / R,
+    ..,
+    1..,
+)]
 pub type Div<L, R> = DivL<L, R>;

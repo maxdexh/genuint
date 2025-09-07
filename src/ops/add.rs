@@ -43,5 +43,5 @@ pub type AddL<L, R, C = _0> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_add: L + R)]
+#[apply(test_op! test_add, L + R)]
 pub type Add<L, R> = AddL<L, R>;

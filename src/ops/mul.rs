@@ -23,5 +23,5 @@ pub type MulL<L, R> = Tern<
 >;
 
 #[apply(opaque)]
-#[apply(test_op! test_mul: L * R)]
+#[apply(test_op! test_mul, L * R)]
 pub type Mul<L, R> = MulL<L, R>;

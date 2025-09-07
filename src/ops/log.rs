@@ -15,7 +15,12 @@ pub type ILogUncheckedL<B, N> = Tern<
 >;
 
 #[apply(lazy)]
-#[apply(test_op! test_ilog: N.ilog(B).into(), 2.., 1..)]
+#[apply(test_op!
+    test_ilog,
+    N.ilog(B).into(),
+    2..,
+    1..,
+)]
 pub type ILogL<B, N> = Tern<
     // Check B > 1 and N > 0
     AndSC<H<B>, N>,
@@ -27,7 +32,7 @@ pub type ILogL<B, N> = Tern<
 pub type ILog<B, N> = ILogL<B, N>;
 
 #[apply(opaque! BaseLenL)]
-#[apply(test_op! test_base_len: {
+#[apply(test_op! test_base_len, {
     let mut n = N;
     let mut r = 1;
     while n >= B {
