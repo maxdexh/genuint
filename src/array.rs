@@ -6,6 +6,8 @@ pub mod extra;
 
 use crate::internals::ArraySealed;
 
+// TODO: Document guarantees
+
 /// # Safety
 /// Currently cannot be implemented by downstream crates.
 pub unsafe trait Array: Sized + ArraySealed {

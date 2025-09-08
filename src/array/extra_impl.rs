@@ -6,6 +6,7 @@ use crate::{Uint, ops, uint, utils};
 use crate::array::{convert::*, extra::*, helper::*, *};
 
 // FIXME: Capacity panics need to be documented
+// TODO: Replace Self -> ImplArr with B -> Self
 impl<T, N: Uint, A> ArrApi<A>
 where
     A: Array<Item = T, Length = N>,
@@ -259,12 +260,30 @@ where
     where
         T: Copy,
     {
-        let mut out = ArrApi::new(MaybeUninit::new(self)).resize_uninit();
+        let mut out = Arr::resize_uninit_from(MaybeUninit::new(self));
         if let Some((_, uninit)) = out.as_mut_slice().split_at_mut_checked(Self::length()) {
             init_fill(uninit, item);
         }
         // SAFETY: The first `Self::legnth()` items are already init. `init_fill` inits the rest.
         unsafe { ArrApi::new(out.inner.assume_init()) }
+    }
+
+    pub(crate) const fn transpose_uninit_from<B>(arr: B) -> ArrApi<MaybeUninit<A>>
+    where
+        B: Array<Item = MaybeUninit<T>, Length = N>,
+    {
+        ArrApi::new(arr).into_arr()
+    }
+    pub(crate) const fn resize_uninit_from<B>(arr: B) -> ArrApi<MaybeUninit<A>>
+    where
+        B: Array<Item = MaybeUninit<T>>,
+    {
+        // SAFETY:
+        // - if N >= M, then transmuting through a union forgets `N - M` elements,
+        //   which is always safe.
+        // - if N <= M, then transmuting through a union fills the rest of the array with
+        //   uninitialized memory, which is valid in this context.
+        unsafe { utils::union_transmute::<B, ArrApi<MaybeUninit<A>>>(arr) }
     }
 }
 
@@ -272,24 +291,6 @@ impl<T, N: Uint, A> ArrApi<A>
 where
     A: Array<Item = MaybeUninit<T>, Length = N>,
 {
-    pub const fn resize_uninit<M: Uint>(self) -> ArrApi<MaybeUninit<ImplArr![T; M]>> {
-        // SAFETY:
-        // - if N >= M, then transmuting through a union forgets `N - M` elements,
-        //   which is always safe.
-        // - if N <= M, then transmuting through a union fills the rest of the array with
-        //   uninitialized memory, which is valid in this context.
-        unsafe {
-            utils::union_transmute::<
-                Self, //
-                ArrApi<MaybeUninit<Arr<_, _>>>,
-            >(self)
-        }
-    }
-
-    pub const fn transpose(self) -> ArrApi<MaybeUninit<ImplArr![T; N]>> {
-        self.into_arr::<ArrApi<MaybeUninit<Arr<_, _>>>>()
-    }
-
     pub const fn uninit() -> Self {
         // SAFETY: Shortcut for the already safe `arr_convert(MaybeUninit::uninit())`
         #[allow(clippy::uninit_assumed_init)]
