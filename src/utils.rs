@@ -89,9 +89,47 @@ macro_rules! subslice {
 }
 pub(crate) use subslice;
 
-macro_rules! expand {
-    ($($t:tt)*) => {
-        ::generic_uint_proc::__expand! { $($t)* }
+macro_rules! opt_map {
+    (|$somepat:pat_param| $someout:expr, $opt:expr $(,)?) => {
+        match $opt {
+            Some($somepat) => Some($someout),
+            None => None,
+        }
     };
 }
-pub(crate) use expand;
+pub(crate) use opt_map;
+
+/// Puts `$val` behind ManuallyDrop and `core::ptr::read`s its fields from behind a reference.
+/// This is safe if the type doesn't rely on it being impossible to move out its fields and if
+/// `$val` was passed by value (in the 2024 edition, this should not work otherwise)
+macro_rules! destruct_read {
+    ($path:path, $block:tt, $val:expr, |$any:pat_param| $else:expr) => {
+        let __val = core::mem::ManuallyDrop::new($val);
+        let crate::utils::destruct_read!(@safe_pat $path, $block) = *const_util::mem::man_drop_ref(&__val) else {
+            let $any = __val;
+            $else
+        };
+        crate::utils::destructure! { @read_fields $block }
+    };
+    ($path:path, $block:tt, $val:expr) => {
+        let __val = core::mem::ManuallyDrop::new($val);
+        let crate::utils::destruct_read!(@safe_pat $path, $block) = *const_util::mem::man_drop_ref(&__val);
+        crate::utils::destruct_read! { @read_fields $block }
+    };
+    (@safe_pat $path:path, ($($name:ident),*)) => {
+        // using a pattern like this guards against accidentally passing a reference as `$val` in
+        // the 2024 edition
+        $path( $(ref $name,)* )
+    };
+    (@safe_pat $path:path, {$($field:tt: $name:ident),* $(,)?}) => {
+        // same thing as above
+        $path{ $($field: ref $name,)* }
+    };
+    (@read_fields { $($_:tt: $name:ident),* $(,)? }) => {
+        $(let $name = core::ptr::read($name);)*
+    };
+    (@read_fields ( $($name:ident),* $(,)? )) => {
+        $(let $name = core::ptr::read($name);)*
+    };
+}
+pub(crate) use destruct_read;

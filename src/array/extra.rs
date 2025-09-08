@@ -1,9 +1,9 @@
 //! Items related to implementation details of arrays.
 
-use core::ptr;
+use core::mem::ManuallyDrop;
 
 use crate::Uint;
-use crate::array::{helper::*, *};
+use crate::array::*;
 
 pub struct IntoIter<T, N: Uint> {
     pub(crate) deq: ArrDeq<T, N>,
@@ -11,16 +11,6 @@ pub struct IntoIter<T, N: Uint> {
 
 #[derive(Debug, Clone, Copy)]
 pub struct TryFromSliceError(pub(crate) ());
-
-pub const fn unsize_raw<A: Array>(ptr: *const A) -> *const [A::Item] {
-    ptr::slice_from_raw_parts(ptr.cast(), arr_len::<A>())
-}
-pub const fn unsize_raw_mut<A: Array>(ptr: *mut A) -> *mut [A::Item] {
-    ptr::slice_from_raw_parts_mut(ptr.cast(), arr_len::<A>())
-}
-pub const fn unsize_nonnull<A: Array>(ptr: core::ptr::NonNull<A>) -> core::ptr::NonNull<[A::Item]> {
-    core::ptr::NonNull::slice_from_raw_parts(ptr.cast(), arr_len::<A>())
-}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -34,9 +24,29 @@ unsafe impl<T, A: Array<Item = T>, B: Array<Item = T>> Array for Concat<A, B> {
 }
 impl<T, A: Array<Item = T>, B: Array<Item = T>> ArraySealed for Concat<A, B> {}
 
+impl<A, B> Concat<A, B> {
+    pub const fn into_man_drop_pair(self) -> (ManuallyDrop<A>, ManuallyDrop<B>) {
+        // SAFETY: `self` is passed by value and can be destructed by read
+        unsafe {
+            crate::utils::destruct_read!(Concat, (lhs, rhs), self);
+            (ManuallyDrop::new(lhs), ManuallyDrop::new(rhs))
+        }
+    }
+}
+
 #[repr(transparent)]
 #[derive(Clone, Copy)]
 pub struct Flatten<A>(pub A);
+
+impl<A> Flatten<A> {
+    pub const fn into_inner(self) -> A {
+        // SAFETY: `self` is passed by value and can be destructed by read
+        unsafe {
+            crate::utils::destruct_read!(Flatten, (inner), self);
+            inner
+        }
+    }
+}
 
 // SAFETY: `[[T; M]; N]` is equivalent to `[T; M * N]`
 unsafe impl<A: Array<Item = B>, B: Array> Array for Flatten<A> {

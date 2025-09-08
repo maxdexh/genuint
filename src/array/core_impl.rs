@@ -4,7 +4,7 @@ mod iter;
 mod tuple_convert;
 
 use crate::Uint;
-use crate::array::{helper::*, *};
+use crate::array::{convert::*, helper::*, *};
 
 impl<T, N: Uint, A> ArrApi<A>
 where
@@ -20,13 +20,7 @@ where
     /// If `N >= usize::MAX`.
     #[track_caller]
     pub const fn as_slice(&self) -> &[T] {
-        // SAFETY: `Array` layout guarantees
-        unsafe {
-            core::slice::from_raw_parts(
-                (&raw const *self).cast::<T>(), //
-                Self::length(),
-            )
-        }
+        unsize_ref(self)
     }
 
     /// Returns a mutable slice containing the entire array.
@@ -39,13 +33,7 @@ where
     /// If `N >= usize::MAX`.
     #[track_caller]
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
-        // SAFETY: `Array` layout guarantees
-        unsafe {
-            core::slice::from_raw_parts_mut(
-                (&raw mut *self).cast::<T>(), //
-                Self::length(),
-            )
-        }
+        unsize_mut(self)
     }
 
     /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).

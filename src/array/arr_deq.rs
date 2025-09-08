@@ -1,9 +1,4 @@
-use core::{
-    marker::PhantomData,
-    mem::{ManuallyDrop, MaybeUninit},
-    ops::Range,
-    ptr::NonNull,
-};
+use core::{marker::PhantomData, mem::MaybeUninit, ops::Range, ptr::NonNull};
 
 use crate::{const_fmt, utils};
 
@@ -118,10 +113,12 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
 // TODO: Capacity panics
 impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     const fn into_repr(self) -> ArrDeqRepr<A> {
-        let this = ManuallyDrop::new(self);
-        let repr = &repr!(const_util::mem::man_drop_ref(&this));
-        // SAFETY: Known safe way of destructuring in `const fn`
-        unsafe { core::ptr::read(repr) }
+        // SAFETY: `self` and `drop` are passed by value and are ok to destructure by read.
+        unsafe {
+            crate::utils::destruct_read!(Self, (drop, _p), self);
+            crate::utils::destruct_read!(ArrDeqDrop, (repr, _p), drop);
+            repr
+        }
     }
 
     pub(crate) const unsafe fn from_repr(repr: ArrDeqRepr<A>) -> Self {

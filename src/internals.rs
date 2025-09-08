@@ -95,83 +95,83 @@ pub struct ArrBisect<A, P>([A; 2], P);
 /// Implementation detail of the different recursive array implementors that uses a sentinel `Bound`
 /// type to distinguish between them.
 #[repr(transparent)]
-pub struct ArrImpl<Bound: ArrBound<T, N>, T, N: Uint>(Bound::Arr);
+pub struct _ArrImpl<Bound: ArrBound<T, N>, T, N: Uint>(Bound::Arr);
 
 // SAFETY: repr(transparent); `Bound::Arr` was recursively constructed to be a valid implementor
-unsafe impl<T, N: Uint, Bound: ArrBound<T, N>> Array for ArrImpl<Bound, T, N> {
+unsafe impl<T, N: Uint, Bound: ArrBound<T, N>> Array for _ArrImpl<Bound, T, N> {
     type Item = T;
     type Length = N;
 }
-impl<T, N: Uint, Bound: ArrBound<T, N>> ArraySealed for ArrImpl<Bound, T, N> {}
+impl<T, N: Uint, Bound: ArrBound<T, N>> ArraySealed for _ArrImpl<Bound, T, N> {}
 
-impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Copy for ArrImpl<Bound, T, N> {}
-impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Clone for ArrImpl<Bound, T, N> {
+impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Copy for _ArrImpl<Bound, T, N> {}
+impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Clone for _ArrImpl<Bound, T, N> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-crate::utils::expand! {
-    {
-        pub trait _Arrays {$(
-            type $name<T: $bound>: $bound;
-        )}
+macro_rules! gen_arr_internals {
+    [
+        $trait:ident,
+        $ptr:ident,
+        $btr:ident,
+        $wrap:ident,
+        $impl:ident,
+        $ops:ident,
+        $([
+            $out:ident,
+            $name:ident,
+            ($($bound:tt)*),
+        ],)*
+    ] => {
+        pub trait $trait {$(
+            type $name<T: $($bound)*>: $($bound)*;
+        )*}
         // `_Arrays` is a supertrait of `_Uint`, so it can be implemented using seperate
         // impls for each `_Uint` implementor while still working with generics.
-        impl _Arrays for O {$(
-            type $name<T: $bound> = [T; 0];
-        )}
-        impl _Arrays for I {$(
-            type $name<T: $bound> = [T; 1];
-        )}
-        impl<H: _Pint, P: _Bit> _Arrays for (H, P) {$(
-            type $name<T: $bound> = ArrBisect<H::$name<T>, P::$name<T>>;
-        )}
-
-        // bound type sentinels
-        mod bounds {$(
-            pub struct $name;
-            impl<T: $bound, N: crate::Uint> super::ArrBound<T, N> for $name {
-                type Arr = <N::__Ops as super::_Arrays>::$name<T>;
-            }
-        )}
+        impl $trait for O {$(
+            type $name<T: $($bound)*> = [T; 0];
+        )*}
+        impl $trait for I {$(
+            type $name<T: $($bound)*> = [T; 1];
+        )*}
+        impl<H: $ptr, P: $btr> $trait for (H, P) {$(
+            type $name<T: $($bound)*> = ArrBisect<H::$name<T>, P::$name<T>>;
+        )*}
 
         pub mod array_types {
-            use crate::{internals::*, array::*};
+            // bound type sentinels
+            mod bounds {$(
+                pub struct $name;
+                impl<T: $($bound)*, N: crate::Uint> crate::internals::ArrBound<T, N> for $name {
+                    type Arr = <N::$ops as crate::internals::$trait>::$name<T>;
+                }
+            )*}
+            use crate::{internals::$impl, array::$wrap};
             $(
-                $doc
-                pub type $out<T, N> = ArrApi<ArrImpl<bounds::$name, T, N>>;
-            )
+                pub type $out<T, N> = $wrap<$impl<bounds::$name, T, N>>;
+            )*
         }
-    }
+    };
+}
+gen_arr_internals! {
+    _Arrays,
+    _Pint,
+    _Bit,
+    ArrApi,
+    _ArrImpl,
+    __Ops,
     [
-        {doc}
-        // Seperate `$out` and `$name` so LSPs show the right docs (since `$name`
-        // is used for and therefore spans multiple declarations)
-        out
-        name
-        (bound)
-    ]
+        Arr,
+        Arr,
+        (Sized),
+    ],
     [
-        {
-            /// Implementation of `Array` for arbitrary `N: Uint`.
-            ///
-            /// Wrapped in [`ArrApi`].
-        }
-        Arr
-        Arr
-        (Sized)
-    ]
-    [
-        {
-            /// Implementation of `Array + Copy` for arbitrary `N: Uint`.
-            ///
-            /// Wrapped in [`ArrApi`].
-        }
-        CopyArr
-        CopyArr
-        (Copy)
-    ]
+        CopyArr,
+        CopyArr,
+        (Copy),
+    ],
 }
 
 pub trait _ArrApi {

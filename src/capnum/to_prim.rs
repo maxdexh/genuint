@@ -26,67 +26,39 @@ const fn to_umaxint_overflowing(mut digits: &[Digit]) -> (Umax, bool) {
         false
     } || !is_zero(digits);
 
-    let wrapped = Umax::from_le_bytes(match crate::array::ArrApi::try_from_slice(actual) {
-        Ok(crate::array::ArrApi { inner }) => *inner,
-        Err(_) => unreachable!(),
-    });
+    let wrapped = Umax::from_le_bytes(crate::array::ArrApi::from_slice(actual).unwrap().inner);
 
     (wrapped, overflow)
 }
 
-impl<N: Uint> CapUint<N> {
-    crate::utils::expand! {
-        {$(
-            #[doc = concat!("Converts the number to a ", stringify!($prim), ", wrapping around if necessary and returning whether wrapping occurred.")]
-            pub const fn $to_prim_overflowing(self) -> ($prim, bool) {
-                let (u, o) = to_umaxint_overflowing(self.as_digits());
-                (u as _, u > <$prim>::MAX as Umax || o)
-            }
+macro_rules! gen_to_prim {
+    [
+        $([$to_prim:ident, $to_prim_overflowing:ident, $prim:ty $(,)?],)*
+    ] => {$(
+        #[doc = concat!("Converts the number to a ", stringify!($prim), ", wrapping around if necessary and returning whether wrapping occurred.")]
+        pub const fn $to_prim_overflowing(self) -> ($prim, bool) {
+            let (u, o) = to_umaxint_overflowing(self.as_digits());
+            (u as _, u > <$prim>::MAX as Umax || o)
+        }
 
-            #[doc = concat!("Converts the number to a ", stringify!($prim), ", returning [`None`] if it doesn't fit.")]
-            pub const fn $to_prim(self) -> Option<$prim> {
-                match self.$to_prim_overflowing() {
-                    (n, false) => Some(n),
-                    (_, true) => None,
-                }
+        #[doc = concat!("Converts the number to a ", stringify!($prim), ", returning [`None`] if it doesn't fit.")]
+        pub const fn $to_prim(self) -> Option<$prim> {
+            match self.$to_prim_overflowing() {
+                (n, false) => Some(n),
+                (_, true) => None,
             }
-        )}
-        [
-            to_prim
-            to_prim_overflowing
-            prim
-        ]
-        [
-            to_usize
-            to_usize_overflowing
-            usize
-        ]
-        [
-            to_u8
-            to_u8_overflowing
-            u8
-        ]
-        [
-            to_u16
-            to_u16_overflowing
-            u16
-        ]
-        [
-            to_u32
-            to_u32_overflowing
-            u32
-        ]
-        [
-            to_u64
-            to_u64_overflowing
-            u64
-        ]
-        [
-            to_u128
-            to_u128_overflowing
-            u128
-        ]
-    }
+        }
+    )*};
+}
+impl<N: Uint> CapUint<N> {
+    gen_to_prim![
+        [to_usize, to_usize_overflowing, usize],
+        [to_u8, to_u8_overflowing, u8],
+        [to_u16, to_u16_overflowing, u16],
+        [to_u32, to_u32_overflowing, u32],
+        [to_u64, to_u64_overflowing, u64],
+        [to_u128, to_u128_overflowing, u128],
+    ];
 }
 
 #[test]

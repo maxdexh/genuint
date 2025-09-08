@@ -3,12 +3,9 @@ use core::ptr;
 
 use crate::{Uint, ops, uint, utils};
 
-use crate::array::{extra::*, helper::*, *};
+use crate::array::{convert::*, extra::*, helper::*, *};
 
-// Helpers
-impl<T, N: Uint, A> ArrApi<A> where A: Array<Item = T, Length = N> {}
-
-// TODO: Capacity panics
+// FIXME: Capacity panics need to be documented
 impl<T, N: Uint, A> ArrApi<A>
 where
     A: Array<Item = T, Length = N>,
@@ -28,22 +25,6 @@ where
         unsafe { &mut *ptr::from_mut(inner).cast() }
     }
 
-    #[cfg(feature = "alloc")]
-    pub(crate) fn unsize_box(self: alloc::boxed::Box<Self>) -> alloc::boxed::Box<[T]> {
-        // SAFETY: `Array` to slice cast
-        unsafe { alloc::boxed::Box::from_raw(unsize_raw_mut(alloc::boxed::Box::into_raw(self))) }
-    }
-    #[cfg(feature = "alloc")]
-    pub(crate) fn unsize_rc(self: alloc::rc::Rc<Self>) -> alloc::rc::Rc<[T]> {
-        // SAFETY: `Array` to slice cast
-        unsafe { alloc::rc::Rc::from_raw(unsize_raw(alloc::rc::Rc::into_raw(self))) }
-    }
-    #[cfg(feature = "alloc")]
-    pub(crate) fn unsize_arc(self: alloc::sync::Arc<Self>) -> alloc::sync::Arc<[T]> {
-        // SAFETY: `Array` to slice cast
-        unsafe { alloc::sync::Arc::from_raw(unsize_raw(alloc::sync::Arc::into_raw(self))) }
-    }
-
     /// Returns the length that arrays of this type have.
     ///
     /// # Panics
@@ -60,11 +41,10 @@ where
     ///
     /// This method is primarily useful when dealing with [`ManuallyDrop`] or [`MaybeUninit`] inside of an [`ArrApi`].
     pub const fn into_inner(self) -> A {
-        // SAFETY: This is a known safe way of destructuring in a `const fn`
+        // SAFETY: `self` is passed by value and can be destructed by read
         unsafe {
-            let this = core::mem::ManuallyDrop::new(self);
-            let Self { inner } = &const_util::mem::man_drop_ref(&this);
-            core::ptr::read(inner)
+            crate::utils::destruct_read!(Self, { inner: inner }, self);
+            inner
         }
     }
 
@@ -87,19 +67,8 @@ where
     /// let builtin_arr: [_; 5] = arr.into_arr();
     /// assert_eq!(arr, builtin_arr);
     /// ```
-    ///
-    /// Transposing [`ManuallyDrop`] or [`MaybeUninit`]:
-    /// ```
-    /// use generic_uint::array::*;
-    /// use core::mem::ManuallyDrop;
-    /// let arr: ArrApi<ManuallyDrop<[i32; 3]>> = ArrApi::new(ManuallyDrop::new([1, 2, 3]));
-    /// let transposed: ArrApi<[ManuallyDrop<i32>; 3]> = arr.into_arr();
-    /// assert_eq!(arr, transposed);
-    /// let back: ArrApi<ManuallyDrop<[i32; 3]>> = transposed.into_arr();
-    /// assert_eq!(arr, back);
-    /// ```
     pub const fn into_arr<Dst: Array<Item = T, Length = N>>(self) -> Dst {
-        arr_convert(self)
+        retype_arr(self)
     }
 
     /// Tries to convert into an array with the same item and length.
@@ -169,7 +138,7 @@ where
     /// assert_eq!(arr, [1, 2, 3]);
     /// ```
     pub const fn from_arr<Src: Array<Item = T, Length = N>>(from: Src) -> Self {
-        arr_convert(from)
+        retype_arr(from)
     }
 
     /// Equivalent to `[x; N]` with `x` of a copyable type.
@@ -215,12 +184,12 @@ where
     }
 
     /// Like `<&[T] as TryInto<&[T; N]>>::try_into`, but as a const method.
-    pub const fn try_from_slice(slice: &[T]) -> Result<&Self, TryFromSliceError> {
+    pub const fn from_slice(slice: &[T]) -> Option<&Self> {
         from_slice(slice)
     }
 
     /// Like `<&mut [T] as TryInto<&mut [T; N]>>::try_into`, but as a const method.
-    pub const fn try_from_mut_slice(slice: &mut [T]) -> Result<&mut Self, TryFromSliceError> {
+    pub const fn from_mut_slice(slice: &mut [T]) -> Option<&mut Self> {
         from_mut_slice(slice)
     }
 
@@ -239,19 +208,9 @@ where
         ArrApi<ImplArr![T; ops::Min<N, I>]>,
         ArrApi<ImplArr![T; ops::SatSub<N, I>]>,
     ) {
-        // TODO: Add a version of this to `extra`
-        #[repr(C)]
-        struct ArrSplit<N: Uint, I: Uint, T> {
-            lhs: ManuallyDrop<Arr<T, ops::Min<N, I>>>,
-            rhs: ManuallyDrop<Arr<T, ops::SatSub<N, I>>>,
-        }
-        // SAFETY: repr(C), ManuallyDrop is repr(transparent), min(N, I) + saturating_sub(N, I) = N
-        unsafe impl<N: Uint, I: Uint, T> Array for ArrSplit<N, I, T> {
-            type Item = ManuallyDrop<T>;
-            type Length = N;
-        }
-        impl<N: Uint, I: Uint, T> ArraySealed for ArrSplit<N, I, T> {}
-        let ArrSplit::<N, I, T> { lhs, rhs } = arr_convert(ManuallyDrop::new(self));
+        let (lhs, rhs) =
+            const_util::result::unwrap_ok(self.try_into_arr::<Concat<Arr<_, _>, Arr<_, _>>>())
+                .into_man_drop_pair();
         (ManuallyDrop::into_inner(lhs), ManuallyDrop::into_inner(rhs))
     }
 

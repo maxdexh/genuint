@@ -50,15 +50,29 @@ const _: () = assert!(crate::uint::to_usize::<UsizeBits>().unwrap() == usize::BI
 /// [`usize::MAX`] as a [`Uint`](crate::Uint).
 pub type UsizeMax = crate::ops::SatSub<crate::ops::Shl<_1, UsizeBits>, _1>;
 
-crate::utils::expand! {
-    {$(
+macro_rules! gen_maxes {
+    [
+        $bitsmac:ident,
+        $val:ty,
+        $([$name:ident, $bits:ident, $tnamefordocs:ty $(,)? ],)*
+    ] => {$(
+        macro_rules! $bitsmac {
+            () => ($bits)
+        }
+        #[cfg(test)]
+        const _: () = {
+            type _Bits = $bits;
+        };
         #[doc = concat!("[`", stringify!($tnamefordocs), "::MAX`], but as a [`Uint`](crate::Uint)")]
-        pub type $name = crate::ops::SatSub<crate::ops::Shl<_1, $bits>, _1>;
-    )}
-    [ name bits tnamefordocs ]
-    [ U8Max _8 u8 ]
-    [ U16Max _16 u16 ]
-    [ U32Max _32 u32 ]
-    [ U64Max _64 u64 ]
-    [ U128Max _128 u128 ]
+        pub type $name = $val;
+    )*};
 }
+gen_maxes![
+    __bits,
+    crate::ops::SatSub<crate::ops::Shl<_1, __bits!()>, _1>,
+    [U8Max, _8, u8],
+    [U16Max, _16, u16],
+    [U32Max, _32, u32],
+    [U64Max, _64, u64],
+    [U128Max, _128, u128],
+];

@@ -1,6 +1,9 @@
 //! Provides a drop-in replacement for builtin `[T; N]` arrays that uses a [`Uint`](crate::Uint)
 //! for its length parameter
 
+pub mod convert;
+pub mod extra;
+
 use crate::internals::ArraySealed;
 
 /// # Safety
@@ -10,7 +13,6 @@ pub unsafe trait Array: Sized + ArraySealed {
     type Length: crate::Uint;
 }
 
-pub mod extra;
 pub(crate) mod helper;
 
 // SAFETY: By definition
@@ -22,13 +24,6 @@ where
     type Length = crate::uint::FromUsize<N>;
 }
 impl<T, const N: usize> ArraySealed for [T; N] where crate::consts::ConstUsize<N>: crate::ToUint {}
-
-// SAFETY: repr(transparent)
-unsafe impl<A: Array> Array for core::mem::ManuallyDrop<A> {
-    type Item = core::mem::ManuallyDrop<A::Item>;
-    type Length = A::Length;
-}
-impl<A: Array> ArraySealed for core::mem::ManuallyDrop<A> {}
 
 // SAFETY: MaybeUninit<[T; N]> is equivalent to [MaybeUninit<T>; N]
 unsafe impl<A: Array> Array for core::mem::MaybeUninit<A> {

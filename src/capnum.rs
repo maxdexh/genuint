@@ -67,7 +67,7 @@ mod digits {
     #[test]
     fn test_arr_len() {
         fn digit_arr_len<N: crate::Uint>() -> usize {
-            uint::to_usize::<DigitArrLen<N>>().unwrap()
+            super::DigitArr::<N>::length()
         }
         assert_eq!(uint::to_usize::<DigitBits>(), Some(Digit::BITS as usize));
 

@@ -476,14 +476,13 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     ) -> ArrVecApi<ImplArr![T; ops::SatSub<N, I>]> {
         let len = self.len();
         let i = match uint::to_usize::<I>() {
-            Some(i) if i < len => i,
+            Some(i) if i <= len => i,
             _ => return ArrVecApi::new(),
         };
         // SAFETY: `i < len`. After this, `len - i` elements are diwowned and valid
         unsafe { self.set_len(i) }
-        let Ok(spare) = ArrApi::try_from_slice(self.spare_capacity()) else {
-            unreachable!()
-        };
+
+        let spare = ArrApi::from_slice(self.spare_capacity()).unwrap();
         // SAFETY: MaybeUninit copy, taking ownership of `len - i` valid, disowned elements
         unsafe { ArrVec::from_uninit_parts(core::ptr::read(spare), len - i) }
     }
