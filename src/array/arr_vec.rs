@@ -496,7 +496,9 @@ impl<T, N: Uint, A: Array<Item = T, Length = N>> ArrVecApi<A> {
             // TODO: How many memcpys does this compile to in debug mode?
             let (arr, len) = self.into_uninit_parts();
             // SAFETY: new cap >= len, so we must still have `len` initialized elements.
-            Ok(unsafe { ArrVecApi::from_uninit_parts(arr.resize_uninit(), len) })
+            Ok(unsafe {
+                ArrVecApi::from_uninit_parts(crate::array::Arr::resize_uninit_from(arr), len)
+            })
         } else {
             Err(self)
         }

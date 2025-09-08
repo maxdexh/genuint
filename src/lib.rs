@@ -50,6 +50,7 @@ pub mod array;
 pub mod capnum;
 pub mod consts;
 pub mod ops;
+pub mod tern;
 pub mod uint;
 
 #[doc(hidden)]

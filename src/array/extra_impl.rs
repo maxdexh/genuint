@@ -1,6 +1,7 @@
 use core::mem::{ManuallyDrop, MaybeUninit};
 use core::ptr;
 
+use crate::tern::TernRes;
 use crate::{Uint, ops, uint, utils};
 
 use crate::array::{convert::*, extra::*, helper::*, *};
@@ -79,11 +80,13 @@ where
     ///
     /// If you are having trouble destructuring the returned [`Result`] in a const fn, consider using
     /// functions from [`const_util::result`] or going through [`ManuallyDrop`] first.
-    pub const fn try_into_arr<Dst: Array<Item = T>>(self) -> Result<Dst, Self> {
-        match crate::uint::cmp::<N, Dst::Length>().is_eq() {
+    pub const fn try_into_arr<Dst: Array<Item = T>>(
+        self,
+    ) -> TernRes<ops::Eq<N, Dst::Length>, Dst, Self> {
+        match uint::to_bool::<ops::Eq<N, Dst::Length>>() {
             // SAFETY: N == Dst::Length
-            true => Ok(unsafe { arr_convert_unchecked(self) }),
-            false => Err(self),
+            true => TernRes::make_ok(unsafe { arr_convert_unchecked(self) }),
+            false => TernRes::make_err(self),
         }
     }
 
@@ -209,9 +212,10 @@ where
         ArrApi<ImplArr![T; ops::Min<N, I>]>,
         ArrApi<ImplArr![T; ops::SatSub<N, I>]>,
     ) {
-        let (lhs, rhs) =
-            const_util::result::unwrap_ok(self.try_into_arr::<Concat<Arr<_, _>, Arr<_, _>>>())
-                .into_man_drop_pair();
+        let (lhs, rhs) = self
+            .try_into_arr::<Concat<Arr<_, _>, Arr<_, _>>>()
+            .unwrap()
+            .into_man_drop_pair();
         (ManuallyDrop::into_inner(lhs), ManuallyDrop::into_inner(rhs))
     }
 

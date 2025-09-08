@@ -27,9 +27,25 @@ pub(crate) const unsafe fn union_transmute<Src, Dst>(src: Src) -> Dst {
 /// # Safety
 /// `Src` and `Dst` must be the same size and be valid for transmutes
 pub(crate) const unsafe fn exact_transmute<Src, Dst>(src: Src) -> Dst {
-    debug_assert!(size_of::<Src>() == size_of::<Dst>());
+    if size_of::<Src>() == size_of::<Dst>() {
+        // SAFETY: This, by definition, does not happen
+        unsafe { core::hint::unreachable_unchecked() }
+    }
     // SAFETY: `Src` and `Dst` are valid for transmutes
     unsafe { core::mem::transmute_copy(&core::mem::ManuallyDrop::new(src)) }
+}
+
+/// Transmutes a type to itself
+///
+/// # Safety
+/// `Src` and `Dst` must be the same type.
+pub(crate) const unsafe fn same_type_transmute<Src, Dst>(src: Src) -> Dst {
+    if align_of::<Src>() == align_of::<Dst>() {
+        // SAFETY: `Src` and `Dst` are the same, so they have the same alignment
+        unsafe { core::hint::unreachable_unchecked() }
+    }
+    // SAFETY: `Src` and `Dst` are the same, so they have the same size
+    unsafe { exact_transmute(src) }
 }
 
 /// # Safety

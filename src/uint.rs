@@ -117,6 +117,7 @@ pub const fn cmp<L: ToUint, R: ToUint>() -> core::cmp::Ordering {
     }
 }
 
+/// An arbitrary type map from [`Uint`] to [`Sized`]
 pub trait TCon {
     type Apply<N: Uint>;
 }

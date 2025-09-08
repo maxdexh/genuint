@@ -16,6 +16,8 @@ pub trait UintSealed: 'static {
 pub trait _Uint: _Arrays + 'static {
     const IS_NONZERO: bool;
 
+    type TernAny<T, F>;
+
     type Ternary<T: ToUint, F: ToUint>: ToUint;
     type Opaque<N: ToUint>: ToUint;
 
@@ -35,6 +37,8 @@ pub(crate) use InternalOp;
 impl _Uint for O {
     const IS_NONZERO: bool = false;
 
+    type TernAny<T, F> = F;
+
     type Ternary<T: ToUint, F: ToUint> = F;
     type Opaque<N: ToUint> = N;
 
@@ -47,6 +51,8 @@ impl _Uint for O {
 impl _Uint for I {
     const IS_NONZERO: bool = true;
 
+    type TernAny<T, F> = T;
+
     type Ternary<T: ToUint, F: ToUint> = T;
     type Opaque<N: ToUint> = N;
 
@@ -58,6 +64,8 @@ impl _Uint for I {
 }
 impl<H: _Pint, P: _Bit> _Uint for (H, P) {
     const IS_NONZERO: bool = true;
+
+    type TernAny<T, F> = T;
 
     type Ternary<T: ToUint, F: ToUint> = T;
     type Opaque<N: ToUint> = N;
