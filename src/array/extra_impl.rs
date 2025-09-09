@@ -215,7 +215,7 @@ where
         let (lhs, rhs) = self
             .try_into_arr::<Concat<Arr<_, _>, Arr<_, _>>>()
             .unwrap()
-            .into_man_drop_pair();
+            .into_man_drop();
         (ManuallyDrop::into_inner(lhs), ManuallyDrop::into_inner(rhs))
     }
 
