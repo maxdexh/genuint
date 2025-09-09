@@ -84,6 +84,7 @@ impl<C: Uint, T, E> TernRes<C, T, E> {
     pub const fn unwrap(self) -> T {
         raw::expect_true::<C, _, _>(self.into_raw(), "Call to `unwrap` on error variant")
     }
+
     /// Equivalent of [`Result::unwrap_err`], but uses a generic message so it's usable in `const` and
     /// without [`Debug`] bounds.
     pub const fn unwrap_err(self) -> E {

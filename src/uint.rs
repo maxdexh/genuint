@@ -116,19 +116,3 @@ pub const fn cmp<L: ToUint, R: ToUint>() -> core::cmp::Ordering {
         }
     }
 }
-
-/// An arbitrary type map from [`Uint`] to [`Sized`]
-pub trait TCon {
-    type Apply<N: Uint>;
-}
-pub const fn transform_eq<C: TCon, Src: Uint, Dst: Uint>(
-    src: C::Apply<Src>,
-) -> Result<C::Apply<Dst>, C::Apply<Src>> {
-    if cmp::<Src, Dst>().is_eq() {
-        // SAFETY: Src == Dst, uniqueness of `Uint`s and type projection
-        // imply that this is a transmute from a type to itself
-        Ok(unsafe { crate::utils::exact_transmute(src) })
-    } else {
-        Err(src)
-    }
-}

@@ -26,7 +26,7 @@ impl<A: Array> IntoIterator for ArrApi<A> {
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
-            deq: ArrDeq::new_full(self.into_arr()),
+            deq: ArrDeq::new_full(self.retype()),
         }
     }
 }

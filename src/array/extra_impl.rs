@@ -69,8 +69,8 @@ where
     /// let builtin_arr: [_; 5] = arr.into_arr();
     /// assert_eq!(arr, builtin_arr);
     /// ```
-    pub const fn into_arr<Dst: Array<Item = T, Length = N>>(self) -> Dst {
-        retype_arr(self)
+    pub const fn retype<Dst: Array<Item = T, Length = N>>(self) -> Dst {
+        retype(self)
     }
 
     /// Tries to convert into an array with the same item and length.
@@ -80,41 +80,10 @@ where
     ///
     /// If you are having trouble destructuring the returned [`Result`] in a const fn, consider using
     /// functions from [`const_util::result`] or going through [`ManuallyDrop`] first.
-    pub const fn try_into_arr<Dst: Array<Item = T>>(
+    pub const fn try_retype<Dst: Array<Item = T>>(
         self,
     ) -> TernRes<ops::Eq<N, Dst::Length>, Dst, Self> {
-        match uint::to_bool::<ops::Eq<N, Dst::Length>>() {
-            // SAFETY: N == Dst::Length
-            true => TernRes::make_ok(unsafe { arr_convert_unchecked(self) }),
-            false => TernRes::make_err(self),
-        }
-    }
-
-    /// Asserts that the length of the array is equal to the paramter and returns an new array of the
-    /// adjusted type.
-    ///
-    /// # Panics
-    /// If the length of the array is not equal to `M`
-    ///
-    /// # Examples
-    /// ```
-    /// use generic_uint::{array::*};
-    /// const fn takes_generic_array(arr: impl Array<Item = i32>) -> [i32; 3] {
-    ///     if size_of_val(&arr) == 12 {
-    ///         ArrApi::new(arr).assert_len().into_arr() // type inference
-    ///     } else {
-    ///         drop_items!(arr);
-    ///         [0; 3]
-    ///     }
-    /// }
-    /// assert_eq!(takes_generic_array([1, 2, 3]), [1, 2, 3]);
-    /// assert_eq!(takes_generic_array([1, 2]), [0; 3]);
-    /// ```
-    #[track_caller]
-    pub const fn assert_len<M: Uint>(self) -> ArrApi<ImplArr![T; M]> {
-        assert_same_arr_len::<Self, Arr<T, M>>();
-        // SAFETY: Length equality was checked
-        unsafe { arr_convert_unchecked::<_, Arr<T, M>>(self) }
+        try_retype(self)
     }
 
     /// [`core::array::from_fn`], but as a method.
@@ -142,7 +111,7 @@ where
     /// assert_eq!(arr, [1, 2, 3]);
     /// ```
     pub const fn from_arr<Src: Array<Item = T, Length = N>>(from: Src) -> Self {
-        retype_arr(from)
+        retype(from)
     }
 
     /// Equivalent to `[x; N]` with `x` of a copyable type.
@@ -189,7 +158,7 @@ where
 
     /// Like `<&[T] as TryInto<&[T; N]>>::try_into`, but as a const method.
     pub const fn from_slice(slice: &[T]) -> Option<&Self> {
-        from_slice(slice)
+        from_ref_slice(slice)
     }
 
     /// Like `<&mut [T] as TryInto<&mut [T; N]>>::try_into`, but as a const method.
@@ -213,7 +182,7 @@ where
         ArrApi<ImplArr![T; ops::SatSub<N, I>]>,
     ) {
         let (lhs, rhs) = self
-            .try_into_arr::<Concat<Arr<_, _>, Arr<_, _>>>()
+            .try_retype::<Concat<Arr<_, _>, Arr<_, _>>>()
             .unwrap()
             .into_man_drop();
         (ManuallyDrop::into_inner(lhs), ManuallyDrop::into_inner(rhs))
@@ -264,30 +233,12 @@ where
     where
         T: Copy,
     {
-        let mut out = Arr::resize_uninit_from(MaybeUninit::new(self));
+        let mut out = ArrApi::new(MaybeUninit::new(self)).resize_uninit();
         if let Some((_, uninit)) = out.as_mut_slice().split_at_mut_checked(Self::length()) {
             init_fill(uninit, item);
         }
         // SAFETY: The first `Self::legnth()` items are already init. `init_fill` inits the rest.
         unsafe { ArrApi::new(out.inner.assume_init()) }
-    }
-
-    pub(crate) const fn transpose_uninit_from<B>(arr: B) -> ArrApi<MaybeUninit<A>>
-    where
-        B: Array<Item = MaybeUninit<T>, Length = N>,
-    {
-        ArrApi::new(arr).into_arr()
-    }
-    pub(crate) const fn resize_uninit_from<B>(arr: B) -> ArrApi<MaybeUninit<A>>
-    where
-        B: Array<Item = MaybeUninit<T>>,
-    {
-        // SAFETY:
-        // - if N >= M, then transmuting through a union forgets `N - M` elements,
-        //   which is always safe.
-        // - if N <= M, then transmuting through a union fills the rest of the array with
-        //   uninitialized memory, which is valid in this context.
-        unsafe { utils::union_transmute::<B, ArrApi<MaybeUninit<A>>>(arr) }
     }
 }
 
@@ -300,6 +251,22 @@ where
         #[allow(clippy::uninit_assumed_init)]
         unsafe {
             MaybeUninit::uninit().assume_init()
+        }
+    }
+
+    pub const fn resize_uninit<M: Uint>(
+        self,
+    ) -> ArrApi<MaybeUninit<impl Array<Item = T, Length = M>>> {
+        // SAFETY:
+        // - if N >= M, then transmuting through a union forgets `N - M` elements,
+        //   which is always safe.
+        // - if N <= M, then transmuting through a union fills the rest of the array with
+        //   uninitialized memory, which is valid in this context.
+        unsafe {
+            utils::union_transmute::<
+                Self, //
+                ArrApi<MaybeUninit<Arr<T, M>>>,
+            >(self)
         }
     }
 }

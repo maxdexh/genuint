@@ -465,8 +465,8 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
         // SAFETY: lhs has llen leading valid elements, rhs has rlen
         unsafe {
             (
-                ArrVec::from_uninit_parts(lhs.into_arr(), llen),
-                ArrVec::from_uninit_parts(rhs.into_arr(), rlen),
+                ArrVec::from_uninit_parts(lhs.retype(), llen),
+                ArrVec::from_uninit_parts(rhs.retype(), rlen),
             )
         }
     }
@@ -496,9 +496,7 @@ impl<T, N: Uint, A: Array<Item = T, Length = N>> ArrVecApi<A> {
             // TODO: How many memcpys does this compile to in debug mode?
             let (arr, len) = self.into_uninit_parts();
             // SAFETY: new cap >= len, so we must still have `len` initialized elements.
-            Ok(unsafe {
-                ArrVecApi::from_uninit_parts(crate::array::Arr::resize_uninit_from(arr), len)
-            })
+            Ok(unsafe { ArrVecApi::from_uninit_parts(arr.resize_uninit(), len) })
         } else {
             Err(self)
         }

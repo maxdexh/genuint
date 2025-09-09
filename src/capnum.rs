@@ -122,7 +122,7 @@ impl<N: Uint> CapUint<N> {
             true => unsafe {
                 let prefix = max::<PopLastDigit<N>>().digits;
                 let last = digits::to_digit_wrapping::<N>();
-                Self::from_digits_unchecked(prefix.concat([last]).assert_len().into_arr())
+                Self::from_digits_unchecked(prefix.concat([last]).try_retype().unwrap())
             },
             // max::<0>() == 0
             false => Self::ZERO,
@@ -152,7 +152,7 @@ impl<N: Uint> CapUint<N> {
         }
 
         Some(CapUint::from_digits(
-            self.digits.resize_with_fill(0).into_arr(),
+            self.digits.resize_with_fill(0).retype(),
         ))
     }
 

@@ -4,7 +4,7 @@ mod iter;
 mod tuple_convert;
 
 use crate::Uint;
-use crate::array::{convert::*, helper::*, *};
+use crate::array::{convert::*, *};
 
 impl<T, N: Uint, A> ArrApi<A>
 where
@@ -37,7 +37,7 @@ where
     }
 
     /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).
-    pub const fn each_ref(&self) -> ArrApi<ImplArr![&T; N; Copy]> {
+    pub const fn each_ref(&self) -> ArrApi<impl Array<Item = &T, Length = N> + Copy> {
         let mut out = ArrVecApi::<super::CopyArr<_, _>>::new();
         let mut this = self.as_slice();
         while let [first, rest @ ..] = this {
@@ -48,7 +48,7 @@ where
     }
 
     /// Equivalent of [`<[T; N]>::each_mut`](array::each_mut).
-    pub const fn each_mut(&mut self) -> ArrApi<ImplArr![&mut T; N]> {
+    pub const fn each_mut(&mut self) -> ArrApi<impl Array<Item = &mut T, Length = N>> {
         let mut out = ArrVec::new();
         let mut this = self.as_mut_slice();
         while let [first, rest @ ..] = this {
@@ -59,7 +59,7 @@ where
     }
 
     /// Equivalent of [`<[T; N]>::map`](array::map).
-    pub fn map<F, U>(self, mut f: F) -> ArrApi<ImplArr![U; N]>
+    pub fn map<F, U>(self, mut f: F) -> ArrApi<impl Array<Item = U, Length = N>>
     where
         F: FnMut(T) -> U,
     {
@@ -77,7 +77,7 @@ where
     A: Array<Item: Clone>,
 {
     fn clone(&self) -> Self {
-        self.each_ref().map(Clone::clone).into_arr()
+        self.each_ref().map(Clone::clone).retype()
     }
 }
 impl<A> Copy for ArrApi<A> where A: Array<Item: Copy> + Copy {}

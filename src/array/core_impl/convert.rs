@@ -59,7 +59,7 @@ where
     fn try_from(value: &[T]) -> Result<Self, Self::Error> {
         <&crate::array::CopyArr<_, _>>::try_from(value)
             .copied()
-            .map(ArrApi::into_arr)
+            .map(ArrApi::retype)
     }
 }
 impl<T, A> TryFrom<&mut [T]> for ArrApi<A>
