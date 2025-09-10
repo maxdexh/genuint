@@ -10,7 +10,7 @@ mod cmp;
 mod convert;
 mod core_impl;
 mod iter;
-mod retypes;
+mod layout_convert;
 mod tuple_convert;
 
 // FIXME: Capacity panics need to be documented

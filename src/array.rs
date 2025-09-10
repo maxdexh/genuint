@@ -43,7 +43,7 @@ impl<A: Array> ArraySealed for ArrApi<A> {}
 // TODO: Move types into own module
 pub use crate::internals::array_types::*;
 
-mod extra_impl;
+mod impls;
 
 /// A wrapper for an array implementor that provides all of the API relating to arrays.
 ///
