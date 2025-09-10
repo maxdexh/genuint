@@ -1,7 +1,6 @@
 //! Provides a drop-in replacement for builtin `[T; N]` arrays that uses a [`Uint`](crate::Uint)
 //! for its length parameter
 
-pub mod convert;
 pub mod extra;
 
 use crate::internals::ArraySealed;
@@ -44,7 +43,6 @@ impl<A: Array> ArraySealed for ArrApi<A> {}
 // TODO: Move types into own module
 pub use crate::internals::array_types::*;
 
-mod core_impl;
 mod extra_impl;
 
 /// A wrapper for an array implementor that provides all of the API relating to arrays.

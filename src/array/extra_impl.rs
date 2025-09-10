@@ -4,7 +4,14 @@ use core::ptr;
 use crate::tern::TernRes;
 use crate::{Uint, ops, uint, utils};
 
-use crate::array::{convert::*, extra::*, helper::*, *};
+use crate::array::{extra::*, helper::*, *};
+
+mod cmp;
+mod convert;
+mod core_impl;
+mod iter;
+mod retypes;
+mod tuple_convert;
 
 // FIXME: Capacity panics need to be documented
 // TODO: Replace Self -> ImplArr with B -> Self
@@ -38,10 +45,10 @@ where
 
     /// Returns the wrapped array of this [`ArrApi`].
     ///
-    /// For types that are always wrapped in [`ArrApi`] (such as [`Arr`]),
-    /// the return type of this method can be named explicitly using [`ArrApiInner<Self>`](crate::array::extra::ArrApiInner).
-    ///
-    /// This method is primarily useful when dealing with [`ManuallyDrop`] or [`MaybeUninit`] inside of an [`ArrApi`].
+    /// This method is primarily useful when dealing with nested [`ArrApi`]s
+    /// or extracting a type with its own api (such as builtin arrays or [`Concat`])
+    /// inside of an [`ArrApi`] when moving out of [`inner`](Self::inner) is
+    /// not possible, e.g. in `const` contexts with generics.
     pub const fn into_inner(self) -> A {
         // SAFETY: `self` is passed by value and can be destructed by read
         unsafe {
@@ -69,8 +76,12 @@ where
     /// let builtin_arr: [_; 5] = arr.into_arr();
     /// assert_eq!(arr, builtin_arr);
     /// ```
-    pub const fn retype<Dst: Array<Item = T, Length = N>>(self) -> Dst {
-        retype(self)
+    pub const fn retype<Dst>(self) -> Dst
+    where
+        Dst: Array<Item = T, Length = N>,
+    {
+        // SAFETY: `Array` layout guarantees
+        unsafe { utils::exact_transmute::<Self, Dst>(self) }
     }
 
     /// Tries to convert into an array with the same item and length.
@@ -83,7 +94,12 @@ where
     pub const fn try_retype<Dst: Array<Item = T>>(
         self,
     ) -> TernRes<ops::Eq<N, Dst::Length>, Dst, Self> {
-        try_retype(self)
+        if uint::to_bool::<ops::Eq<N, Dst::Length>>() {
+            // SAFETY: `Array` layout guarantees
+            crate::tern::TernRes::make_ok(unsafe { utils::exact_transmute::<Self, Dst>(self) })
+        } else {
+            crate::tern::TernRes::make_err(self)
+        }
     }
 
     /// [`core::array::from_fn`], but as a method.
@@ -102,16 +118,16 @@ where
         out.assert_full()
     }
 
-    /// The same as `ArrApi::new(from).into_arr::<Self>()`.
+    /// The same as `ArrApi::new(from).retype::<Self>()`.
     ///
     /// # Examples
     /// ```
     /// use generic_uint::array::*;
-    /// let arr = Arr::from_arr([1, 2, 3]);
+    /// let arr = Arr::retype_from([1, 2, 3]);
     /// assert_eq!(arr, [1, 2, 3]);
     /// ```
-    pub const fn from_arr<Src: Array<Item = T, Length = N>>(from: Src) -> Self {
-        retype(from)
+    pub const fn retype_from<Src: Array<Item = T, Length = N>>(from: Src) -> Self {
+        ArrApi::new(from).retype()
     }
 
     /// Equivalent to `[x; N]` with `x` of a copyable type.
@@ -158,12 +174,22 @@ where
 
     /// Like `<&[T] as TryInto<&[T; N]>>::try_into`, but as a const method.
     pub const fn from_slice(slice: &[T]) -> Option<&Self> {
-        from_ref_slice(slice)
+        crate::utils::opt_map!(
+            // SAFETY: `&[A::Item]` to `&A` cast with same item and length.
+            // This is the same as the `&[T; N] as TryFrom<&[T]>` impl
+            |ptr| unsafe { ptr.as_ref() },
+            from_nonnull_slice(core::ptr::NonNull::from_ref(slice)),
+        )
     }
 
     /// Like `<&mut [T] as TryInto<&mut [T; N]>>::try_into`, but as a const method.
     pub const fn from_mut_slice(slice: &mut [T]) -> Option<&mut Self> {
-        from_mut_slice(slice)
+        crate::utils::opt_map!(
+            // SAFETY: `&mut [A::Item]` to `&mut A` cast with same item and length.
+            // This is the same as the `&mut [T; N] as TryFrom<&mut [T]>` impl
+            |mut ptr| unsafe { ptr.as_mut() },
+            from_nonnull_slice(core::ptr::NonNull::from_mut(slice)),
+        )
     }
 
     /// Splits an owned array at a [`Uint`] position.

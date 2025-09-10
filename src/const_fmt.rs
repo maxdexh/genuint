@@ -13,7 +13,7 @@ use core::{marker::PhantomData, mem::ManuallyDrop};
 macro_rules! fmt {
     [ $($ex:expr),* $(,)? ] => {
         crate::const_fmt::ConstFmtWrap::new(
-            crate::array::Arr::<crate::const_fmt::ConstFmt, _>::from_arr([])
+            crate::array::Arr::<crate::const_fmt::ConstFmt, _>::retype_from([])
                 $( .concat(crate::const_fmt::ConstFmtWrap::new($ex).fmt()) )*
         )
     };

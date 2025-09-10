@@ -2,8 +2,7 @@
 
 use core::mem::ManuallyDrop;
 
-use crate::Uint;
-use crate::array::*;
+use crate::{Uint, array::*};
 
 pub struct IntoIter<T, N: Uint> {
     pub(crate) deq: ArrDeq<T, N>,

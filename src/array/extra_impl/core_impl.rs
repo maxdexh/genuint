@@ -1,10 +1,5 @@
-mod cmp;
-mod convert;
-mod iter;
-mod tuple_convert;
-
 use crate::Uint;
-use crate::array::{convert::*, *};
+use crate::array::{helper::*, *};
 
 impl<T, N: Uint, A> ArrApi<A>
 where
@@ -20,7 +15,8 @@ where
     /// If `N >= usize::MAX`.
     #[track_caller]
     pub const fn as_slice(&self) -> &[T] {
-        unsize_ref(self)
+        // SAFETY: `Array` to slice cast
+        unsafe { &*unsize_raw(self) }
     }
 
     /// Returns a mutable slice containing the entire array.
@@ -33,7 +29,8 @@ where
     /// If `N >= usize::MAX`.
     #[track_caller]
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
-        unsize_mut(self)
+        // SAFETY: `Array` to slice cast
+        unsafe { &mut *unsize_raw_mut(self) }
     }
 
     /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).

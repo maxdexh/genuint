@@ -110,7 +110,7 @@ where
     A: Array<Item = T>,
 {
     fn from(value: ArrApi<A>) -> Self {
-        crate::array::convert::unsize_arc(alloc::sync::Arc::new(value))
+        alloc::sync::Arc::new(value).unsize_arc()
     }
 }
 #[cfg(feature = "alloc")]
@@ -119,7 +119,7 @@ where
     A: Array<Item = T>,
 {
     fn from(value: ArrApi<A>) -> Self {
-        crate::array::convert::unsize_rc(alloc::rc::Rc::new(value))
+        alloc::rc::Rc::new(value).unsize_rc()
     }
 }
 #[cfg(feature = "alloc")]
@@ -128,7 +128,7 @@ where
     A: Array<Item = T>,
 {
     fn from(value: ArrApi<A>) -> Self {
-        crate::array::convert::unsize_box(alloc::boxed::Box::new(value))
+        alloc::boxed::Box::new(value).unsize_box()
     }
 }
 #[cfg(feature = "alloc")]
