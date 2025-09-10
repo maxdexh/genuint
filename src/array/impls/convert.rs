@@ -1,4 +1,4 @@
-use crate::array::{ArrApi, Array, extra::*, helper::*};
+use crate::array::{extra::*, *};
 
 impl<T, A> AsRef<[T]> for ArrApi<A>
 where
@@ -38,7 +38,7 @@ where
 {
     type Error = TryFromSliceError;
     fn try_from(value: &'a [T]) -> Result<Self, Self::Error> {
-        ArrApi::from_slice(value).ok_or(TryFromSliceError(()))
+        ArrApi::try_from_slice(value).ok_or(TryFromSliceError(()))
     }
 }
 impl<'a, T, A> TryFrom<&'a mut [T]> for &'a mut ArrApi<A>
@@ -47,7 +47,7 @@ where
 {
     type Error = TryFromSliceError;
     fn try_from(value: &'a mut [T]) -> Result<Self, Self::Error> {
-        ArrApi::from_mut_slice(value).ok_or(TryFromSliceError(()))
+        ArrApi::try_from_mut_slice(value).ok_or(TryFromSliceError(()))
     }
 }
 impl<T, A> TryFrom<&[T]> for ArrApi<A>
@@ -217,7 +217,7 @@ where
     type Error = alloc::boxed::Box<[T]>;
     fn try_from(value: alloc::boxed::Box<[T]>) -> Result<Self, Self::Error> {
         use alloc::boxed::Box;
-        if value.len() == arr_len::<A>() {
+        if value.len() == helper::arr_len::<A>() {
             // SAFETY: Length is correct; casting slices to arrays this way is valid
             Ok(unsafe { Box::from_raw(Box::into_raw(value).cast()) })
         } else {
@@ -232,7 +232,7 @@ where
 {
     type Error = alloc::vec::Vec<T>;
     fn try_from(mut value: alloc::vec::Vec<T>) -> Result<Self, Self::Error> {
-        if value.len() == arr_len::<A>() {
+        if value.len() == helper::arr_len::<A>() {
             // SAFETY: set_len(0) is always safe and effectively forgets the elements,
             // ensuring that the drop of `Vec` only frees the allocation.
             unsafe {
@@ -251,7 +251,7 @@ where
 {
     type Error = alloc::vec::Vec<T>;
     fn try_from(value: alloc::vec::Vec<T>) -> Result<Self, Self::Error> {
-        if value.len() == arr_len::<A>() {
+        if value.len() == helper::arr_len::<A>() {
             value
                 .into_boxed_slice()
                 .try_into()

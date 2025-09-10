@@ -1,38 +1,10 @@
 use crate::Uint;
-use crate::array::{helper::*, *};
+use crate::array::*;
 
 impl<T, N: Uint, A> ArrApi<A>
 where
     A: Array<Item = T, Length = N>,
 {
-    /// Returns a slice containing the entire array.
-    ///
-    /// In `const` contexts, this is the only way to do this.
-    ///
-    /// Equivalent of [`<[T; N]>::as_slice`](array::as_slice).
-    ///
-    /// # Panics
-    /// If `N >= usize::MAX`.
-    #[track_caller]
-    pub const fn as_slice(&self) -> &[T] {
-        // SAFETY: `Array` to slice cast
-        unsafe { &*unsize_raw(self) }
-    }
-
-    /// Returns a mutable slice containing the entire array.
-    ///
-    /// In `const` contexts, this is the only way to do this.
-    ///
-    /// Equivalent of [`<[T; N]>::as_mut_slice`](array::as_mut_slice).
-    ///
-    /// # Panics
-    /// If `N >= usize::MAX`.
-    #[track_caller]
-    pub const fn as_mut_slice(&mut self) -> &mut [T] {
-        // SAFETY: `Array` to slice cast
-        unsafe { &mut *unsize_raw_mut(self) }
-    }
-
     /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).
     pub const fn each_ref(&self) -> ArrApi<impl Array<Item = &T, Length = N> + Copy> {
         let mut out = ArrVecApi::<super::CopyArr<_, _>>::new();

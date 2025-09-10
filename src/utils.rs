@@ -105,16 +105,6 @@ macro_rules! subslice {
 }
 pub(crate) use subslice;
 
-macro_rules! opt_map {
-    (|$somepat:pat_param| $someout:expr, $opt:expr $(,)?) => {
-        match $opt {
-            Some($somepat) => Some($someout),
-            None => None,
-        }
-    };
-}
-pub(crate) use opt_map;
-
 /// Puts `$val` behind ManuallyDrop and `core::ptr::read`s its fields from behind a reference.
 /// This is safe if the type doesn't rely on it being impossible to move out its fields and if
 /// `$val` was passed by value (in the 2024 edition, this should not work otherwise)

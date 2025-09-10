@@ -45,7 +45,7 @@ pub use crate::internals::array_types::*;
 
 mod impls;
 
-/// A wrapper for an array implementor that provides all of the API relating to arrays.
+/// A newtype adapter for an array implementor that the API relating to arrays.
 ///
 /// The struct has a second generic parameter which is always the item of the array.
 /// This gives better lifetime inferrence for the item type. Some methods, such as
@@ -56,6 +56,10 @@ mod impls;
 /// as default methods in [`Array`].
 #[repr(transparent)]
 pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item> {
+    /// The array being wrapped.
+    ///
+    /// If you are getting errors trying to move out of this in `const` contexts, try using
+    /// [`Self::into_inner`].
     pub inner: A,
 }
 

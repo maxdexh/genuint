@@ -26,7 +26,7 @@ const fn to_umaxint_overflowing(mut digits: &[Digit]) -> (Umax, bool) {
         false
     } || !is_zero(digits);
 
-    let wrapped = Umax::from_le_bytes(crate::array::ArrApi::from_slice(actual).unwrap().inner);
+    let wrapped = Umax::from_le_bytes(crate::array::ArrApi::try_from_slice(actual).unwrap().inner);
 
     (wrapped, overflow)
 }

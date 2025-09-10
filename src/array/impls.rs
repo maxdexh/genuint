@@ -1,5 +1,4 @@
 use core::mem::{ManuallyDrop, MaybeUninit};
-use core::ptr;
 
 use crate::tern::TernRes;
 use crate::{Uint, ops, uint, utils};
@@ -22,16 +21,6 @@ where
     /// Alias for `Self { inner }`
     pub const fn new(inner: A) -> Self {
         Self { inner }
-    }
-
-    pub const fn from_inner_ref(inner: &A) -> &Self {
-        // SAFETY: repr(transparent)
-        unsafe { &*ptr::from_ref(inner).cast() }
-    }
-
-    pub const fn from_inner_mut(inner: &mut A) -> &mut Self {
-        // SAFETY: repr(transparent)
-        unsafe { &mut *ptr::from_mut(inner).cast() }
     }
 
     /// Returns the length that arrays of this type have.
@@ -170,26 +159,6 @@ where
         init_fill_const::<C>(out.as_mut_slice());
         // SAFETY: All elements have been initialized
         unsafe { out.inner.assume_init() }
-    }
-
-    /// Like `<&[T] as TryInto<&[T; N]>>::try_into`, but as a const method.
-    pub const fn from_slice(slice: &[T]) -> Option<&Self> {
-        crate::utils::opt_map!(
-            // SAFETY: `&[A::Item]` to `&A` cast with same item and length.
-            // This is the same as the `&[T; N] as TryFrom<&[T]>` impl
-            |ptr| unsafe { ptr.as_ref() },
-            from_nonnull_slice(core::ptr::NonNull::from_ref(slice)),
-        )
-    }
-
-    /// Like `<&mut [T] as TryInto<&mut [T; N]>>::try_into`, but as a const method.
-    pub const fn from_mut_slice(slice: &mut [T]) -> Option<&mut Self> {
-        crate::utils::opt_map!(
-            // SAFETY: `&mut [A::Item]` to `&mut A` cast with same item and length.
-            // This is the same as the `&mut [T; N] as TryFrom<&mut [T]>` impl
-            |mut ptr| unsafe { ptr.as_mut() },
-            from_nonnull_slice(core::ptr::NonNull::from_mut(slice)),
-        )
     }
 
     /// Splits an owned array at a [`Uint`] position.
