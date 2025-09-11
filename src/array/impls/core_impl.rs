@@ -5,6 +5,26 @@ impl<T, N: Uint, A> ArrApi<A>
 where
     A: Array<Item = T, Length = N>,
 {
+    /// Converts the array to a slice.
+    ///
+    /// Equivalent to [`<[T; N]>::as_slice`](primitive.slice.method.as_slice).
+    ///
+    /// # Panics
+    /// If `N > usize::MAX`.
+    pub const fn as_slice(&self) -> &[T] {
+        unsize::unsize_ref(self)
+    }
+
+    /// Converts the array to a mutable slice.
+    ///
+    /// Equivalent to [`<[T; N]>::as_mut_slice`](primitive.slice.method.as_mut_slice).
+    ///
+    /// # Panics
+    /// If `N > usize::MAX`.
+    pub const fn as_mut_slice(&mut self) -> &mut [T] {
+        unsize::unsize_mut(self)
+    }
+
     /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).
     pub const fn each_ref(&self) -> ArrApi<impl Array<Item = &T, Length = N> + Copy> {
         let mut out = ArrVecApi::<super::CopyArr<_, _>>::new();

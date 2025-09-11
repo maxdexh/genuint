@@ -152,7 +152,6 @@ pub use log::{BaseLen, ILog};
 
 mod add;
 pub use add::Add;
-pub(crate) use add::IncIfL as Inc;
 
 mod mul;
 pub use mul::Mul;

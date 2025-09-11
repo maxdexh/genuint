@@ -98,7 +98,7 @@ pub trait ArrBound<T, N: Uint> {
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct ArrBisect<A, P>([A; 2], P);
+pub struct ArrBisect<A, P>(A, A, P);
 
 /// Implementation detail of the different recursive array implementors that uses a sentinel `Bound`
 /// type to distinguish between them.

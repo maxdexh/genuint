@@ -47,14 +47,6 @@ pub(crate) const fn init_fill_const<C: type_const::Const>(mut buf: &mut [MaybeUn
     }
 }
 
-/// `Src::Length == DST`
-pub(crate) const unsafe fn arr_to_builtin_unchecked<Src: Array, const DST: usize>(
-    src: Src,
-) -> [Src::Item; DST] {
-    // SAFETY: `Array` invariant
-    unsafe { crate::utils::exact_transmute(src) }
-}
-
 /// # Panics
 /// If `A::Length > usize::MAX`
 ///

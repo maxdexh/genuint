@@ -1,19 +1,100 @@
-use core::mem::{ManuallyDrop, MaybeUninit};
+use core::mem::MaybeUninit;
 
 use crate::tern::TernRes;
 use crate::{Uint, ops, uint, utils};
 
-use crate::array::{extra::*, helper::*, *};
+use crate::array::{helper::*, *};
+use crate::internals::ArraySealed;
+
+// SAFETY: By definition
+unsafe impl<T, const N: usize> Array for [T; N]
+where
+    crate::consts::ConstUsize<N>: crate::ToUint,
+{
+    type Item = T;
+    type Length = crate::uint::FromUsize<N>;
+}
+impl<T, const N: usize> ArraySealed for [T; N] where crate::consts::ConstUsize<N>: crate::ToUint {}
+
+// SAFETY: MaybeUninit<[T; N]> is equivalent to [MaybeUninit<T>; N]
+unsafe impl<A: Array> Array for core::mem::MaybeUninit<A> {
+    type Item = core::mem::MaybeUninit<A::Item>;
+    type Length = A::Length;
+}
+impl<A: Array> ArraySealed for core::mem::MaybeUninit<A> {}
+
+// SAFETY: repr(transparent)
+unsafe impl<A: Array> Array for ArrApi<A> {
+    type Item = A::Item;
+    type Length = A::Length;
+}
+impl<A: Array> ArraySealed for ArrApi<A> {}
+
+// SAFETY: `repr(C)` results in the arrays being placed next to each other in memory
+// in accordance with array layout
+unsafe impl<T, A: Array<Item = T>, B: Array<Item = T>> Array for Concat<A, B> {
+    type Item = T;
+    type Length = crate::ops::Add<A::Length, B::Length>;
+}
+impl<T, A: Array<Item = T>, B: Array<Item = T>> ArraySealed for Concat<A, B> {}
+
+// SAFETY: repr(transparent), `[[T; M]; N]` is equivalent to `[T; M * N]`
+unsafe impl<A: Array<Item = B>, B: Array> Array for Flatten<A> {
+    type Item = B::Item;
+    type Length = crate::ops::Mul<A::Length, B::Length>;
+}
+impl<A: Array<Item = B>, B: Array> ArraySealed for Flatten<A> {}
+
+// SAFETY: repr(transparent), TernRaw<C, O, E> is O if C else E
+unsafe impl<C: Uint, T, O, E> Array for crate::tern::TernRes<C, O, E>
+where
+    O: Array<Item = T>,
+    E: Array<Item = T>,
+{
+    type Item = T;
+    type Length = crate::ops::Tern<C, O::Length, E::Length>;
+}
+impl<C: Uint, T, O, E> ArraySealed for crate::tern::TernRes<C, O, E>
+where
+    O: Array<Item = T>,
+    E: Array<Item = T>,
+{
+}
 
 mod cmp;
 mod convert;
 mod core_impl;
 mod iter;
-mod layout_convert;
 mod tuple_convert;
 
-// FIXME: Capacity panics need to be documented
-// TODO: Replace Self -> ImplArr with B -> Self
+impl<A, B> Concat<A, B> {
+    /// Returns the fields of this struct as a pair of arrays wrapped in [`ManuallyDrop`].
+    ///
+    /// May make it easier to destructure the result in `const` contexts.
+    #[must_use = "The pair returned by this function is wrapped in ManuallyDrop and may need cleanup"]
+    pub const fn into_man_drop(self) -> (core::mem::ManuallyDrop<A>, core::mem::ManuallyDrop<B>) {
+        // SAFETY: `self` is passed by value and can be destructed by read
+        unsafe {
+            crate::utils::destruct_read!(Self, (lhs, rhs), self);
+            (
+                core::mem::ManuallyDrop::new(lhs),
+                core::mem::ManuallyDrop::new(rhs),
+            )
+        }
+    }
+}
+
+impl<A> Flatten<A> {
+    /// Returns the field of this struct.
+    pub const fn into_inner(self) -> A {
+        // SAFETY: `self` is passed by value and can be destructed by read
+        unsafe {
+            crate::utils::destruct_read!(Self, (inner), self);
+            inner
+        }
+    }
+}
+
 impl<T, N: Uint, A> ArrApi<A>
 where
     A: Array<Item = T, Length = N>,
@@ -26,7 +107,7 @@ where
     /// Returns the length that arrays of this type have.
     ///
     /// # Panics
-    /// If the length of this type exceeds [`usize::MAX`].
+    /// If the length of this array exceeds [`usize::MAX`].
     #[track_caller]
     pub const fn length() -> usize {
         arr_len::<Self>()
@@ -161,29 +242,7 @@ where
         unsafe { out.inner.assume_init() }
     }
 
-    /// Splits an owned array at a [`Uint`] position.
-    ///
-    /// The output is a pair of arrays with lengths `min(N, I)` and `saturating_sub(N, I)`.
-    /// Because the sum of these operations can be proven to always be `N`, this never loses any
-    /// elements. As a result, the method behaves as follows:
-    /// - If `I <= N`, returns arrays with lengths `I` and `N - I`.
-    /// - If `I >= N`, returns arrays with lengths `N` and `0`.
-    /// - Using [`concat`](Self::concat) on the split arrays gives back the original.
-    #[allow(clippy::type_complexity, reason = "Not much we can do here")]
-    pub const fn split_at_uint<I: Uint>(
-        self,
-    ) -> (
-        ArrApi<ImplArr![T; ops::Min<N, I>]>,
-        ArrApi<ImplArr![T; ops::SatSub<N, I>]>,
-    ) {
-        let (lhs, rhs) = self
-            .try_retype::<Concat<Arr<_, _>, Arr<_, _>>>()
-            .unwrap()
-            .into_man_drop();
-        (ManuallyDrop::into_inner(lhs), ManuallyDrop::into_inner(rhs))
-    }
-
-    /// Concatenates two [`Array`]s.
+    /// Concatenates the inner array with `rhs` via [`Concat`].
     pub const fn concat<Rhs>(self, rhs: Rhs) -> ArrApi<Concat<A, Rhs>>
     where
         Rhs: Array<Item = T>,
@@ -191,11 +250,16 @@ where
         ArrApi::new(Concat(self.into_inner(), rhs))
     }
 
+    /// Flattens the inner array [`Flatten`].
     pub const fn flatten(self) -> ArrApi<Flatten<A>>
     where
         T: Array,
     {
         ArrApi::new(Flatten(self.into_inner()))
+    }
+
+    pub const fn into_uninit(self) -> ArrApi<MaybeUninit<A>> {
+        ArrApi::new(MaybeUninit::new(self.into_inner()))
     }
 
     /// Tries to turn the array into a builtin `[T; M]` array of the same size.
@@ -213,27 +277,11 @@ where
         if let Some(n) = uint::to_usize::<N>()
             && n == M
         {
-            // SAFETY: M == N
-            Ok(unsafe { arr_to_builtin_unchecked(self) })
+            // SAFETY: `Array` invariant
+            Ok(unsafe { crate::utils::exact_transmute::<Self, [T; M]>(self) })
         } else {
             Err(self)
         }
-    }
-
-    /// Resizes the array.
-    ///
-    /// If the new length is larger than the old length, the remaining elements will be filled with
-    /// `item`. Otherwise, the array will be truncated and the extra elements discarded.
-    pub(crate) const fn resize_with_fill<M: Uint>(self, item: T) -> ArrApi<ImplArr![T; M]>
-    where
-        T: Copy,
-    {
-        let mut out = ArrApi::new(MaybeUninit::new(self)).resize_uninit();
-        if let Some((_, uninit)) = out.as_mut_slice().split_at_mut_checked(Self::length()) {
-            init_fill(uninit, item);
-        }
-        // SAFETY: The first `Self::legnth()` items are already init. `init_fill` inits the rest.
-        unsafe { ArrApi::new(out.inner.assume_init()) }
     }
 }
 
@@ -249,19 +297,19 @@ where
         }
     }
 
-    pub const fn resize_uninit<M: Uint>(
-        self,
-    ) -> ArrApi<MaybeUninit<impl Array<Item = T, Length = M>>> {
-        // SAFETY:
-        // - if N >= M, then transmuting through a union forgets `N - M` elements,
+    /// Moves the items from another array of [`MaybeUninit<T>`] items.
+    ///
+    /// If the input array is larger than this array, the extra items will be forgotten.
+    /// If the input array is smaller, the missing items will be left uninitialized.
+    pub const fn resize_uninit_from<B>(arr: B) -> Self
+    where
+        B: Array<Item = MaybeUninit<T>>,
+    {
+        // SAFETY: M := B::Length
+        // - if M >= N, then transmuting through a union forgets `M - N` elements,
         //   which is always safe.
-        // - if N <= M, then transmuting through a union fills the rest of the array with
+        // - if M <= N, then transmuting through a union fills the rest of the array with
         //   uninitialized memory, which is valid in this context.
-        unsafe {
-            utils::union_transmute::<
-                Self, //
-                ArrApi<MaybeUninit<Arr<T, M>>>,
-            >(self)
-        }
+        unsafe { utils::union_transmute::<B, Self>(arr) }
     }
 }

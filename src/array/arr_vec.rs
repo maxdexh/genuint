@@ -7,7 +7,7 @@ mod core_impl;
 
 use crate::{
     Uint,
-    array::{ArrApi, ArrVec, ArrVecApi, Array, helper::*},
+    array::{helper::*, *},
     const_fmt, ops, uint,
 };
 
@@ -447,30 +447,6 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
         unsafe { ArrDeqApi::from_repr(arr_deq::ArrDeqRepr { arr, len, head: 0 }) }
     }
 
-    #[allow(clippy::type_complexity)]
-    pub const fn split_at_uint<I: Uint>(
-        self,
-    ) -> (
-        ArrVecApi<ImplArr![T; ops::Min<N, I>]>,
-        ArrVecApi<ImplArr![T; ops::SatSub<N, I>]>,
-    ) {
-        let (arr, len) = self.into_uninit_parts();
-        const_util::destruct_tuple! { lhs, rhs in arr.split_at_uint::<I>() }
-
-        let rlen = match uint::to_usize::<I>() {
-            Some(i) => len.saturating_sub(i),
-            None => 0,
-        };
-        let llen = len - rlen;
-        // SAFETY: lhs has llen leading valid elements, rhs has rlen
-        unsafe {
-            (
-                ArrVec::from_uninit_parts(lhs.retype(), llen),
-                ArrVec::from_uninit_parts(rhs.retype(), rlen),
-            )
-        }
-    }
-
     pub const fn split_off_at_uint<I: Uint>(
         &mut self,
     ) -> ArrVecApi<ImplArr![T; ops::SatSub<N, I>]> {
@@ -482,23 +458,26 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
         // SAFETY: `i < len`. After this, `len - i` elements are diwowned and valid
         unsafe { self.set_len(i) }
 
-        let spare = ArrApi::try_from_slice(self.spare_capacity()).unwrap();
+        let spare = try_from_slice::try_from_slice(self.spare_capacity()).unwrap();
         // SAFETY: MaybeUninit copy, taking ownership of `len - i` valid, disowned elements
         unsafe { ArrVec::from_uninit_parts(core::ptr::read(spare), len - i) }
     }
 }
 
 impl<T, N: Uint, A: Array<Item = T, Length = N>> ArrVecApi<A> {
-    pub const fn try_grow<M: Uint>(self) -> Result<ArrVecApi<ImplArr![T; M]>, Self> {
-        if let Some(m) = uint::to_usize::<M>()
-            && m >= self.len()
+    pub const fn try_resize_from<B>(vec: ArrVecApi<B>) -> Result<Self, ArrVecApi<B>>
+    where
+        B: Array<Item = T>,
+    {
+        if let Some(n) = uint::to_usize::<N>()
+            && n >= vec.len()
         {
             // TODO: How many memcpys does this compile to in debug mode?
-            let (arr, len) = self.into_uninit_parts();
+            let (arr, len) = vec.into_uninit_parts();
             // SAFETY: new cap >= len, so we must still have `len` initialized elements.
-            Ok(unsafe { ArrVecApi::from_uninit_parts(arr.resize_uninit(), len) })
+            Ok(unsafe { ArrVecApi::from_uninit_parts(ArrApi::resize_uninit_from(arr), len) })
         } else {
-            Err(self)
+            Err(vec)
         }
     }
 }

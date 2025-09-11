@@ -47,7 +47,6 @@ pub trait ToUint {
 }
 
 pub mod array;
-pub mod capnum;
 pub mod consts;
 pub mod ops;
 pub mod tern;

@@ -1,49 +1,33 @@
 //! Provides a drop-in replacement for builtin `[T; N]` arrays that uses a [`Uint`](crate::Uint)
 //! for its length parameter
 
-pub mod extra;
-
-use crate::internals::ArraySealed;
-
-// TODO: Document guarantees
+use crate::internals;
 
 /// # Safety
-/// Currently cannot be implemented by downstream crates.
-pub unsafe trait Array: Sized + ArraySealed {
+/// Currently, this trait is sealed.
+///
+/// The guarantees made by types implementing [`Array`] with `Item = T` and `Length = N` include the following:
+/// - Must have the same layout as an equivalent `[T; N]` builtin array. If `N > usize::MAX` (only
+///   relevant for ZSTs), they still act as if there was such an array type.
+/// - Arrays have no additional safety requirements over builtin arrays whatsoever. In particular:
+///     - They have the same semantics as the equivalent builtin array with respect to arbitrary auto traits,
+///       assuming there is no manual implementation from the crate declaring the trait.
+///     - They also have the same semantics as the equivalent builtin array with respect to drop glue.
+///       They never have a [`Drop`] implementation and only have the drop glue from their item type.
+///       When the array is dropped, exactly `N` instances of `T` are dropped
+///       ([in order](https://doc.rust-lang.org/reference/destructors.html)), even if `N > usize::MAX`.
+///     - Note that together with the point about the layout, this is sufficient to perform arbitrary
+///       casts and transmutes between equivalent array types. See [`retype`] and [`try_from_slice`].
+/// - `MaybeUninit<[T; N]>` and `[MaybeUninit<T>; N]` are considered equivalent for the purposes of
+///   this trait.
+/// - Arrays of arrays are equivalent to their flattened versions, e.g. `[[i32; 4]; 3]` is
+///   equivalent to `[i32; 12]`, which is equivalent to `[[i32; 3]; 4]`.
+pub unsafe trait Array: Sized + internals::ArraySealed {
     type Item;
     type Length: crate::Uint;
 }
 
-pub(crate) mod helper;
-
-// SAFETY: By definition
-unsafe impl<T, const N: usize> Array for [T; N]
-where
-    crate::consts::ConstUsize<N>: crate::ToUint,
-{
-    type Item = T;
-    type Length = crate::uint::FromUsize<N>;
-}
-impl<T, const N: usize> ArraySealed for [T; N] where crate::consts::ConstUsize<N>: crate::ToUint {}
-
-// SAFETY: MaybeUninit<[T; N]> is equivalent to [MaybeUninit<T>; N]
-unsafe impl<A: Array> Array for core::mem::MaybeUninit<A> {
-    type Item = core::mem::MaybeUninit<A::Item>;
-    type Length = A::Length;
-}
-impl<A: Array> ArraySealed for core::mem::MaybeUninit<A> {}
-
-// SAFETY: repr(transparent)
-unsafe impl<A: Array> Array for ArrApi<A> {
-    type Item = A::Item;
-    type Length = A::Length;
-}
-impl<A: Array> ArraySealed for ArrApi<A> {}
-
-// TODO: Move types into own module
 pub use crate::internals::array_types::*;
-
-mod impls;
 
 /// A newtype adapter for an array implementor that the API relating to arrays.
 ///
@@ -63,7 +47,17 @@ pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item> {
     pub inner: A,
 }
 
-mod arr_vec;
+/// Adapter that turns two arrays with the same item type into one long array.
+///
+/// This is just a `repr(C)` pair.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct Concat<A, B>(pub A, pub B);
+
+/// Adapter that turns an array of arrays into one long array of items.
+#[repr(transparent)]
+#[derive(Clone, Copy)]
+pub struct Flatten<A>(pub A);
 
 /// A wrapper for a [`MaybeUninit`](core::mem::MaybeUninit) array that acts as a [`Vec`]
 /// (with limited capacity), as well as a drop guard for the initialized items.
@@ -93,8 +87,6 @@ pub struct ArrVecApi<A: Array<Item = T>, T = <A as Array>::Item>(
 
 /// Alias for [`ArrVecApi`] around [`Arr`].
 pub type ArrVec<T, N> = ArrVecApi<Arr<T, N>>;
-
-mod arr_deq;
 
 /// A wrapper for a [`MaybeUninit`](core::mem::MaybeUninit) array that acts as a
 /// [`VecDeque`](std::collections::VecDeque) (with limited capacity), as well as
@@ -136,3 +128,17 @@ macro_rules! __drop_items {
     }};
 }
 pub use __drop_items as drop_items;
+
+pub(crate) mod helper;
+
+mod arr_deq;
+mod arr_vec;
+mod impls;
+
+pub mod extra;
+
+pub(crate) mod func_mods;
+pub mod retype;
+pub mod try_from_slice;
+pub mod try_retype;
+pub mod unsize;
