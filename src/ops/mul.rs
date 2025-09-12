@@ -17,7 +17,11 @@ pub type MulL<L, R> = Tern<
     //       = 2 * (H * R) + P * R
     //       = 2 * (H * R) + if P { R } else { 0 }
     //       = AddIf(P, Double(H * R), R)
-    AddIfL<P<L>, Double<MulL<H<L>, R>>, R>,
+    AddIfL<
+        P<L>, //
+        Double<MulL<H<L>, R>>,
+        R,
+    >,
     // 0 * R = 0
     _0,
 >;

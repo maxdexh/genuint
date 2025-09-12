@@ -46,7 +46,7 @@ pub type DivUncheckedL<L, R> = Tern<
     L,
     AppendBit<
         //
-        DivUncheckedL<Half<L>, R>,
+        DivUncheckedL<H<L>, R>,
         BitNot<cmp::LtL<URemL<L, R>, R>>,
     >,
     _0,

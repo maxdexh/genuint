@@ -102,22 +102,26 @@ pub const fn to_u128<N: ToUint>() -> Option<u128> {
 }
 pub const fn cmp<L: ToUint, R: ToUint>() -> core::cmp::Ordering {
     use core::cmp::Ordering;
-    const {
-        if !to_bool::<L>() {
-            match to_bool::<R>() {
-                true => Ordering::Less,
-                false => Ordering::Equal,
-            }
-        } else {
-            match cmp::<ops::Half<L>, ops::Half<R>>() {
-                it @ (Ordering::Less | Ordering::Greater) => it,
-                Ordering::Equal => match (to_bool::<ops::Parity<L>>(), to_bool::<ops::Parity<R>>())
-                {
-                    (true, true) | (false, false) => Ordering::Equal,
-                    (true, false) => Ordering::Greater,
-                    (false, true) => Ordering::Less,
-                },
+    const fn doit<L: Uint, R: Uint>() -> Ordering {
+        const {
+            if !to_bool::<L>() {
+                match to_bool::<R>() {
+                    true => Ordering::Less,
+                    false => Ordering::Equal,
+                }
+            } else {
+                match doit::<From<ops::Half<L>>, From<ops::Half<R>>>() {
+                    it @ (Ordering::Less | Ordering::Greater) => it,
+                    Ordering::Equal => {
+                        match (to_bool::<ops::Parity<L>>(), to_bool::<ops::Parity<R>>()) {
+                            (true, true) | (false, false) => Ordering::Equal,
+                            (true, false) => Ordering::Greater,
+                            (false, true) => Ordering::Less,
+                        }
+                    }
+                }
             }
         }
     }
+    doit::<L::ToUint, R::ToUint>()
 }

@@ -28,7 +28,7 @@ pub type SquareL<N> = Tern<
 >;
 
 // MulIf(N, F, C) := if C { N * F } else { N }
-type MulIfL<N, F, C> = Tern<C, mul::MulL<N, F>, N>;
+type MulIfL<N, F, C> = Tern<C, mul::MulL<F, N>, N>;
 
 // E = 2 * H + P, H = H(E), P = P(E)
 #[apply(lazy)]
@@ -42,7 +42,7 @@ pub type PowL<B, E> = Tern<
     // = MulIf(Square(Pow(B, H)), B, P)
     MulIfL<
         //
-        PowL<SquareL<B>, Half<E>>,
+        PowL<SquareL<B>, H<E>>,
         B,
         P<E>,
     >,

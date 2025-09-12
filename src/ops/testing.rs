@@ -21,7 +21,7 @@ fn test_satdec() {
     tests! { 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 }
 }
 
-pub(crate) type DefaultHi = crate::consts::_50;
+pub(crate) type DefaultHi = crate::consts::_10;
 pub(crate) type DefaultLo = crate::consts::_0;
 
 /// A type-level linked list of `Uint`s

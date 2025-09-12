@@ -123,13 +123,13 @@ pub type AppendBit<N, P> = InternalOp!(uint::From<N>, ::AppendAsBit<uint::From<P
 /// # Examples
 /// Exiting from a recursive operation
 /// ```
-/// use generic_uint::{ToUint, ops, uint};
+/// use generic_uint::{ToUint, ops, uint, lit};
 /// struct CountOnesL<N, Acc>(N, Acc);
 /// impl<N: ToUint, Acc: ToUint> ToUint for CountOnesL<N, Acc> {
 ///     type ToUint = uint::From<ops::Tern<
 ///         N,
 ///         CountOnesL<
-///             ops::Half<N>,
+///             uint::From<ops::Half<N>>,
 ///             ops::Add<Acc, ops::Parity<N>>,
 ///         >,
 ///         Acc,
@@ -137,8 +137,8 @@ pub type AppendBit<N, P> = InternalOp!(uint::From<N>, ::AppendAsBit<uint::From<P
 /// }
 /// type CountOnes<N> = uint::From<CountOnesL<N, uint::FromU128<0>>>;
 /// assert_eq!(
-///     uint::to_u128::<CountOnes<uint::FromU128<0b1011101>>>(),
-///     Some(5),
+///     uint::to_u128::<CountOnes<lit!(0b1010101010101010101010)>>(),
+///     Some(11),
 /// );
 /// ```
 //

@@ -32,7 +32,7 @@ pub type SatDecIfL<N, C = _1> = Tern<
     // Thus:
     // N - 1 = 2 * SatDecIf(H, Not(P)) + Not(P)
     //       = Append(SatDecIf(H, Not(P)), Not(P))
-    AppendBit<SatDecIfL<Half<N>, BitNot<P<N>>>, BitNot<P<N>>>,
+    AppendBit<SatDecIfL<H<N>, BitNot<P<N>>>, BitNot<P<N>>>,
     // case C = 0: SatDecIf(N, 0) = N
     // case N = 0: SatDecIf(0, C) = 0 = N
     N,

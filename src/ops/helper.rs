@@ -13,5 +13,7 @@ pub type Xor<L, R> = Norm<Tern<L, BitNot<R>, R>>;
 pub type Xnor<L, R> = Norm<Tern<L, R, BitNot<R>>>;
 pub type Xor3<A, B, C> = Norm<Tern<A, Xnor<B, C>, Xor<B, C>>>;
 
+/// Eager version of `Half`.
 pub type H<N> = Norm<Half<N>>;
-pub type P<N> = Norm<Parity<N>>;
+/// Eager version of `Parity`.
+pub type P<N> = Norm<Parity<Norm<N>>>;
