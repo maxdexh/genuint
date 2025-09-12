@@ -34,14 +34,14 @@ impl<A: Array> ArraySealed for ArrApi<A> {}
 // in accordance with array layout
 unsafe impl<T, A: Array<Item = T>, B: Array<Item = T>> Array for Concat<A, B> {
     type Item = T;
-    type Length = crate::ops::Add<A::Length, B::Length>;
+    type Length = crate::uint::From<crate::ops::Add<A::Length, B::Length>>;
 }
 impl<T, A: Array<Item = T>, B: Array<Item = T>> ArraySealed for Concat<A, B> {}
 
 // SAFETY: repr(transparent), `[[T; M]; N]` is equivalent to `[T; M * N]`
 unsafe impl<A: Array<Item = B>, B: Array> Array for Flatten<A> {
     type Item = B::Item;
-    type Length = crate::ops::Mul<A::Length, B::Length>;
+    type Length = crate::uint::From<crate::ops::Mul<A::Length, B::Length>>;
 }
 impl<A: Array<Item = B>, B: Array> ArraySealed for Flatten<A> {}
 
@@ -52,7 +52,7 @@ where
     E: Array<Item = T>,
 {
     type Item = T;
-    type Length = crate::ops::Tern<C, O::Length, E::Length>;
+    type Length = uint::From<crate::ops::Tern<C, O::Length, E::Length>>;
 }
 impl<C: Uint, T, O, E> ArraySealed for crate::tern::TernRes<C, O, E>
 where

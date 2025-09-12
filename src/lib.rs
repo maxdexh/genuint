@@ -1,7 +1,13 @@
+//! TODO: Docs go here
+
 #![cfg_attr(test, recursion_limit = "512")]
 #![cfg_attr(not(any(test, doc, feature = "std")), no_std)]
 #![warn(
     clippy::nursery,
+    clippy::missing_panics_doc,
+    clippy::missing_const_for_fn,
+    clippy::missing_errors_doc,
+    missing_docs,
     // enforce "SAFETY" comments
     clippy::undocumented_unsafe_blocks,
 )]
@@ -40,15 +46,26 @@ macro_rules! lit {
 mod internals;
 mod utils;
 
+/// A type-level non-negative integer.
+///
+/// See the [crate level documentation](crate).
+///
+/// It is guaranteed (including to unsafe code) that there is a one-to-one correspondence between
+/// the non-negative integers and the set of types that implement this trait.
 pub trait Uint: ToUint<ToUint = Self> + 'static + internals::UintSealed {}
 
+/// A type that can be turned into [`Uint`].
+///
+/// TODO: Something something lazy uints refer to ops docs
 pub trait ToUint {
+    #[allow(missing_docs)]
     type ToUint: Uint;
 }
 
 pub mod array;
 pub mod consts;
 pub mod ops;
+pub mod tcon;
 pub mod tern;
 pub mod uint;
 

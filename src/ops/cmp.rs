@@ -16,13 +16,21 @@ pub type EqL<L, R> = Tern<
     // iff And(Xnor(PL, PR), Eq(HL, HR)) = 1
     AndL<Xnor<P<L>, P<R>>, EqL<H<R>, H<L>>>,
     // case L = 0:  0 = R  iff  (if R { 0 } else { 1 }) = 1
-    TernL<R, _0, _1>,
+    Tern<R, _0, _1>,
 >;
 
+/// Type-level equality operator.
+///
+/// The result of this operation is either `0` or `1`.
+#[doc(alias = "==")]
 #[apply(opaque)]
 #[apply(test_op! test_eq, (L == R) as _)]
 pub type Eq<L, R> = EqL<L, R>;
 
+/// Negated type-level equality operator.
+///
+/// The result of this operation is either `0` or `1`.
+#[doc(alias = "!=")]
 #[apply(opaque)]
 pub type Ne<L, R> = BitNot<Eq<L, R>>;
 
@@ -41,13 +49,13 @@ pub type LtByLastL<L, R> = AndSC<
 // Lt(L, R) := Cond!(L < R)
 pub type LtL<L, R> = Tern<
     R,
-    TernL<
+    Tern<
         L,
         //     L < R
         // iff 2 * HL + PL < 2 * HR + PR
         // iff HL < HR or HL = HR and PL = 0 and PR = 1
         // iff Lt(HL, HR) = 1 or LtByLast(L, R) = 1
-        TernL<LtL<H<L>, H<R>>, _1, LtByLastL<L, R>>,
+        Tern<LtL<H<L>, H<R>>, _1, LtByLastL<L, R>>,
         // 0 < R is true because R = 0 was already checked
         _1,
     >,
@@ -55,17 +63,45 @@ pub type LtL<L, R> = Tern<
     _0,
 >;
 
+/// Type-level less-than operator.
+///
+/// This type will always be the same as [`Gt`] with swapped arguments.
+///
+/// The result of this operation is either `0` or `1`.
+#[doc(alias = "<")]
 #[apply(opaque)]
 #[apply(test_op! test_lt, (L < R) as _)]
 pub type Lt<L, R> = LtL<L, R>;
+
+/// Type-level greater-than operator.
+///
+/// This type will always be the same as [`Lt`] with swapped arguments.
+///
+/// The result of this operation is either `0` or `1`.
+#[doc(alias = ">")]
 pub type Gt<L, R> = Lt<R, L>;
 
+/// Type-level greater-than-or-equal operator.
+///
+/// This type will always be the same as [`Le`] with swapped arguments.
+///
+/// The result of this operation is either `0` or `1`.
+#[doc(alias = ">=")]
 #[apply(opaque! GeL)]
 pub type Ge<L, R> = BitNot<Lt<L, R>>;
+
+/// Type-level less-than-or-equal operator.
+///
+/// This type will always be the same as [`Ge`] with swapped arguments.
+///
+/// The result of this operation is either `0` or `1`.
+#[doc(alias = "<=")]
 pub type Le<L, R> = Ge<L, R>;
 
+/// Type-level `min` operator.
 #[apply(opaque! MinL)]
 pub type Min<L, R> = Tern<LtL<L, R>, R, L>;
 
+/// Type-level `max` operator.
 #[apply(opaque! MaxL)]
 pub type Max<L, R> = Tern<LtL<L, R>, L, R>;

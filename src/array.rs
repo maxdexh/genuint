@@ -23,7 +23,9 @@ use crate::internals;
 /// - Arrays of arrays are equivalent to their flattened versions, e.g. `[[i32; 4]; 3]` is
 ///   equivalent to `[i32; 12]`, which is equivalent to `[[i32; 3]; 4]`.
 pub unsafe trait Array: Sized + internals::ArraySealed {
+    /// The item type of the array.
     type Item;
+    /// The length of the array as a type-level integer.
     type Length: crate::Uint;
 }
 

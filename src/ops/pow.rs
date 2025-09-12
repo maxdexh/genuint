@@ -1,7 +1,7 @@
 use super::*;
 
 // Quad(N) := 4 * N
-type QuadL<N> = AppendL<AppendL<N, _0>, _0>;
+type QuadL<N> = AppendBit<AppendBit<N, _0>, _0>;
 
 // N = 2 * H + P, H = H(N), P = P(N)
 //
@@ -9,7 +9,7 @@ type QuadL<N> = AppendL<AppendL<N, _0>, _0>;
 #[apply(lazy)]
 pub type SquareL<N> = Tern<
     N,
-    TernL<
+    Tern<
         P<N>,
         // P = 1
         // Pow(N, 2) = Pow(2 * H + 1, 2) = 4 * Pow(H, 2) + 4 * H + 1
@@ -28,7 +28,7 @@ pub type SquareL<N> = Tern<
 >;
 
 // MulIf(N, F, C) := if C { N * F } else { N }
-type MulIfL<N, F, C> = TernL<C, mul::MulL<N, F>, N>;
+type MulIfL<N, F, C> = Tern<C, mul::MulL<N, F>, N>;
 
 // E = 2 * H + P, H = H(E), P = P(E)
 #[apply(lazy)]
@@ -50,6 +50,7 @@ pub type PowL<B, E> = Tern<
     _1,
 >;
 
+/// Type-level exponentiation
 #[apply(opaque)]
 #[apply(test_op!
     test_pow,

@@ -7,7 +7,7 @@ macro_rules! generate_alias_cons {
 
         macro_rules! new_alias {
             ($name:ident, $val:expr, $ty:ty) => {
-                pub type $name = $ty;
+                pub type $name = crate::uint::From<$ty>;
                 $(impl crate::ToUint for $struct<{ $val }> {
                     type ToUint = $name;
                 })*

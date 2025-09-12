@@ -2,7 +2,7 @@ pub mod raw;
 
 use core::mem::ManuallyDrop;
 
-use crate::{Uint, uint};
+use crate::{ToUint, uint};
 use raw::TernRaw;
 
 /// A [`Result`]-like type that only has ok or error instances, depending on a [`Uint`] condition.
@@ -10,10 +10,11 @@ use raw::TernRaw;
 /// If `Cond` is zero, then this struct is a `repr(transparent)` wrapper around `E`. Otherwise, it
 /// is a `repr(transparent)` wrapper around `T`.
 #[repr(transparent)]
-pub struct TernRes<Cond: Uint, T, E> {
+pub struct TernRes<Cond: ToUint, T, E> {
+    /// The underlying [`TernRaw`].
     pub raw: TernRaw<Cond, T, E>,
 }
-impl<C: Uint, T, E> TernRes<C, T, E> {
+impl<C: ToUint, T, E> TernRes<C, T, E> {
     /// Whether instances of this type are ok, i.e. `to_bool::<C>()`
     pub const IS_OK: bool = uint::to_bool::<C>();
     /// Whether instances of this type are errors, i.e. `!to_bool::<C>()`
@@ -33,13 +34,18 @@ impl<C: Uint, T, E> TernRes<C, T, E> {
     }
     /// Equivalent of [`Result::as_ref`].
     pub const fn as_ref(&self) -> TernRes<C, &T, &E> {
-        TernRes::from_raw(raw::push_tcon_lt::<C, T, E, raw::TConLtRef>(&self.raw))
+        TernRes::from_raw(raw::push_tcon_lt::<C, T, E, crate::tcon::TConLtRef>(
+            &self.raw,
+        ))
     }
     /// Equivalent of [`Result::as_mut`].
     pub const fn as_mut(&mut self) -> TernRes<C, &mut T, &mut E> {
-        TernRes::from_raw(raw::push_tcon_lt::<C, T, E, raw::TConLtMut>(&mut self.raw))
+        TernRes::from_raw(raw::push_tcon_lt::<C, T, E, crate::tcon::TConLtMut>(
+            &mut self.raw,
+        ))
     }
     /// Turns this result in to a regular [`Result`].
+    #[allow(clippy::missing_errors_doc)]
     pub const fn into_result(self) -> Result<T, E> {
         raw::match_tern_raw!(C, self.into_raw(), |t| Ok(t), |f| Err(f))
     }
@@ -71,6 +77,7 @@ impl<C: Uint, T, E> TernRes<C, T, E> {
     /// This may make it easier to destructure in `const` contexts when generics or [`Drop`] impls
     /// are involved.
     #[must_use = "This Result's variants are wrapped in ManuallyDrop and may need cleanup"]
+    #[allow(clippy::missing_errors_doc)]
     pub const fn into_man_drop_result(self) -> Result<ManuallyDrop<T>, ManuallyDrop<E>> {
         raw::match_tern_raw!(
             C,
@@ -92,13 +99,13 @@ impl<C: Uint, T, E> TernRes<C, T, E> {
     }
 }
 
-impl<C: Uint, T> TernRes<C, T, T> {
+impl<C: ToUint, T> TernRes<C, T, T> {
     /// Creates a result where both variants have the same type.
     pub const fn new_trivial(x: T) -> Self {
-        Self::from_raw(raw::push_tcon::<C, T, T, raw::TConTrivial<T>>(x))
+        Self::from_raw(raw::push_tcon::<C, T, T, crate::tcon::TConTrivial<T>>(x))
     }
     /// Unwraps a result where both variants have the same type.
     pub const fn into_trivial(self) -> T {
-        raw::pull_tcon::<C, T, T, raw::TConTrivial<T>>(self.into_raw())
+        raw::pull_tcon::<C, T, T, crate::tcon::TConTrivial<T>>(self.into_raw())
     }
 }

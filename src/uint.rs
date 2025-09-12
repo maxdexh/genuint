@@ -1,4 +1,4 @@
-use crate::{ToUint, Uint, consts, maxint::Umax, ops};
+use crate::{ToUint, Uint, consts, maxint::Umax, ops, uint};
 
 pub type From<N> = <N as ToUint>::ToUint;
 pub type FromUsize<const N: usize> = From<crate::consts::ConstUsize<N>>;
@@ -9,7 +9,7 @@ const fn to_umax_overflowing<N: Uint>() -> (Umax, bool) {
     // It might be worth it to perform a BitAnd on the `Uint` before plugging it in here.
     const {
         if to_bool::<N>() {
-            let (h, o1) = to_umax_overflowing::<ops::Half<N>>();
+            let (h, o1) = to_umax_overflowing::<uint::From<ops::Half<N>>>();
             let (t, o2) = h.overflowing_mul(2);
             let (n, o3) = t.overflowing_add(to_bool::<ops::Parity<N>>() as _);
             (n, o1 || o2 || o3)
@@ -28,7 +28,12 @@ pub const fn to_str<N: ToUint>() -> &'static str {
         impl<N: Uint> type_const::Const for ConcatBytes<N> {
             type Type = &'static [&'static [u8]];
             const VALUE: Self::Type = &[
-                doit::<ops::Div<N, consts::_10>>(),
+                doit::<
+                    uint::From<
+                        // Pop a digit
+                        ops::Div<N, consts::_10>,
+                    >,
+                >(),
                 &[b'0' + to_usize::<ops::Rem<N, consts::_10>>().unwrap() as u8],
             ];
         }

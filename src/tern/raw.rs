@@ -1,37 +1,16 @@
-use crate::{Uint, uint, utils};
+use crate::{
+    ToUint,
+    tcon::{TCon, TConLt},
+    uint, utils,
+};
 
 /// A result-like structure that takes on the left `True` value if `Cond` is nonzero, or the right
 /// `False` value otherwise.
 ///
 /// The type depends only on `Cond`. If `Cond` is nonzero, then `TernRaw<Cond, T, F>` is literally
 /// the same type as `T`. Otherwise it is the same type as `F`.
-pub type TernRaw<Cond, True, False> = crate::internals::InternalOp!(Cond, ::TernAny<True, False>);
-
-/// An arbitrary type map from [`Sized`] to [`Sized`].
-pub trait TCon {
-    type Apply<T>;
-}
-/// The identity [`TCon`].
-pub struct TConIdent(());
-impl TCon for TConIdent {
-    type Apply<T> = T;
-}
-pub struct TConManuallyDrop(());
-impl TCon for TConManuallyDrop {
-    type Apply<T> = core::mem::ManuallyDrop<T>;
-}
-pub struct TConMaybeUninit(());
-impl TCon for TConMaybeUninit {
-    type Apply<T> = core::mem::MaybeUninit<T>;
-}
-pub struct TConOption(());
-impl TCon for TConOption {
-    type Apply<T> = Option<T>;
-}
-pub struct TConTrivial<U>(U);
-impl<U> TCon for TConTrivial<U> {
-    type Apply<T> = U;
-}
+pub type TernRaw<Cond, True, False> =
+    crate::internals::InternalOp!(crate::uint::From<Cond>, ::TernAny<True, False>);
 
 /// Pulls an arbitrary [`TCon`] out of a [`TernRaw`].
 ///
@@ -43,7 +22,7 @@ impl<U> TCon for TConTrivial<U> {
 /// # Limitations
 /// Since [`TCon::Apply`] requires being implemented for all `T: Sized`, type constructors with extra bounds
 /// (for example `T -> &'a T` would require `T: 'a`) cannot be expressed by this.
-pub const fn pull_tcon<C: Uint, T, F, Con: TCon>(
+pub const fn pull_tcon<C: ToUint, T, F, Con: TCon>(
     tern: TernRaw<C, Con::Apply<T>, Con::Apply<F>>,
 ) -> Con::Apply<TernRaw<C, T, F>> {
     // SAFETY: Input and output are the same type
@@ -60,31 +39,22 @@ pub const fn pull_tcon<C: Uint, T, F, Con: TCon>(
 /// # Limitations
 /// Since [`TCon::Apply`] requires being implemented for all `T: Sized`, type constructors with extra bounds
 /// (for example `T -> &'a T` would require `T: 'a`) cannot be expressed by this.
-pub const fn push_tcon<C: Uint, T, F, Con: TCon>(
+pub const fn push_tcon<C: ToUint, T, F, Con: TCon>(
     tern: Con::Apply<TernRaw<C, T, F>>,
 ) -> TernRaw<C, Con::Apply<T>, Con::Apply<F>> {
     // SAFETY: Input and output are the same type
     unsafe { utils::same_type_transmute(tern) }
 }
 
-pub trait TConLt<'a> {
-    type Apply<T: 'a>;
-}
-pub struct TConLtRef;
-impl<'a> TConLt<'a> for TConLtRef {
-    type Apply<T: 'a> = &'a T;
-}
-pub struct TConLtMut;
-impl<'a> TConLt<'a> for TConLtMut {
-    type Apply<T: 'a> = &'a mut T;
-}
-pub const fn pull_tcon_lt<'a, C: Uint, T: 'a, F: 'a, Con: TConLt<'a>>(
+/// Like [`pull_tcon`], but for [`TConLt`].
+pub const fn pull_tcon_lt<'a, C: ToUint, T: 'a, F: 'a, Con: TConLt<'a>>(
     tern: TernRaw<C, Con::Apply<T>, Con::Apply<F>>,
 ) -> Con::Apply<TernRaw<C, T, F>> {
     // SAFETY: Input and output are the same type
     unsafe { utils::same_type_transmute(tern) }
 }
-pub const fn push_tcon_lt<'a, C: Uint, T: 'a, F: 'a, Con: TConLt<'a>>(
+/// Like [`push_tcon`], but for [`TConLt`].
+pub const fn push_tcon_lt<'a, C: ToUint, T: 'a, F: 'a, Con: TConLt<'a>>(
     tern: Con::Apply<TernRaw<C, T, F>>,
 ) -> TernRaw<C, Con::Apply<T>, Con::Apply<F>> {
     // SAFETY: Input and output are the same type
@@ -96,7 +66,7 @@ pub const fn push_tcon_lt<'a, C: Uint, T: 'a, F: 'a, Con: TConLt<'a>>(
 /// # Panics
 /// If `C` is zero (even if `T` and `F` are the same type).
 #[track_caller]
-pub const fn expect_true<C: Uint, T, F>(tern: TernRaw<C, T, F>, msg: &str) -> T {
+pub const fn expect_true<C: ToUint, T, F>(tern: TernRaw<C, T, F>, msg: &str) -> T {
     if !uint::to_bool::<C>() {
         panic!("{}", msg);
     }
@@ -109,7 +79,7 @@ pub const fn expect_true<C: Uint, T, F>(tern: TernRaw<C, T, F>, msg: &str) -> T 
 /// # Panics
 /// If `C` is zero (even if `T` and `F` are the same type).
 #[track_caller]
-pub const fn wrap_true<C: Uint, T, F>(t: T, msg: &str) -> TernRaw<C, T, F> {
+pub const fn wrap_true<C: ToUint, T, F>(t: T, msg: &str) -> TernRaw<C, T, F> {
     if !uint::to_bool::<C>() {
         panic!("{}", msg);
     }
@@ -122,7 +92,7 @@ pub const fn wrap_true<C: Uint, T, F>(t: T, msg: &str) -> TernRaw<C, T, F> {
 /// # Panics
 /// If `C` is nonzero (even if `T` and `F` are the same type).
 #[track_caller]
-pub const fn expect_false<C: Uint, T, F>(tern: TernRaw<C, T, F>, msg: &str) -> F {
+pub const fn expect_false<C: ToUint, T, F>(tern: TernRaw<C, T, F>, msg: &str) -> F {
     if uint::to_bool::<C>() {
         panic!("{}", msg);
     }
@@ -135,7 +105,7 @@ pub const fn expect_false<C: Uint, T, F>(tern: TernRaw<C, T, F>, msg: &str) -> F
 /// # Panics
 /// If `C` is nonzero (even if `T` and `F` are the same type).
 #[track_caller]
-pub const fn wrap_false<C: Uint, T, F>(f: F, msg: &str) -> TernRaw<C, T, F> {
+pub const fn wrap_false<C: ToUint, T, F>(f: F, msg: &str) -> TernRaw<C, T, F> {
     if !uint::to_bool::<C>() {
         panic!("{}", msg);
     }

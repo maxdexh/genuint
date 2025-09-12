@@ -1,7 +1,7 @@
 use super::*;
 
 #[apply(lazy)]
-pub type IncIfL<N, C = _1> = Tern<C, AppendL<IncIfL<H<N>, P<N>>, BitNot<P<N>>>, N>;
+pub type IncIfL<N, C = _1> = Tern<C, AppendBit<IncIfL<H<N>, P<N>>, BitNot<P<N>>>, N>;
 
 #[apply(lazy)]
 // This is just binary addition.
@@ -19,7 +19,7 @@ pub type AddL<L, R, C = _0> = Tern<
     //   L + R + C
     // = 2 * (LH + RH + X / 2) + X % 2
     // = Append(LH + RH + X / 2, X % 2)
-    AppendL<
+    AppendBit<
         // LH + RH + X / 2
         AddL<
             H<L>,
@@ -42,6 +42,7 @@ pub type AddL<L, R, C = _0> = Tern<
     IncIfL<R, C>,
 >;
 
+/// Type-level addition.
 #[apply(opaque)]
 #[apply(test_op! test_add, L + R)]
 pub type Add<L, R> = AddL<L, R>;

@@ -1,7 +1,7 @@
 use super::*;
 
 // DoubleIf(N, C) := if C { 2 * N } else { N }
-type DoubleIfL<N, C> = TernL<C, AppendL<N, _0>, N>;
+type DoubleIfL<N, C> = Tern<C, AppendBit<N, _0>, N>;
 
 // Shl(L, R) := L << R = L * Pow(2, R)
 //
@@ -25,6 +25,8 @@ pub type ShlL<L, R> = Tern<
     L,
 >;
 
+/// Type-level left bitshift.
+#[doc(alias = "<<")]
 #[apply(opaque)]
 #[apply(test_op!
     test_shl,
@@ -35,7 +37,7 @@ pub type ShlL<L, R> = Tern<
 pub type Shl<L, R> = ShlL<L, R>;
 
 // HalfIf(N, C) := if C { H(N) } else { N }
-type HalfIfL<N, C> = TernL<C, HalfL<N>, N>;
+type HalfIfL<N, C> = Tern<C, Half<N>, N>;
 
 // Shr(L, R) := L >> R = L / Pow(2, R)
 //
@@ -57,6 +59,9 @@ pub type ShrL<L, R> = Tern<
     >,
     L,
 >;
+
+/// Type-level right bitshift.
+#[doc(alias = ">>")]
 #[apply(opaque)]
 #[apply(test_op!
     test_shr,

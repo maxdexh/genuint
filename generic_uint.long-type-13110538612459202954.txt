@@ -1,0 +1,2 @@
+ops::add::Add<<A as array::Array>::Length, <B as array::Array>::Length>
+ops::add::Add<<A as array::Array>::Length, <B as array::Array>::Length>: Uint

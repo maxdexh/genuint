@@ -1,0 +1,2 @@
+ops::mul::Mul<<A as array::Array>::Length, <B as array::Array>::Length>
+ops::mul::Mul<<A as array::Array>::Length, <B as array::Array>::Length>: Uint

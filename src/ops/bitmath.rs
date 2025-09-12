@@ -8,7 +8,7 @@ pub type BitAndL<L, R> = Tern<
     // LP and RP are suffixes of equal bit length (1), we have
     //
     // L & R = (2 * LH + LP) & (2 * RH + RP) = 2 * (LH & RH) + (RH & RP)
-    AppendL<
+    AppendBit<
         //
         BitAndL<H<R>, H<L>>, // LH & RH = RH & LH, switching will terminate faster
         AndSC<P<L>, P<R>>,
@@ -17,15 +17,17 @@ pub type BitAndL<L, R> = Tern<
     _0,
 >;
 
+/// Type-level bitwise AND.
 #[apply(opaque)]
 #[apply(test_op! test_bit_and, L & R)]
+#[doc(alias = "&")]
 pub type BitAnd<L, R> = BitAndL<L, R>;
 
 #[apply(lazy)]
 pub type BitOrL<L, R> = Tern<
     L,
     // This works by analogy with BitAnd
-    AppendL<
+    AppendBit<
         //
         BitOrL<H<R>, H<L>>,
         OrSC<P<L>, P<R>>,
@@ -34,15 +36,17 @@ pub type BitOrL<L, R> = Tern<
     R,
 >;
 
+/// Type-level bitwise OR.
 #[apply(opaque)]
 #[apply(test_op! test_bit_or, L | R)]
+#[doc(alias = "|")]
 pub type BitOr<L, R> = BitOrL<L, R>;
 
 #[apply(lazy)]
 pub type BitXorL<L, R> = Tern<
     L,
     // This works by analogy with BitAnd
-    AppendL<
+    AppendBit<
         //
         BitXorL<H<R>, H<L>>,
         Xor<P<L>, P<R>>,
@@ -51,8 +55,10 @@ pub type BitXorL<L, R> = Tern<
     R,
 >;
 
+/// Type-level bitwise XOR.
 #[apply(opaque)]
 #[apply(test_op! test_bit_xor, L ^ R)]
+#[doc(alias = "^")]
 pub type BitXor<L, R> = BitXorL<L, R>;
 
 #[apply(lazy)]
@@ -67,6 +73,7 @@ pub type CountOnesL<N> = Tern<
     _0,
 >;
 
+/// Type-level equivalent of [`u128::count_ones`].
 #[apply(opaque)]
 #[apply(test_op! test_count_ones, N.count_ones().into())]
 pub type CountOnes<N> = CountOnesL<N>;

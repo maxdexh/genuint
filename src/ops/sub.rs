@@ -26,7 +26,7 @@ pub type USubL<L, R, C = _0> = Tern<
     // = 2 * (HL - HR) - 2 * CC + X % 2
     // = 2 * (HL - HR - CC) + X % 2
     // = Append(USub(HL, HR, CC), X % 2)
-    AppendL<
+    AppendBit<
         USubL<
             H<L>,
             H<R>,
@@ -50,6 +50,7 @@ pub type USubL<L, R, C = _0> = Tern<
     satdec::SatDecIfL<L, C>,
 >;
 
+/// Type-level [`u128::abs_diff`].
 #[apply(opaque)]
 #[apply(test_op! test_abs_diff, L.abs_diff(R))]
 // AbsDiff(L, R) := |L - R| = if L < R { R - L } else { L - R }
@@ -60,6 +61,7 @@ pub type AbsDiff<L, R> = Tern<
     USubL<L, R>,
 >;
 
+/// Type-level [`u128::saturating_sub`].
 #[apply(opaque)]
 #[apply(test_op! test_sat_sub, L.saturating_sub(R))]
 pub type SatSub<L, R> = Tern<

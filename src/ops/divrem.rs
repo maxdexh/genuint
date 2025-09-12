@@ -16,7 +16,7 @@ pub type SubIfGeL<L, R> = Tern<
 // L % R = (2 * H + P) % R
 //       = (2 * (H % R) + P) % R
 //       = URemIn(L, R) % R
-pub type URemInSL<L, R> = AppendL<
+pub type URemInSL<L, R> = AppendBit<
     //
     RemUncheckedL<H<L>, R>,
     P<L>,
@@ -44,7 +44,7 @@ pub type RemUncheckedL<L, R> = SubIfGeL<
 pub type DivUncheckedL<L, R> = Tern<
     //
     L,
-    AppendL<
+    AppendBit<
         //
         DivUncheckedL<Half<L>, R>,
         BitNot<cmp::LtL<URemL<L, R>, R>>,
@@ -58,11 +58,14 @@ pub type RemL<L, R> = Tern<R, RemUncheckedL<L, R>, RemL<L, R>>;
 #[apply(lazy)]
 pub type DivL<L, R> = Tern<R, DivUncheckedL<L, R>, DivL<L, R>>;
 
+/// Type-level remainder.
+///
+/// # Errors
 /// Dividing by zero gives a "overflow while evaluating" error.
 ///
 /// ```compile_fail
-/// use generic_uint::{ops::Rem, consts::*};
-/// const _: fn(Rem<_1, _0>) = |_| {};
+/// use generic_uint::{ops::Rem, uint, consts::*};
+/// const _: fn(uint::From<Rem<_1, _0>>) = |_| {};
 /// ```
 #[apply(opaque)]
 #[apply(test_op!
@@ -73,11 +76,14 @@ pub type DivL<L, R> = Tern<R, DivUncheckedL<L, R>, DivL<L, R>>;
 )]
 pub type Rem<L, R> = RemL<L, R>;
 
+/// Type-level division.
+///
+/// # Errors
 /// Dividing by zero gives a "overflow while evaluating" error.
 ///
 /// ```compile_fail
-/// use generic_uint::{ops::Div, consts::*};
-/// const _: fn(Div<_1, _0>) = |_| {};
+/// use generic_uint::{ops::Div, uint, consts::*};
+/// const _: fn(uint::From<Div<_1, _0>>) = |_| {};
 /// ```
 #[apply(opaque)]
 #[apply(test_op!

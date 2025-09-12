@@ -1,23 +1,17 @@
 use super::*;
 
-#[apply(lazy)]
-pub type TernL<C, T, F> = Tern<C, T, F>;
-
-#[apply(lazy)]
-pub type AppendL<N, P> = AppendBit<N, P>;
-
-#[apply(lazy)]
-pub type HalfL<N> = Half<N>;
+pub type Norm<N> = uint::From<N>;
 
 // Short-circuiting And
-pub type AndSC<L, R> = Tern<L, R, _0>;
+pub type AndSC<L, R> = Norm<Tern<L, R, _0>>;
 // Short-circuiting Or
-pub type OrSC<L, R> = Tern<L, _1, R>;
+pub type OrSC<L, R> = Norm<Tern<L, _1, R>>;
 
-pub type BitNot<N> = Tern<N, _0, _1>;
-pub type AndL<L, R> = TernL<L, R, _0>;
-pub type Xor<L, R> = Tern<L, BitNot<R>, R>;
-pub type Xnor<L, R> = Tern<L, R, BitNot<R>>;
-pub type Xor3<A, B, C> = Tern<A, Xnor<B, C>, Xor<B, C>>;
+pub type BitNot<N> = Norm<Tern<N, _0, _1>>;
+pub type AndL<L, R> = Tern<L, R, _0>;
+pub type Xor<L, R> = Norm<Tern<L, BitNot<R>, R>>;
+pub type Xnor<L, R> = Norm<Tern<L, R, BitNot<R>>>;
+pub type Xor3<A, B, C> = Norm<Tern<A, Xnor<B, C>, Xor<B, C>>>;
 
-pub use super::{Half as H, Parity as P};
+pub type H<N> = Norm<Half<N>>;
+pub type P<N> = Norm<Parity<N>>;

@@ -399,6 +399,9 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// assert_eq!(vec.try_push(3), Err(3));
     /// assert_eq!(vec, [1, 2]);
     /// ```
+    ///
+    /// # Errors
+    /// Returns back the input as an error if the vector was full.
     pub const fn try_push(&mut self, item: T) -> Result<(), T> {
         if self.is_full() {
             return Err(item);

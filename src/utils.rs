@@ -1,4 +1,4 @@
-use core::{mem::MaybeUninit, ops::Range, ptr::NonNull};
+use core::{mem::MaybeUninit, ptr::NonNull};
 pub(crate) use generic_uint_proc::__apply as apply;
 
 /// Performs the operation of writing the argument into a `repr(C)` union
