@@ -79,8 +79,8 @@ pub struct Flatten<A>(pub A);
 ///   accessed in `const` using [`const_util::mem::man_drop_mut`].
 /// - Using [`Arr`]/[`CopyArr`] instead if the item type has a default value, or a layout niche
 ///   with [`Option`].
-#[cfg_attr(not(doc), repr(transparent))]
 pub struct ArrVecApi<A: Array<Item = T>, T = <A as Array>::Item>(
+    // SAFETY INVARIANT: See ArrVecRepr
     arr_vec::ArrVecDrop<A>,
     core::marker::PhantomData<T>,
 );
@@ -97,8 +97,8 @@ pub type ArrVec<T, N> = ArrVecApi<Arr<T, N>>;
 ///
 /// # Drop implementation
 /// See [`ArrVecApi#drop-implementation`]
-#[repr(transparent)]
 pub struct ArrDeqApi<A: Array<Item = T>, T = <A as Array>::Item>(
+    // SAFETY INVARIANT: See ArrDeqRepr
     arr_deq::ArrDeqDrop<A>,
     core::marker::PhantomData<T>,
 );

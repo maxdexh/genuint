@@ -5,43 +5,80 @@ use core::{
 
 mod core_impl;
 
+use const_util::result::expect_ok;
+
 use crate::{
     Uint,
     array::{helper::*, *},
-    const_fmt, ops, uint,
+    const_fmt, uint,
 };
 
-#[repr(transparent)]
-pub struct ArrVecDrop<A: Array<Item = T>, T = <A as Array>::Item>(ArrVecRepr<A>, PhantomData<T>);
+/// Wraps the drop impl so it isn't exposed as a trait bound
+pub(crate) struct ArrVecDrop<A: Array<Item = T>, T = <A as Array>::Item>(
+    // SAFETY INVARIANT: See ArrVecRepr
+    ArrVecRepr<A>,
+    PhantomData<T>,
+);
 impl<A: Array<Item = T>, T> Drop for ArrVecDrop<A, T> {
     fn drop(&mut self) {
-        // SAFETY: repr(transparent); elements are behind MaybeUninit they will only be dropped
-        // once. We are only dropping the initialized part of the array.
-        unsafe {
-            let vec = &mut *(&raw mut *self).cast::<ArrVecApi<A>>();
-            core::ptr::drop_in_place(vec.as_mut_slice())
-        }
+        let Self(repr, ..) = self;
+
+        // SAFETY:
+        // split_at_spare_mut is safe to call on this by definition.
+        let (owned, ..) = unsafe { repr.split_at_spare_mut() };
+
+        // SAFETY:
+        // The vector has ownership over the first `len` items, so they are considered to stop
+        // existing after this drop runs.
+        // Since they are behind `MaybeUninit`, which can hold invalid values and does not have
+        // drop glue itself, it is safe to drop them here.
+        unsafe { core::ptr::drop_in_place(owned) }
     }
 }
 
-pub struct ArrVecRepr<A: Array> {
-    pub len: usize,
-    pub arr: ArrApi<MaybeUninit<A>>,
+// SAFETY INVARIANT: When accessed through ArrVecDrop/ArrVecApi, the first `len < A::Length`
+// elements of `arr` must be valid instances of `A::Item` (as long as this is observable),
+// and they are considered to be owned by the vec.
+pub(crate) struct ArrVecRepr<A: Array> {
+    len: usize,
+    arr: ArrApi<MaybeUninit<A>>,
 }
 
-macro_rules! repr {
-    ($self:expr) => {
-        $self.0.0
-    };
+// Defer the impl of ArrVecApi here because we need it for the Drop impl
+impl<A: Array<Item = T>, T> ArrVecRepr<A> {
+    /// # Safety
+    /// Requires and upholds ArrVecApi/ArrVecDrop invariants.
+    const unsafe fn split_at_spare_mut(&mut self) -> (&mut [T], &mut [MaybeUninit<T>]) {
+        // SAFETY: Invariants are upheld, see below
+        let &mut Self { ref mut arr, len } = self;
+        let (init, spare) = arr.as_mut_slice().split_at_mut(len);
+        // SAFETY: The first `len` items are valid by invariant. It is not safely
+        // possible to write invalid values into them since they are behind `&mut [T]`.
+        (unsafe { crate::utils::assume_init_mut_slice(init) }, spare)
+    }
 }
 
+// Methods that directly use the fields
 impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
+    const fn as_repr(&self) -> &ArrVecRepr<A> {
+        let Self(ArrVecDrop(repr, ..), ..) = self;
+        repr
+    }
+
+    /// # Safety
+    /// The invariants of the vector must be upheld. It must also not be possible to break them
+    /// through returned references created from this.
+    const unsafe fn as_mut_repr(&mut self) -> &mut ArrVecRepr<A> {
+        let Self(ArrVecDrop(repr, ..), ..) = self;
+        repr
+    }
+
     /// Creates a vector from its components.
     ///
     /// Equivalent of [`Vec::from_raw_parts`].
     ///
     /// # Safety
-    /// The first `len` elements of `arr`, i.e. `arr[..len]`, must be initialized.
+    /// The first `len` elements of `arr`, i.e. `arr[..len]`, must be initialized to valid values of `T`.
     ///
     /// # Examples
     /// ```
@@ -50,7 +87,7 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     ///
     /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
     /// arr[0].write(1);
-    /// // SAFETY: The first element of `arr` is initialized
+    /// // SAFETY: The first element of `arr` is initialized to a valid i32
     /// let vec = unsafe { ArrVecApi::from_uninit_parts(arr, 1) };
     /// assert_eq!(vec, [1]);
     /// ```
@@ -59,6 +96,15 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
         Self(ArrVecDrop(repr, PhantomData), PhantomData)
     }
 
+    const fn into_repr(self) -> ArrVecRepr<A> {
+        let this = ManuallyDrop::new(self);
+        let repr = const_util::mem::man_drop_ref(&this).as_repr();
+        // SAFETY: Known safe way of destructuring
+        unsafe { core::ptr::read(repr) }
+    }
+}
+
+impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// Creates a vector from a backing array.
     ///
     /// The initial length of the vector will be zero. This method has the same effect as
@@ -75,49 +121,19 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// assert_eq!(vec, []); // length is always 0
     /// ```
     pub const fn from_uninit_array(arr: ArrApi<MaybeUninit<A>>) -> Self {
-        // SAFETY: arr[0..0] is empty and thus initialized
+        // SAFETY: arr[0..0] is empty and thus trivially valid
         unsafe { Self::from_uninit_parts(arr, 0) }
     }
 
     /// Turns the vector into its components.
     ///
-    /// The first `len` elements of the array are guaranteed to be initialized.
+    /// The first `len` elements of the array are guaranteed to be initialized to valid values of `T`.
     ///
     /// Equivalent of [`Vec::into_raw_parts`].
-    #[must_use = "The initialized elements of the array may need to be dropped"]
+    #[must_use = "The returned array may contain valid items previously owned by the vec that need cleanup"]
     pub const fn into_uninit_parts(self) -> (ArrApi<MaybeUninit<A>>, usize) {
-        let ArrVecRepr { len, arr } = {
-            let this = ManuallyDrop::new(self);
-            let repr = &repr!(const_util::mem::man_drop_ref(&this));
-            // SAFETY: Known safe way of destructuring in `const fn`
-            unsafe { core::ptr::read(repr) }
-        };
+        let ArrVecRepr { len, arr } = self.into_repr();
         (arr, len)
-    }
-
-    /// Returns references to the vector's components.
-    ///
-    /// The first `len` elements of the array are guaranteed to be initialized.
-    ///
-    /// A mutable version of this method can be emulated using [`set_len(0)`](Self::set_len)
-    /// and [`split_at_spare_mut`](Self::split_at_spare_mut).
-    ///
-    /// # Examples
-    /// ```
-    /// use generic_uint::array::*;
-    /// use core::mem::MaybeUninit;
-    ///
-    /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
-    /// arr[0].write(1);
-    /// let vec = ArrVecApi::from_uninit_array(arr);
-    /// let arr = vec.as_uninit_array();
-    /// assert!(vec.is_empty());
-    /// assert_eq!(unsafe { arr[0].assume_init_read() }, 1);
-    /// ```
-    pub const fn as_uninit_array(&self) -> &ArrApi<MaybeUninit<A>> {
-        // NOTE: This does not expose the internal representation of the array because
-        // `Array` types can be converted via casts
-        &repr!(self).arr
     }
 
     /// Creates an empty vector.
@@ -143,13 +159,13 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// ```
     pub const fn new_full(arr: A) -> Self {
         let arr = ArrApi::new(MaybeUninit::new(arr));
-        // SAFETY: `arr` is initialized and has `arr_len::<A>()` elements
+        // SAFETY: `arr` comes from a regular array, which means it has `arr_len::<A>()` valid items.
         unsafe { Self::from_uninit_parts(arr, arr_len::<A>()) }
     }
 
     /// Returns the vector's elements as mutable slices.
     ///
-    /// The tuple is divided into the initialized and uninitialized elements of the vector.
+    /// The tuple is divided into the valid and potentially invalid elements of the vector.
     ///
     /// # Examples
     /// ```
@@ -165,13 +181,13 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// assert_eq!(unsafe { spare[0].assume_init_read() }, 2);
     /// ```
     pub const fn split_at_spare(&self) -> (&[T], &[MaybeUninit<T>]) {
-        let ArrVecRepr { ref arr, len } = repr!(self);
+        let &ArrVecRepr { ref arr, len } = self.as_repr();
         let (init, spare) = arr.as_slice().split_at(len);
-        // SAFETY: The first `len` elements are initialized by invariant
+        // SAFETY: The first `len` elements are valid by invariant
         (unsafe { crate::utils::assume_init_slice(init) }, spare)
     }
 
-    /// Returns the vector's elements as slices.
+    /// Returns the vector's known valid elements as a slice.
     ///
     /// # Examples
     /// ```
@@ -185,13 +201,16 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
         self.split_at_spare().0
     }
 
+    /// Returns the vector potentially invalid elements as a slice.
+    ///
+    /// See [`Self::split_at_spare`].
     pub const fn spare_capacity(&self) -> &[MaybeUninit<T>] {
         self.split_at_spare().1
     }
 
     /// Returns the vector's elements as mutable slices.
     ///
-    /// The tuple is divided into the initialized and uninitialized elements of the vector.
+    /// The tuple is divided into the valid and potentially invalid elements of the vector.
     ///
     /// # Examples
     /// ```
@@ -213,17 +232,18 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// assert_eq!(vec, [1, 2, 3]);
     /// ```
     pub const fn split_at_spare_mut(&mut self) -> (&mut [T], &mut [MaybeUninit<T>]) {
-        let ArrVecRepr { ref mut arr, len } = repr!(self);
-        let (init, spare) = arr.as_mut_slice().split_at_mut(len);
-        // SAFETY: The first `len` elements are initialized by invariant
-        (unsafe { crate::utils::assume_init_mut_slice(init) }, spare)
+        // SAFETY: split_at_spare_mut upholds invariants and is safe to call on this by definition.
+        unsafe { self.as_mut_repr().split_at_spare_mut() }
     }
 
+    /// Returns the vector potentially invalid elements as a mutable slice.
+    ///
+    /// See [`Self::split_at_spare`].
     pub const fn spare_capacity_mut(&mut self) -> &mut [MaybeUninit<T>] {
         self.split_at_spare_mut().1
     }
 
-    /// Returns the vector's initialized elements as a mutable slice.
+    /// Returns the vector's known valid elements as a mutable slice.
     ///
     /// # Examples
     /// ```
@@ -239,9 +259,9 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
 
     /// Returns the length of the vector.
     ///
-    /// The length is the number of elements known to be initialized.
+    /// The length is the number of elements known to be valid.
     pub const fn len(&self) -> usize {
-        repr!(self).len
+        self.as_repr().len
     }
 
     /// Checks whether the vector is empty, i.e. whether [`len`](Self::len) is zero.
@@ -276,16 +296,14 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
 
     /// Returns the number of elements that can be pushed into the vector until it is full.
     ///
-    /// This is the same as the length of the uninitialized segment, i.e.
+    /// This is the same as the length of the potentially invalid segment, i.e.
     /// `self.capacity() - self.len()`
     pub const fn spare_len(&self) -> usize {
-        if self.capacity() < self.len() {
-            // SAFETY: We cannot have more than `capacity` initialized elements by definition
-            // and it is a safety invariant of this type that the first `self.len()` elements
-            // are initialized
-            unsafe { core::hint::unreachable_unchecked() }
-        }
-        self.capacity() - self.len()
+        let diff = self.capacity().checked_sub(self.len());
+        // SAFETY: We cannot have more than `capacity` valid elements by invariant
+        // and it is a safety invariant of this type that the first `self.len()` elements
+        // are valid
+        unsafe { diff.unwrap_unchecked() }
     }
 
     /// Moves the elements of the vector into a full array.
@@ -306,7 +324,8 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     #[track_caller]
     pub const fn assert_full(self) -> A {
         match self.is_full() {
-            // SAFETY: The vec is full, hence all elements of the backing array are initialized
+            // SAFETY: The vec is full, hence all elements of the backing array are valid
+            // and owned, so we may move `A` out of them.
             true => unsafe { self.into_uninit_parts().0.inner.assume_init() },
             false => const_fmt::panic_fmt![
                 "Call to `assert_full` on `ArrVecApi` with length ",
@@ -340,12 +359,14 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// ```
     #[track_caller]
     pub const fn assert_empty(self) {
-        match self.is_empty() {
-            true => core::mem::forget(self),
-            false => const_fmt::panic_fmt![
+        if self.is_empty() {
+            // No items, so drop is a noop
+            core::mem::forget(self)
+        } else {
+            const_fmt::panic_fmt![
                 "Call to `assert_empty` on `ArrVecApi` with length ",
                 self.len()
-            ],
+            ]
         }
     }
 
@@ -364,7 +385,7 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// ```
     #[track_caller]
     pub const fn push(&mut self, item: T) {
-        const_util::result::expect_ok(self.try_push(item), "Call to `push` on full `ArrVecApi`")
+        expect_ok(self.try_push(item), "Call to `push` on full `ArrVecApi`")
     }
 
     /// Like [`push`](Self::push), but returns [`Err`] on full vecs.
@@ -379,14 +400,20 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// assert_eq!(vec, [1, 2]);
     /// ```
     pub const fn try_push(&mut self, item: T) -> Result<(), T> {
-        match self.is_full() {
-            true => Err(item),
-            false => Ok({
-                let ArrVecRepr { arr, len } = &mut repr!(self);
-                arr.as_mut_slice()[*len].write(item);
-                *len += 1;
-            }),
+        if self.is_full() {
+            return Err(item);
         }
+
+        // SAFETY: See below
+        let ArrVecRepr { arr, len } = unsafe { self.as_mut_repr() };
+
+        // We now own `len + 1` valid items
+        arr.as_mut_slice()[*len].write(item);
+
+        // So we can increment. No overflow because we had !self.is_full()
+        *len += 1;
+
+        Ok(())
     }
 
     /// Equivalent of [`Vec::pop`].
@@ -405,14 +432,20 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// );
     /// ```
     pub const fn pop(&mut self) -> Option<T> {
-        if self.is_empty() {
+        // SAFETY: See below
+        let ArrVecRepr { arr, len } = unsafe { self.as_mut_repr() };
+
+        if *len == 0 {
             return None;
         }
-        let ArrVecRepr { arr, len } = &mut repr!(self);
+
+        // No overflow because !self.is_empty(). At the end of this method, we no longer own an
+        // item at `len`.
         *len -= 1;
-        // SAFETY: This is the last time we remember that the element at this index was initialized
-        // (due to being in 0..old_len). After this, the element is treated as uninit and not
-        // read from until overwritten
+
+        // SAFETY: This is the last time we remember our ownership of the valid item at `len`.
+        // After this, while we do leave the bytes of the value in place, it is considered moved
+        // out of and therefore invalid.
         Some(unsafe { arr.as_slice()[*len].assume_init_read() })
     }
 
@@ -421,10 +454,13 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// Equivalent of [`Vec::set_len`].
     ///
     /// # Safety
-    /// Same as [`Vec::set_len`].
+    /// The first `new_len` items in the backing array must be valid instances of `T`.
+    /// After calling this method, the vector has length and ownership of `new_len` items.
     pub const unsafe fn set_len(&mut self, new_len: usize) {
         debug_assert!(new_len <= self.capacity());
-        repr!(self).len = new_len;
+        // SAFETY: The caller guarantees that the first `new_len` items are valid and that this
+        // vec may take ownership of them.
+        unsafe { self.as_mut_repr().len = new_len };
     }
 
     /// Transfers the elements from the vector into a contiguous [`ArrDeqApi`](crate::array::ArrDeqApi).
@@ -436,31 +472,11 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// let mut vec = ArrVecApi::<[_; 20]>::new();
     /// vec.push(1);
     /// vec.push(2);
-    /// let mut deq = vec.into_arr_deq();
+    /// let mut deq = vec.into_deque();
     /// assert_eq!(deq.as_slices(), ([1, 2].as_slice(), [].as_slice()));
     /// ```
-    pub const fn into_arr_deq(self) -> crate::array::ArrDeqApi<A> {
-        use crate::array::*;
-
-        let (arr, len) = self.into_uninit_parts();
-        // SAFETY: `len` elements starting at index `0` are initialized.
-        unsafe { ArrDeqApi::from_repr(arr_deq::ArrDeqRepr { arr, len, head: 0 }) }
-    }
-
-    pub const fn split_off_at_uint<I: Uint>(
-        &mut self,
-    ) -> ArrVecApi<ImplArr![T; ops::SatSub<N, I>]> {
-        let len = self.len();
-        let i = match uint::to_usize::<I>() {
-            Some(i) if i <= len => i,
-            _ => return ArrVecApi::new(),
-        };
-        // SAFETY: `i < len`. After this, `len - i` elements are diwowned and valid
-        unsafe { self.set_len(i) }
-
-        let spare = try_from_slice::try_from_slice(self.spare_capacity()).unwrap();
-        // SAFETY: MaybeUninit copy, taking ownership of `len - i` valid, disowned elements
-        unsafe { ArrVec::from_uninit_parts(core::ptr::read(spare), len - i) }
+    pub const fn into_deque(self) -> crate::array::ArrDeqApi<A> {
+        ArrDeqApi::from_vec_impl(self)
     }
 }
 
@@ -474,7 +490,7 @@ impl<T, N: Uint, A: Array<Item = T, Length = N>> ArrVecApi<A> {
         {
             // TODO: How many memcpys does this compile to in debug mode?
             let (arr, len) = vec.into_uninit_parts();
-            // SAFETY: new cap >= len, so we must still have `len` initialized elements.
+            // SAFETY: new cap >= len, so we must still have `len` valid elements.
             Ok(unsafe { ArrVecApi::from_uninit_parts(ArrApi::resize_uninit_from(arr), len) })
         } else {
             Err(vec)

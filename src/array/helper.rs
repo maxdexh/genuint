@@ -2,16 +2,6 @@ use core::{marker::PhantomData, mem::MaybeUninit};
 
 use crate::{Uint, array::*, const_fmt, uint};
 
-/// ```rust_analyzer_prefer_brackets
-/// ImplArr![]
-/// ```
-macro_rules! ImplArr {
-    [ $T:ty; $N:ty $(; $($extra_bounds:tt)*)? ] => {
-        impl $crate::array::Array<Item = $T, Length = $N> $(+ $($extra_bounds)*)?
-    };
-}
-pub(crate) use ImplArr;
-
 #[track_caller]
 pub(crate) const fn arr_len<A: Array>() -> usize {
     const fn doit<N: Uint>() -> usize {

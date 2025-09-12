@@ -134,7 +134,7 @@ where
     /// ```
     /// use generic_uint::{array::*, consts::*};
     /// let arr = Arr::<_, _5>::from_fn(|i| i * i);
-    /// let converted: CopyArr<_, _> = arr.into_arr();
+    /// let converted: CopyArr<_, _> = arr.retype();
     /// let converted_copy = converted;
     /// assert_eq!(converted, converted_copy);
     /// ```
@@ -143,7 +143,7 @@ where
     /// ```
     /// use generic_uint::{array::*, consts::*};
     /// let arr = Arr::from_fn(|i| i * i);
-    /// let builtin_arr: [_; 5] = arr.into_arr();
+    /// let builtin_arr: [_; 5] = arr.retype();
     /// assert_eq!(arr, builtin_arr);
     /// ```
     pub const fn retype<Dst>(self) -> Dst
@@ -274,6 +274,7 @@ where
     /// assert_eq!(arr.try_into_builtin_arr::<4>(), Err(arr));
     /// ```
     pub const fn try_into_builtin_arr<const M: usize>(self) -> Result<[T; M], Self> {
+        const { assert!(crate::uint::to_usize::<crate::consts::_3>().unwrap() == 3) }
         if len_is::<Self>(M) {
             // SAFETY: `Array` invariant
             Ok(unsafe { crate::utils::exact_transmute::<Self, [T; M]>(self) })

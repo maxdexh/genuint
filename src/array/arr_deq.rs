@@ -1,128 +1,113 @@
-use core::{marker::PhantomData, mem::MaybeUninit, ops::Range, ptr::NonNull};
+use core::{marker::PhantomData, mem::MaybeUninit, ptr::NonNull};
 
-use crate::{const_fmt, utils};
+use crate::const_fmt;
 
 use super::{ArrApi, ArrDeqApi, Array, helper::*};
 
-#[repr(transparent)]
-pub struct ArrDeqDrop<A: Array<Item = T>, T = <A as Array>::Item>(ArrDeqRepr<A>, PhantomData<T>);
+/// Wraps the drop impl so it isn't exposed as a trait bound
+pub(crate) struct ArrDeqDrop<A: Array<Item = T>, T = <A as Array>::Item>(
+    // SAFETY INVARIANT: See ArrVecRepr
+    ArrDeqRepr<A>,
+    PhantomData<T>,
+);
 impl<A: Array<Item = T>, T> Drop for ArrDeqDrop<A, T> {
     fn drop(&mut self) {
-        // SAFETY: repr(transparent); elements are behind MaybeUninit they will only be dropped
-        // once. We are only dropping the initialized parts of the array.
+        let Self(repr, ..) = self;
+
+        // SAFETY: Safe to call on this by definition.
+        let (lhs, rhs) = unsafe { repr.as_mut_slices() };
+
+        // SAFETY:
+        // `as_mut_slices` returns `lhs` and `rhs` from the safety invariants.
+        // The deque has ownership over the contained items, so they are considered to stop
+        // existing after this drop runs.
+        // Since they are behind `MaybeUninit`, which can hold invalid values and does not have
+        // drop glue itself, it is safe to drop them here.
         unsafe {
-            let deq = &mut *(&raw mut *self).cast::<ArrDeqApi<A>>();
-            let (lhs, rhs) = deq.as_mut_slices();
             core::ptr::drop_in_place(lhs);
             core::ptr::drop_in_place(rhs);
         }
     }
 }
+impl<T, A: Array<Item = T>> ArrDeqRepr<A> {
+    /// # Safety
+    /// Requires and upholds ArrDeqApi/ArrDeqDrop invariants.
+    const unsafe fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
+        let &mut Self {
+            head,
+            len,
+            ref mut arr,
+        } = self;
 
-pub struct ArrDeqRepr<A: Array> {
-    pub head: usize,
-    pub len: usize,
-    pub arr: ArrApi<MaybeUninit<A>>,
-}
-macro_rules! repr {
-    ($self:expr) => {
-        $self.0.0
-    };
-}
+        let buf = NonNull::from_mut(arr.as_mut_slice());
 
-const fn wrapping_idx(logical: usize, cap: usize) -> usize {
-    debug_assert!(logical == 0 || logical < 2 * cap);
-    let phys = if logical >= cap {
-        logical - cap
-    } else {
-        logical
-    };
-    debug_assert!(phys == 0 || phys < cap);
-    phys
-}
-
-const fn phys_idx_of(idx: usize, head: usize, cap: usize) -> usize {
-    // TODO: Overflow explain
-    wrapping_idx(head.wrapping_add(idx), cap)
-}
-const fn slice_ranges(head: usize, len: usize, cap: usize) -> (Range<usize>, Range<usize>) {
-    debug_assert!(head <= cap);
-    debug_assert!(len <= cap);
-    if len == 0 {
-        (0..0, 0..0)
-    } else {
-        let after_head = cap - head;
-        if after_head >= len {
-            (head..head + len, 0..0)
-        } else {
-            let tail_len = len - after_head;
-            (head..cap, 0..tail_len)
+        // SAFETY: The invariants of `as_nonnull_slices` are such that it it safe to call with the
+        // fields of a `ArrDeqApi`. The returned pointers are derived from the mutable slice such
+        // that it is valid to turn them back into references.
+        unsafe {
+            let (mut lhs, mut rhs) = as_nonnull_slices(buf, head, len);
+            (lhs.as_mut(), rhs.as_mut())
         }
     }
 }
 
-/// Combined implementation akin to `VecDeque::as_(mut)_slices`.
-///
-/// # Safety
-/// - `len <= buf.len()`
-/// - `head <= buf.len()`
-/// - `buf` is valid for reads. The returned pointers are too.
-/// - `len` elements starting at `head` and wrapping around the end are initialized
-/// - if `buf` is valid for writes, then so are the returned pointers
-const unsafe fn as_nonnull_slices<T>(
-    buf: NonNull<[MaybeUninit<T>]>,
+// SAFETY INVARIANT:
+// Let `cap := A::Length`. When accessed through ArrDeqDrop/ArrDeqApi, the following must hold:
+// - `len <= cap`
+// - `head < cap`
+// - Let (lhs, rhs) be defined as the following places:
+//   - If `len <= cap - head`, then `lhs = arr[head .. head + len]`, `rhs = arr[0..0]`
+//   - If `len > cap - head`, then `lhs = arr[head .. cap]`, `rhs = arr[0 .. len - (cap - head)]`
+//   - Alternatively, `lhs = arr[head .. min(len, cap - head) + head]`, `rhs = arr[0 .. len.saturating_sub(cap - head)]`
+// - `lhs` and `rhs` must be initialized with valid instances of `A::Item`. The deque is considered to
+//   have ownership over these.
+struct ArrDeqRepr<A: Array> {
     head: usize,
     len: usize,
-) -> (NonNull<[T]>, NonNull<[T]>) {
-    debug_assert!(len <= buf.len());
-    debug_assert!(head <= buf.len());
-    let (lhs, rhs) = slice_ranges(head, len, buf.len());
-    // SAFETY: `slice_ranges` always returns ranges in the initialized parts of the deque.
-    unsafe {
-        (
-            utils::subslice_init_nonnull(buf, lhs),
-            utils::subslice_init_nonnull(buf, rhs),
-        )
-    }
+    arr: ArrApi<MaybeUninit<A>>,
 }
+mod deque_utils;
+use const_util::result::expect_ok;
+use deque_utils::*;
 
+// Methods dealing directly with the fields
 impl<A: Array<Item = T>, T> ArrDeqApi<A> {
-    const fn get_cap() -> usize {
-        arr_len::<A>()
-    }
-    const fn phys_idx_of(&self, idx: usize) -> usize {
-        phys_idx_of(idx, repr!(self).head, self.capacity())
-    }
-    const fn tail(&self) -> usize {
-        self.phys_idx_of(self.len())
-    }
-    const fn phys_idx_before_head(&self, idx: usize) -> usize {
-        let cap = self.capacity();
-        wrapping_idx(repr!(self).head.wrapping_sub(idx).wrapping_add(cap), cap)
+    const fn as_repr(&self) -> &ArrDeqRepr<A> {
+        let Self(ArrDeqDrop(repr, ..), ..) = self;
+        repr
     }
 
     /// # Safety
-    /// The element at `self.arr[idx]` must be initialized and never used again
-    /// until overwritten (including drops)
-    const unsafe fn phys_read(&self, idx: usize) -> T {
-        // SAFETY: `idx` is initialized and never used again
-        unsafe { repr!(self).arr.as_slice()[idx].assume_init_read() }
+    /// The invariant of the deque must be upheld. It must also not be possible to break them
+    /// through returned references created from this.
+    const unsafe fn as_mut_repr(&mut self) -> &mut ArrDeqRepr<A> {
+        let Self(ArrDeqDrop(repr, ..), ..) = self;
+        repr
+    }
+
+    /// # Safety
+    /// `head, len < A::Length`, `len` items are initialized, starting at `head` and wrapping
+    /// around the end of the array.
+    const unsafe fn from_repr(repr: ArrDeqRepr<A>) -> Self {
+        Self(ArrDeqDrop(repr, PhantomData), PhantomData)
+    }
+
+    const fn into_repr(self) -> ArrDeqRepr<A> {
+        let this = core::mem::ManuallyDrop::new(self);
+        let repr = const_util::mem::man_drop_ref(&this).as_repr();
+        // SAFETY: Known safe way of destructuring
+        unsafe { core::ptr::read(repr) }
     }
 }
 
+impl<A: Array<Item = T>, T> ArrDeqApi<A> {}
+
 // TODO: Capacity panics
 impl<A: Array<Item = T>, T> ArrDeqApi<A> {
-    const fn into_repr(self) -> ArrDeqRepr<A> {
-        // SAFETY: `self` and `drop` are passed by value and are ok to destructure by read.
-        unsafe {
-            crate::utils::destruct_read!(Self, (drop, _p), self);
-            crate::utils::destruct_read!(ArrDeqDrop, (repr, _p), drop);
-            repr
-        }
-    }
-
-    pub(crate) const unsafe fn from_repr(repr: ArrDeqRepr<A>) -> Self {
-        Self(ArrDeqDrop(repr, PhantomData), PhantomData)
+    pub(super) const fn from_vec_impl(vec: crate::array::ArrVecApi<A>) -> Self {
+        let (arr, len) = vec.into_uninit_parts();
+        // SAFETY: ArrVec is contiguous at the beginning of the array
+        unsafe { Self::from_repr(ArrDeqRepr { head: 0, len, arr }) }
     }
 
     /// Creates a new empty [`ArrDeqApi`].
@@ -134,14 +119,13 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// assert_eq!(ArrDeqApi::<[i32; 20]>::new(), []);
     /// ```
     pub const fn new() -> Self {
+        let repr = ArrDeqRepr {
+            arr: ArrApi::new(MaybeUninit::uninit()),
+            head: 0,
+            len: 0,
+        };
         // SAFETY: 0 elements are initialized
-        unsafe {
-            Self::from_repr(ArrDeqRepr {
-                arr: ArrApi::new(MaybeUninit::uninit()),
-                head: 0,
-                len: 0,
-            })
-        }
+        unsafe { Self::from_repr(repr) }
     }
 
     /// Creates a full [`ArrDeqApi<A>`] from an instance of `A`.
@@ -155,14 +139,14 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// assert_eq!(ArrDeqApi::new_full([1; 20]), [1; 20]);
     /// ```
     pub const fn new_full(full: A) -> Self {
+        let repr = ArrDeqRepr {
+            arr: ArrApi::new(MaybeUninit::new(full)),
+            head: 0,
+            len: arr_len::<A>(),
+        };
+
         // SAFETY: All elements are initialized because we have a fully initialized array
-        unsafe {
-            Self::from_repr(ArrDeqRepr {
-                arr: ArrApi::new(MaybeUninit::new(full)),
-                head: 0,
-                len: arr_len::<A>(),
-            })
-        }
+        unsafe { Self::from_repr(repr) }
     }
 
     /// Returns [`ArrApi::<A>::length`]
@@ -174,7 +158,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// assert_eq!(ArrDeqApi::<[i32; 20]>::new().capacity(), 20);
     /// ```
     pub const fn capacity(&self) -> usize {
-        Self::get_cap()
+        arr_len::<A>()
     }
 
     /// Returns the current number of elements in this deque.
@@ -187,7 +171,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// assert_eq!(ArrDeqApi::new_full([1; 20]).len(), 20);
     /// ```
     pub const fn len(&self) -> usize {
-        repr!(self).len
+        self.as_repr().len
     }
 
     /// Checks whether this deque is empty.
@@ -235,13 +219,24 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
         if self.is_empty() {
             return None;
         }
-        let new_head = self.phys_idx_of(1);
-        let ArrDeqRepr { head, len, arr: _ } = &mut repr!(self);
-        *len -= 1;
-        let old_head = core::mem::replace(head, new_head);
+
+        // SAFETY: See below
+        let repr = unsafe { self.as_mut_repr() };
+
         // SAFETY: This is the last time we remember that the element at this index was initialized.
-        // After this, the element is treated as uninit and not read from until overwritten
-        Some(unsafe { self.phys_read(old_head) })
+        // After this, when we decrement len, the element is treated as invalid and not read from
+        // until overwritten.
+        let popped = unsafe { repr.phys_read(repr.head) };
+
+        // No overflow because !self.is_empty()
+        repr.len -= 1;
+
+        // Does not depend on `len`, can be reordered.
+        // By decrementing len and shifting head one forward (wrapping if needed), we have removed
+        // the first item from the deque.
+        repr.head = repr.phys_idx_of(1);
+
+        Some(popped)
     }
 
     /// Equivalent of [`VecDeque::pop_back`](std::collections::VecDeque::pop_back).
@@ -263,10 +258,17 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
         if self.is_empty() {
             return None;
         }
-        repr!(self).len -= 1;
-        // SAFETY: This is the last time we remember that the element at this index was initialized.
-        // After this, the element is treated as uninit and not read from until overwritten
-        Some(unsafe { self.phys_read(self.tail()) })
+
+        // SAFETY: See below
+        let repr = unsafe { self.as_mut_repr() };
+
+        // Surrender ownership of the last item. No overflow because !self.is_empty()
+        repr.len -= 1;
+
+        // SAFETY: `tail` now points to what used to be the last item in the deque.
+        // This is the last time we remember that the element at this index was initialized.
+        // After this, the element is treated as invalid and not read from until overwritten.
+        Some(unsafe { repr.phys_read(repr.tail()) })
     }
 
     /// Equivalent of [`VecDeque::push_front`](std::collections::VecDeque::push_front).
@@ -285,7 +287,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// ```
     #[track_caller]
     pub const fn push_front(&mut self, item: T) {
-        const_util::result::expect_ok(
+        expect_ok(
             self.try_push_front(item),
             "Call to `push_front` on full `ArrDeqApi`",
         )
@@ -307,7 +309,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// ```
     #[track_caller]
     pub const fn push_back(&mut self, item: T) {
-        const_util::result::expect_ok(
+        expect_ok(
             self.try_push_back(item),
             "Call to `push_back` on full `ArrDeqApi`",
         )
@@ -325,16 +327,23 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// assert_eq!(deq, [2, 1]);
     /// ```
     pub const fn try_push_front(&mut self, item: T) -> Result<(), T> {
-        match self.is_full() {
-            true => Err(item),
-            false => Ok({
-                let new_head = self.phys_idx_before_head(1);
-                let ArrDeqRepr { head, len, arr } = &mut repr!(self);
-                arr.as_mut_slice()[new_head].write(item);
-                *head = new_head;
-                *len += 1;
-            }),
+        if self.is_full() {
+            return Err(item);
         }
+
+        // SAFETY: See below
+        let repr = unsafe { self.as_mut_repr() };
+
+        // Move the head back by one
+        repr.head = repr.phys_idx_before_head(1);
+
+        // Add the new item at the head
+        repr.arr.as_mut_slice()[repr.head].write(item);
+
+        // No overflow because !self.is_full()
+        repr.len += 1;
+
+        Ok(())
     }
 
     /// Like [`push_back`](Self::push_back), but returns [`Err`] on full deques.
@@ -349,15 +358,21 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// assert_eq!(deq, [1, 2]);
     /// ```
     pub const fn try_push_back(&mut self, item: T) -> Result<(), T> {
-        match self.is_full() {
-            true => Err(item),
-            false => Ok({
-                let tail = self.tail();
-                let ArrDeqRepr { head: _, len, arr } = &mut repr!(self);
-                arr.as_mut_slice()[tail].write(item);
-                *len += 1;
-            }),
+        if self.is_full() {
+            return Err(item);
         }
+
+        // SAFETY: See below
+        let repr = unsafe { self.as_mut_repr() };
+
+        // Write a new last item into the array.
+        let tail = repr.tail();
+        repr.arr.as_mut_slice()[tail].write(item);
+
+        // No overflow because !self.is_full()
+        repr.len += 1;
+
+        Ok(())
     }
 
     /// Returns a reference to the elements as a pair of slices.
@@ -381,7 +396,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// assert_eq!(lhs.iter().chain(rhs).next_back(), Some(&2));
     /// ```
     pub const fn as_slices(&self) -> (&[T], &[T]) {
-        let ArrDeqRepr { head, len, ref arr } = repr!(self);
+        let &ArrDeqRepr { head, len, ref arr } = self.as_repr();
         // SAFETY: The invariants of `as_nonnull_slices` are such that it it safe to call with the
         // fields of a `ArrDeqApi`. The returned pointers are valid for reads.
         unsafe {
@@ -415,22 +430,8 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// assert_eq!(lhs.iter_mut().chain(rhs).next_back(), Some(&mut 2));
     /// ```
     pub const fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        let ArrDeqRepr {
-            head,
-            len,
-            ref mut arr,
-        } = repr!(self);
-        // SAFETY: The invariants of `as_nonnull_slices` are such that it it safe to call with the
-        // fields of a `ArrDeqApi`. The returned pointers are valid for reads and writes because
-        // the slice is.
-        unsafe {
-            let (mut lhs, mut rhs) = as_nonnull_slices(
-                NonNull::new_unchecked(arr.as_mut_slice()), //
-                head,
-                len,
-            );
-            (lhs.as_mut(), rhs.as_mut())
-        }
+        // SAFETY: as_mut_slices is safe to call on this by definition and upholds invariants.
+        unsafe { self.as_mut_repr().as_mut_slices() }
     }
 
     /// Rotates the underlying array to make the initialized part contiguous.
@@ -451,6 +452,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// ```
     #[inline]
     pub const fn make_contiguous(&mut self) -> &mut [T] {
+        /// This is way less performant than <[T]>::rotate_left, which is not const.
         const fn rotate_left<T>(slice: &mut [T], dist: usize) {
             const fn reverse<T>(slice: &mut [T]) {
                 let mut i = 0;
@@ -469,9 +471,29 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
             // ABCDEFGHIJ^KLMN
         }
 
-        let ArrDeqRepr { head, len: _, arr } = &mut repr!(self);
-        rotate_left(arr.as_mut_slice(), *head);
-        *head = 0;
+        // SAFETY: Left rotation by `head`, i.e. right rotation by cap - head, which means:
+        // - Start of the first range: `head`
+        //   -> `0`
+        // - End of the first range: `min(len, cap - head) + head`
+        //   -> `min(len, cap - head)`
+        // - Start of the second range: `0`
+        //   -> `cap - head`
+        // - End of the second range: `len.saturating_sub(cap - head)`
+        //   = `len - min(len, cap - head)`
+        //   = max(0, len - cap + head)
+        //   -> max(0, len - cap + head) + cap - head
+        //   = max(cap - head, len)
+        //
+        // So we get `0 .. min(len, cap - head)`, `cap - head .. max(len, cap - head)`
+        // - If `len > cap - head`: `0 .. cap - head`, `cap - head .. len`
+        // - If `len <= cap - head`: `0 .. len`, `cap - head .. cap - head`
+        //
+        // Since the second range is empty in case 2, we always get that the valid elements are
+        // contiguous in `arr[0..len]`. Hence we can set head to 0.
+        let repr = unsafe { self.as_mut_repr() };
+        rotate_left(repr.arr.as_mut_slice(), repr.head);
+        repr.head = 0;
+
         self.as_mut_slices().0
     }
 
@@ -487,7 +509,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// let mut vec = deq.into_contiguous();
     /// assert_eq!(vec.as_slice(), [1, 2]);
     /// ```
-    #[doc(alias = "into_arr_vec")]
+    #[doc(alias = "retype_vec")]
     pub const fn into_contiguous(mut self) -> crate::array::ArrVecApi<A> {
         use crate::array::*;
 

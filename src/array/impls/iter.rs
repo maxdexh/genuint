@@ -63,7 +63,7 @@ impl<A: Array> IntoIterator for ArrVecApi<A> {
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
-            deq: self.into_arr_deq(),
+            deq: self.into_deque(),
         }
     }
 }

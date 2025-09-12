@@ -27,7 +27,7 @@ pub(crate) const unsafe fn union_transmute<Src, Dst>(src: Src) -> Dst {
 /// # Safety
 /// `Src` and `Dst` must be the same size and be valid for transmutes
 pub(crate) const unsafe fn exact_transmute<Src, Dst>(src: Src) -> Dst {
-    if size_of::<Src>() == size_of::<Dst>() {
+    if size_of::<Src>() != size_of::<Dst>() {
         // SAFETY: This, by definition, does not happen
         unsafe { core::hint::unreachable_unchecked() }
     }
@@ -40,7 +40,7 @@ pub(crate) const unsafe fn exact_transmute<Src, Dst>(src: Src) -> Dst {
 /// # Safety
 /// `Src` and `Dst` must be the same type.
 pub(crate) const unsafe fn same_type_transmute<Src, Dst>(src: Src) -> Dst {
-    if align_of::<Src>() == align_of::<Dst>() {
+    if align_of::<Src>() != align_of::<Dst>() {
         // SAFETY: `Src` and `Dst` are the same, so they have the same alignment
         unsafe { core::hint::unreachable_unchecked() }
     }
@@ -61,22 +61,6 @@ pub(crate) const unsafe fn assume_init_mut_slice<T>(slice: &mut [MaybeUninit<T>]
     // SAFETY: repr(transparent); All elements are initialized, so reading initialized values is safe
     // Writing initialized elements (which may drop old values) is safe too.
     unsafe { core::slice::from_raw_parts_mut(slice.as_mut_ptr().cast(), slice.len()) }
-}
-
-/// # Safety
-/// - `start <= end <= slice.len()`
-/// - `slice` is valid for reads. The returned pointers are too.
-/// - `slice[start..end]` is initalized
-/// - If `slice` is valid for writes, then so are the returned pointers
-pub(crate) const unsafe fn subslice_init_nonnull<T>(
-    slice: NonNull<[MaybeUninit<T>]>,
-    Range { start, end }: Range<usize>,
-) -> NonNull<[T]> {
-    extern crate self as generic_uint;
-    debug_assert!(start <= end);
-    debug_assert!(end <= slice.len());
-    // SAFETY: Must be
-    NonNull::slice_from_raw_parts(unsafe { slice.cast().add(start) }, end - start)
 }
 
 /// Creates a [`NonNull`] from an immutable reference. The returned pointer is only valid for
