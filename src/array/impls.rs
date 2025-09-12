@@ -274,9 +274,7 @@ where
     /// assert_eq!(arr.try_into_builtin_arr::<4>(), Err(arr));
     /// ```
     pub const fn try_into_builtin_arr<const M: usize>(self) -> Result<[T; M], Self> {
-        if let Some(n) = uint::to_usize::<N>()
-            && n == M
-        {
+        if len_is::<Self>(M) {
             // SAFETY: `Array` invariant
             Ok(unsafe { crate::utils::exact_transmute::<Self, [T; M]>(self) })
         } else {

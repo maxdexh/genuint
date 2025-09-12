@@ -484,10 +484,11 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// let mut deq = ArrDeqApi::<[_; 20]>::new();
     /// deq.push_front(2);
     /// deq.push_front(1);
-    /// let mut vec = deq.into_arr_vec();
+    /// let mut vec = deq.into_contiguous();
     /// assert_eq!(vec.as_slice(), [1, 2]);
     /// ```
-    pub const fn into_arr_vec(mut self) -> crate::array::ArrVecApi<A> {
+    #[doc(alias = "into_arr_vec")]
+    pub const fn into_contiguous(mut self) -> crate::array::ArrVecApi<A> {
         use crate::array::*;
 
         self.make_contiguous();

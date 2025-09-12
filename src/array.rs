@@ -135,8 +135,6 @@ mod arr_deq;
 mod arr_vec;
 mod impls;
 
-pub mod extra;
-
 pub(crate) mod func_mods;
 pub mod retype;
 pub mod try_from_slice;

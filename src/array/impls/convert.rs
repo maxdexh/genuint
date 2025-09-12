@@ -1,4 +1,6 @@
-use crate::array::{extra::*, *};
+use core::array::TryFromSliceError;
+
+use crate::array::*;
 
 impl<T, A> AsRef<[T]> for ArrApi<A>
 where
@@ -32,13 +34,26 @@ where
         self.as_mut_slice()
     }
 }
+
+fn try_from_slice_error() -> TryFromSliceError {
+    enum Never {}
+    const EMPTY: &[Never] = &[];
+    type A = &'static [Never; 1];
+    match A::try_from(EMPTY) {
+        Err(err) => err,
+
+        // https://github.com/rust-lang/rust-clippy/issues/11984
+        #[allow(clippy::uninhabited_references)]
+        Ok([a]) => match *a {},
+    }
+}
 impl<'a, T, A> TryFrom<&'a [T]> for &'a ArrApi<A>
 where
     A: Array<Item = T>,
 {
     type Error = TryFromSliceError;
     fn try_from(value: &'a [T]) -> Result<Self, Self::Error> {
-        try_from_slice::try_from_slice(value).ok_or(TryFromSliceError(()))
+        try_from_slice::try_from_slice(value).ok_or_else(try_from_slice_error)
     }
 }
 impl<'a, T, A> TryFrom<&'a mut [T]> for &'a mut ArrApi<A>
@@ -47,7 +62,7 @@ where
 {
     type Error = TryFromSliceError;
     fn try_from(value: &'a mut [T]) -> Result<Self, Self::Error> {
-        try_from_slice::try_from_mut_slice(value).ok_or(TryFromSliceError(()))
+        try_from_slice::try_from_mut_slice(value).ok_or_else(try_from_slice_error)
     }
 }
 impl<T, A> TryFrom<&[T]> for ArrApi<A>
@@ -216,13 +231,7 @@ where
 {
     type Error = alloc::boxed::Box<[T]>;
     fn try_from(value: alloc::boxed::Box<[T]>) -> Result<Self, Self::Error> {
-        use alloc::boxed::Box;
-        if value.len() == helper::arr_len::<A>() {
-            // SAFETY: Length is correct; casting slices to arrays this way is valid
-            Ok(unsafe { Box::from_raw(Box::into_raw(value).cast()) })
-        } else {
-            Err(value)
-        }
+        try_from_slice::try_from_boxed_slice(value)
     }
 }
 #[cfg(feature = "alloc")]
@@ -232,13 +241,12 @@ where
 {
     type Error = alloc::vec::Vec<T>;
     fn try_from(mut value: alloc::vec::Vec<T>) -> Result<Self, Self::Error> {
-        if value.len() == helper::arr_len::<A>() {
+        if helper::len_is::<Self>(value.len()) {
             // SAFETY: set_len(0) is always safe and effectively forgets the elements,
             // ensuring that the drop of `Vec` only frees the allocation.
-            unsafe {
-                value.set_len(0);
-                Ok(core::ptr::read(value.as_ptr().cast()))
-            }
+            unsafe { value.set_len(0) }
+            // SAFETY: Transfer ownership of the still initialized elements
+            Ok(unsafe { core::ptr::read(value.as_ptr().cast::<Self>()) })
         } else {
             Err(value)
         }
@@ -251,7 +259,7 @@ where
 {
     type Error = alloc::vec::Vec<T>;
     fn try_from(value: alloc::vec::Vec<T>) -> Result<Self, Self::Error> {
-        if value.len() == helper::arr_len::<A>() {
+        if helper::len_is::<A>(value.len()) {
             value
                 .into_boxed_slice()
                 .try_into()
