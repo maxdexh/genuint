@@ -1,5 +1,7 @@
 //! TODO: Docs go here
 
+// TODO: Doc features
+// TODO: doctests
 #![cfg_attr(test, recursion_limit = "512")]
 #![cfg_attr(not(any(test, doc, feature = "std")), no_std)]
 #![warn(
@@ -21,7 +23,7 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-/// Turns an integer literal of arbitrary length into a [`Uint`].
+/// Turns an integer literal into a [`Uint`].
 ///
 /// If you have a small constant value that is not a literal, use [`uint::FromU128`].
 ///
@@ -54,7 +56,7 @@ mod utils;
 /// the non-negative integers and the set of types that implement this trait.
 pub trait Uint: ToUint<ToUint = Self> + 'static + internals::UintSealed {}
 
-/// A type that can be turned into [`Uint`].
+/// A type that can be turned into a [`Uint`].
 ///
 /// TODO: Something something lazy uints refer to ops docs
 pub trait ToUint {

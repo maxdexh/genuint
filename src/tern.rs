@@ -1,4 +1,3 @@
-// TODO: More docs
 //! Types conditional on a [`Uint`](crate::Uint).
 //!
 //! This module provides types that depend on whether a `Uint` is zero.
@@ -8,14 +7,31 @@ pub mod raw;
 use core::mem::ManuallyDrop;
 
 use crate::{ToUint, uint};
-use raw::TernRaw;
+
+/// Raw type conditional on a [`Uint`](crate::Uint).
+///
+/// Raw in this context refers to the fact that the ternary is implemented through an
+/// internal generic associated type on `Uint`. It is not newtype wrapped (unlike [`TernRes`]).
+///
+/// The type depends only on `Cond`. If `Cond` is nonzero, then `TernRaw<Cond, T, F>` is exactly
+/// the same type as `T`. Otherwise it is the same type as `F`.
+///
+/// As a consequence any generic `TFun<TernRaw<C, T, F>>` is exactly the same type as `TFun<T>` or
+/// `TFun<F>` and therefore is valid to transmute given a known `C` (which can be runtime checked)
+/// or `T = F` (which may follow from other invariants, such as [`Uint`](crate::Uint) uniqueness.
+/// This applies even to types with unspecified layout such as `TFun<X> = Vec<X>` or type
+/// projections like `TFun<X> = <X as Tr>::Assoc`. This property is expressed through [`raw::pull_tcon`].
+///
+/// This type's disadvantage compared to [`TernRaw`] are that it is not possible to use impls of
+/// `T` and `F` if `C` is generic, it does not play nicely with type inferrence, especially of
+/// `C` and that it can't have methods. Its "methods" are defined in the [`raw`] module.
+pub type TernRaw<Cond, True, False> = crate::internals::TernRaw<Cond, True, False>;
 
 /// A [`Result`]-like type that only has ok or error instances, depending on a [`ToUint`] condition.
 ///
+/// This struct is implemented as a `repr(transparent)` newtype wrapper for [`TernRaw`].
 /// If `Cond` is zero, then this struct is a `repr(transparent)` wrapper around `E`. Otherwise, it
 /// is a `repr(transparent)` wrapper around `T`.
-///
-/// This struct is a `repr(transparent)` newtype wrapper for [`raw::TernRaw`].
 #[repr(transparent)]
 pub struct TernRes<Cond: ToUint, T, E> {
     /// The underlying [`TernRaw`].
@@ -41,13 +57,13 @@ impl<C: ToUint, T, E> TernRes<C, T, E> {
     }
     /// Equivalent of [`Result::as_ref`].
     pub const fn as_ref(&self) -> TernRes<C, &T, &E> {
-        TernRes::from_raw(raw::push_tcon_lt::<C, T, E, crate::tfun::TConLtRef>(
+        TernRes::from_raw(raw::push_tcon_lt::<C, T, E, crate::tfun::TFunLtRef>(
             &self.raw,
         ))
     }
     /// Equivalent of [`Result::as_mut`].
     pub const fn as_mut(&mut self) -> TernRes<C, &mut T, &mut E> {
-        TernRes::from_raw(raw::push_tcon_lt::<C, T, E, crate::tfun::TConLtMut>(
+        TernRes::from_raw(raw::push_tcon_lt::<C, T, E, crate::tfun::TFunLtMut>(
             &mut self.raw,
         ))
     }
@@ -109,10 +125,10 @@ impl<C: ToUint, T, E> TernRes<C, T, E> {
 impl<C: ToUint, T> TernRes<C, T, T> {
     /// Creates a result where both variants have the same type.
     pub const fn new_trivial(x: T) -> Self {
-        Self::from_raw(raw::push_tcon::<C, T, T, crate::tfun::TConTrivial<T>>(x))
+        Self::from_raw(raw::push_tcon::<C, T, T, crate::tfun::TFunTrivial<T>>(x))
     }
     /// Unwraps a result where both variants have the same type.
     pub const fn into_trivial(self) -> T {
-        raw::pull_tcon::<C, T, T, crate::tfun::TConTrivial<T>>(self.into_raw())
+        raw::pull_tcon::<C, T, T, crate::tfun::TFunTrivial<T>>(self.into_raw())
     }
 }

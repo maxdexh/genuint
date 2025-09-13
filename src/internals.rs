@@ -6,17 +6,21 @@ pub struct O;
 
 pub(crate) type _0 = U<O>;
 pub(crate) type _1 = U<I>;
+type A<H, P> = (H, P);
 
 pub trait ArraySealed {}
 
 pub trait UintSealed: 'static {
+    // Not public API
+    #[doc(hidden)]
     type __Ops: _Uint;
 }
+pub type _Internals<N> = <N as UintSealed>::__Ops;
 
 pub trait _Uint: _Arrays + 'static {
     const IS_NONZERO: bool;
 
-    type TernAny<T, F>;
+    type TernRaw<T, F>;
 
     type Ternary<T: ToUint, F: ToUint>: ToUint;
     type Opaque<N: ToUint>: ToUint;
@@ -27,17 +31,25 @@ pub trait _Uint: _Arrays + 'static {
 
     type _AsBit: _Bit;
 }
-pub(crate) type _PrimOps<N> = <N as UintSealed>::__Ops;
+
+pub trait TernRawImpl {
+    type Tern<T, F>;
+}
+impl<C: ToUint> TernRawImpl for C {
+    type Tern<T, F> = InternalOp!(C::ToUint, ::TernRaw<T, F>);
+}
+pub type TernRaw<C, T, F> = <C as TernRawImpl>::Tern<T, F>;
+
 macro_rules! InternalOp {
     ($N:ty, $($item:tt)*) => {
-        <crate::internals::_PrimOps<$N> as crate::internals::_Uint>$($item)*
+        <crate::internals::_Internals<$N> as crate::internals::_Uint>$($item)*
     };
 }
 pub(crate) use InternalOp;
 impl _Uint for O {
     const IS_NONZERO: bool = false;
 
-    type TernAny<T, F> = F;
+    type TernRaw<T, F> = F;
 
     type Ternary<T: ToUint, F: ToUint> = F;
     type Opaque<N: ToUint> = N;
@@ -51,28 +63,28 @@ impl _Uint for O {
 impl _Uint for I {
     const IS_NONZERO: bool = true;
 
-    type TernAny<T, F> = T;
+    type TernRaw<T, F> = T;
 
     type Ternary<T: ToUint, F: ToUint> = T;
     type Opaque<N: ToUint> = N;
 
     type Half = _0;
     type Parity = _1;
-    type AppendAsBit<B: Uint> = U<(Self, InternalOp!(B, ::_AsBit))>;
+    type AppendAsBit<B: Uint> = U<A<Self, InternalOp!(B, ::_AsBit)>>;
 
     type _AsBit = Self;
 }
-impl<H: _Pint, P: _Bit> _Uint for (H, P) {
+impl<Pre: _Pint, Last: _Bit> _Uint for A<Pre, Last> {
     const IS_NONZERO: bool = true;
 
-    type TernAny<T, F> = T;
+    type TernRaw<T, F> = T;
 
     type Ternary<T: ToUint, F: ToUint> = T;
     type Opaque<N: ToUint> = N;
 
-    type Half = U<H>;
-    type Parity = U<P>;
-    type AppendAsBit<B: Uint> = U<(Self, InternalOp!(B, ::_AsBit))>;
+    type Half = U<Pre>;
+    type Parity = U<Last>;
+    type AppendAsBit<B: Uint> = U<A<Self, InternalOp!(B, ::_AsBit)>>;
 
     type _AsBit = I;
 }
@@ -90,101 +102,111 @@ impl<N: _Uint> Uint for U<N> {}
 impl<N: _Uint> ToUint for U<N> {
     type ToUint = Self;
 }
-
-/// # Safety
-/// Internal API
-pub trait ArrBound<T, N: Uint> {
-    type Arr;
-}
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ArrBisect<A, P>(A, A, P);
 
-/// Implementation detail of the different recursive array implementors that uses a sentinel `Bound`
-/// type to distinguish between them.
-#[repr(transparent)]
-pub struct _ArrImpl<Bound: ArrBound<T, N>, T, N: Uint>(Bound::Arr);
-
-// SAFETY: repr(transparent); `Bound::Arr` was recursively constructed to be a valid implementor
-unsafe impl<T, N: Uint, Bound: ArrBound<T, N>> Array for _ArrImpl<Bound, T, N> {
-    type Item = T;
-    type Length = N;
-}
-impl<T, N: Uint, Bound: ArrBound<T, N>> ArraySealed for _ArrImpl<Bound, T, N> {}
-
-impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Copy for _ArrImpl<Bound, T, N> {}
-impl<T: Copy, N: Uint, Bound: ArrBound<T, N, Arr: Copy>> Clone for _ArrImpl<Bound, T, N> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
 macro_rules! gen_arr_internals {
     [
-        $trait:ident,
-        $ptr:ident,
-        $btr:ident,
-        $wrap:ident,
-        $impl:ident,
-        $ops:ident,
-        $([
-            $out:ident,
-            $name:ident,
-            ($($bound:tt)*),
-        ],)*
-    ] => {
-        pub trait $trait {$(
-            type $name<T: $($bound)*>: $($bound)*;
-        )*}
-        // `_Arrays` is a supertrait of `_Uint`, so it can be implemented using seperate
-        // impls for each `_Uint` implementor while still working with generics.
-        impl $trait for O {$(
-            type $name<T: $($bound)*> = [T; 0];
-        )*}
-        impl $trait for I {$(
-            type $name<T: $($bound)*> = [T; 1];
-        )*}
-        impl<H: $ptr, P: $btr> $trait for (H, P) {$(
-            type $name<T: $($bound)*> = ArrBisect<H::$name<T>, P::$name<T>>;
-        )*}
+        $ArrsTrait:ident,
+        [$(
+            [
+                $bound_name:ident,
+                ($($bound:tt)*),
 
-        pub mod array_types {
-            // bound type sentinels
-            mod bounds {$(
-                pub struct $name;
-                impl<T: $($bound)*, N: crate::Uint> crate::internals::ArrBound<T, N> for $name {
-                    type Arr = <N::$ops as crate::internals::$trait>::$name<T>;
+                $out_inner:ident,
+
+                $doc:expr,
+                $out:ident,
+            ]
+        ),* $(,)?],
+        $wrap:ident,
+    ] => {
+        pub trait $ArrsTrait {$(
+            type $bound_name<T: $($bound)*>: $($bound)*;
+        )*}
+        $(type $bound_name<T, N> = <_Internals<N> as crate::internals::$ArrsTrait>::$bound_name<T>;)*
+
+        macro_rules! impl_body_zero { () => {$(
+            type $bound_name<T: $($bound)*> = [T; 0];
+        )*}}
+        macro_rules! impl_body_one { () => {$(
+            type $bound_name<T: $($bound)*> = [T; 1];
+        )*}}
+        macro_rules! impl_body_bisect { ($Pre:ident, $Pop:ident) => {$(
+            type $bound_name<T: $($bound)*> = ArrBisect<Pre::$bound_name<T>, Pop::$bound_name<T>>;
+        )*}}
+
+        $(
+            #[doc = core::concat!("The inner [`Array`] type of ", core::stringify!($out), ".")]
+            #[cfg_attr(not(doc), repr(transparent))]
+            pub struct $out_inner<T: $($bound)*, N: crate::Uint>($bound_name<T, N>);
+
+            // SAFETY: repr(transparent), array was recursively constructed to be a valid implementor
+            unsafe impl<T: $($bound)*, N: crate::Uint> Array for $out_inner<T, N> {
+                type Item = T;
+                type Length = N;
+            }
+            impl<T: $($bound)*, N: crate::Uint> ArraySealed for $out_inner<T, N> {}
+
+            impl<T: $($bound)*, N: crate::Uint> Copy for $out_inner<T, N>
+            where
+                T: Copy,
+                $bound_name<T, N>: Copy
+            {
+            }
+            impl<T: $($bound)*, N: crate::Uint> Clone for $out_inner<T, N>
+            where
+                T: Copy,
+                $bound_name<T, N>: Copy
+            {
+                fn clone(&self) -> Self {
+                    *self
                 }
-            )*}
-            use crate::{internals::$impl, array::$wrap};
-            $(
-                pub type $out<T, N> = $wrap<$impl<bounds::$name, T, N>>;
-            )*
-        }
+            }
+
+            #[doc = $doc]
+            pub type $out<T, N> = $wrap<$out_inner<T, N>>;
+        )*
+
+        pub mod array_types { pub use super::{$($out_inner, $out),*}; }
     };
 }
-gen_arr_internals! {
+use crate::array::ArrApi;
+gen_arr_internals![
     _Arrays,
-    _Pint,
-    _Bit,
+    [
+        [
+            _Arr,
+            (Sized),
+            ArrInner,
+            crate::utils::docexpr! {
+                /// General [`Array`] implementation.
+                ///
+                /// See the [module level documentation](crate::array).
+            },
+            Arr,
+        ],
+        [
+            _CopyArr,
+            (Copy),
+            CopyArrInner,
+            crate::utils::docexpr! {
+                /// [`Array`] implementation that implements [`Copy`] but requires `T: Copy`.
+                ///
+                /// See the [module level documentation](crate::array).
+            },
+            CopyArr,
+        ],
+    ],
     ArrApi,
-    _ArrImpl,
-    __Ops,
-    [
-        Arr,
-        Arr,
-        (Sized),
-    ],
-    [
-        CopyArr,
-        CopyArr,
-        (Copy),
-    ],
+];
+impl _Arrays for O {
+    impl_body_zero!();
 }
-
-pub trait _ArrApi {
-    type Inner;
+impl _Arrays for I {
+    impl_body_one!();
 }
-impl<A: Array> _ArrApi for crate::array::ArrApi<A> {
-    type Inner = A;
+impl<Pre: _Pint, Pop: _Bit> _Arrays for A<Pre, Pop> {
+    impl_body_bisect!(Pre, Pop);
 }

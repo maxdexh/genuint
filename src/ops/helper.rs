@@ -17,3 +17,14 @@ pub type Xor3<A, B, C> = Norm<Tern<A, Xnor<B, C>, Xor<B, C>>>;
 pub type H<N> = Norm<Half<N>>;
 /// Eager version of `Parity`.
 pub type P<N> = Norm<Parity<Norm<N>>>;
+
+#[apply(lazy)]
+pub type _Opaque<P, Out> = uint::From<InternalOp!(uint::From<P>, ::Opaque<Out>)>;
+#[apply(lazy)]
+pub type _Half<N> = InternalOp!(uint::From<N>, ::Half);
+#[apply(lazy)]
+pub type _Parity<N> = InternalOp!(uint::From<N>, ::Parity);
+#[apply(lazy)]
+pub type _AppendBit<N, P> = InternalOp!(uint::From<N>, ::AppendAsBit<uint::From<P>>);
+#[apply(lazy)]
+pub type _Tern<C, T, F> = InternalOp!(uint::From<C>, ::Ternary<T, F>);

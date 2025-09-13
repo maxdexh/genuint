@@ -151,3 +151,10 @@ macro_rules! destruct_read {
     };
 }
 pub(crate) use destruct_read;
+
+macro_rules! docexpr {
+    [ $(#[doc = $doc:expr])* ] => {
+        ::core::concat!($($doc, "\n"),*)
+    };
+}
+pub(crate) use docexpr;

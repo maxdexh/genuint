@@ -68,7 +68,8 @@ mod iter;
 mod tuple_convert;
 
 impl<A, B> Concat<A, B> {
-    /// Returns the fields of this struct as a pair of arrays wrapped in [`ManuallyDrop`].
+    /// Returns the fields of this struct as a pair of arrays wrapped in
+    /// [`ManuallyDrop`](core::mem::ManuallyDrop).
     ///
     /// May make it easier to destructure the result in `const` contexts.
     #[must_use = "The pair returned by this function is wrapped in ManuallyDrop and may need cleanup"]
@@ -160,7 +161,7 @@ where
     /// array is returned.
     ///
     /// If you are having trouble destructuring the returned [`Result`] in a const fn, consider using
-    /// functions from [`const_util::result`] or going through [`ManuallyDrop`] first.
+    /// functions from [`const_util::result`].
     pub const fn try_retype<Dst: Array<Item = T>>(
         self,
     ) -> TernRes<ops::Eq<N, Dst::Length>, Dst, Self> {

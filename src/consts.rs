@@ -16,7 +16,7 @@ macro_rules! generate_alias_cons {
             ($name:ident, $val:literal, $ty:ty) => {
                 #[doc = core::concat!("Type-level `", $val, "`.")]
                 pub type $name = crate::uint::From<$ty>;
-                $(impl crate::ToUint for $struct<{ $val }> {
+                $(#[doc(hidden)] impl crate::ToUint for $struct<$val> {
                     type ToUint = $name;
                 })*
             };
@@ -46,9 +46,10 @@ generate_alias_cons! {
 pub struct ConstU8<const N: u8>;
 
 macro_rules! new_byte_alias {
-    ($name:ident, $val:expr, $ty:ty) => {
+    ($name:ident, $val:literal, $ty:ty) => {
         new_alias!($name, $val, $ty);
-        impl crate::ToUint for ConstU8<{ $val }> {
+        #[doc(hidden)]
+        impl crate::ToUint for ConstU8<$val> {
             type ToUint = $name;
         }
     };

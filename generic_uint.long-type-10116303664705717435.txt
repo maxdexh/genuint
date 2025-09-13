@@ -1,2 +1,0 @@
-ops::cmp::Eq<<Src as array::Array>::Length, <Dst as array::Array>::Length>
-ops::cmp::Eq<<Src as array::Array>::Length, <Dst as array::Array>::Length>: Uint

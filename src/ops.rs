@@ -1,16 +1,22 @@
-//! Module defining the fundamental and other useful operations for [`Uint`](crate::Uint)s.
+//! Module defining the fundamental and other useful operations for [`Uint`]s.
 //!
 //! TODO: Something about general techniques, lazy uints, etc.
 
+// TODO:
+// - Optimize test speed; compare times against before lazification; analyze how types expand
+// - Remove unnecessary intermediate ops that were only used to lazify
+
+#[allow(unused)] // for docs
+use crate::Uint;
 use crate::{consts::*, internals::InternalOp, uint, utils::apply};
 
 macro_rules! lazy {
     (
         $(())?
-        $(#[$($attr:tt)*])*
+        $(#[$attr:meta])*
         pub type $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty;
     ) => {
-        $(#[$($attr)*])*
+        $(#[$attr])*
         pub struct $name<$($param $(= $def)?),*>($($param),*);
         impl<$($param: $crate::ToUint),*> $crate::ToUint for $name<$($param),*> {
             type ToUint = $crate::uint::From<$val>;
@@ -26,7 +32,9 @@ pub(crate) use lazy;
 /// Note the order of the arguments! It is chosen to be this way so that when nesting multiple
 /// `Opaque`s (for multiple parameters), the output type is always at the end, which is a useful
 /// property to have when looking at the type through error messages or an lsp.
-pub type Opaque<P, Out> = InternalOp!(uint::From<P>, ::Opaque<Out>);
+// TODO: Try a type function based approach for opaqueness, i.e. have a
+// GAT ApplyOpaquely<F: TFunUint> = F::Apply<Self>
+pub type Opaque<P, Out> = _Opaque<P, Out>;
 
 macro_rules! __make_opaque {
     ($pop:ident $($param:ident)*, $out:ty) => {
@@ -42,23 +50,23 @@ pub(crate) use __make_opaque;
 macro_rules! opaque {
     (
         $(())?
-        $(#[$($attr:tt)*])*
+        $(#[$attr:meta])*
         pub type $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty;
     ) => {
         #[$crate::utils::apply($crate::ops::lazy)]
-        $(#[$($attr)*])*
+        $(#[$attr])*
         pub type $name<$($param $(= $def)?),*> = $crate::ops::__make_opaque!($($param)*, $val);
     };
     (
         ($with_lazy:ident)
-        $(#[$($attr:tt)*])*
+        $(#[$attr:meta])*
         pub type $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty;
     ) => {
         #[$crate::utils::apply($crate::ops::lazy)]
         pub type $with_lazy<$($param),*> = $val;
 
         $crate::ops::opaque! {
-            $(#[$($attr)*])*
+            $(#[$attr])*
             pub type $name<$($param $(= $def)?),*> = $with_lazy<$($param),*>;
         }
     };
@@ -86,15 +94,13 @@ pub(crate) use test_op;
 /// compiler will probably normalize it to a type projection on an internal associated
 /// type of [`Uint`].
 // H(N) := N / 2
-#[apply(lazy)]
-pub type Half<N> = InternalOp!(uint::From<N>, ::Half);
+pub type Half<N> = _Half<N>;
 
 /// More efficient implementation of [`Rem<N, _2>`].
 ///
 /// This is currently a primitive operation.
 // P(N) := N % 2
-#[apply(lazy)]
-pub type Parity<N> = InternalOp!(uint::From<N>, ::Parity);
+pub type Parity<N> = _Parity<N>;
 
 /// More efficient implementation of `Add<Mul<N, _2>, Tern<P, _1, _0>>`.
 ///
@@ -105,8 +111,7 @@ pub type Parity<N> = InternalOp!(uint::From<N>, ::Parity);
 /// This is currently a primitive operation. When diretly passed to [`uint::From`], the
 /// compiler will probably normalize it to a type projection on an internal associated
 /// type of [`Uint`].
-#[apply(lazy)]
-pub type AppendBit<N, P> = InternalOp!(uint::From<N>, ::AppendAsBit<uint::From<P>>);
+pub type AppendBit<N, P> = _AppendBit<N, P>;
 
 /// If-else/Ternary operation.
 ///
@@ -124,18 +129,17 @@ pub type AppendBit<N, P> = InternalOp!(uint::From<N>, ::AppendAsBit<uint::From<P
 /// Exiting from a recursive operation
 /// ```
 /// use generic_uint::{ToUint, ops, uint, lit};
-/// struct CountOnesL<N, Acc>(N, Acc);
-/// impl<N: ToUint, Acc: ToUint> ToUint for CountOnesL<N, Acc> {
+/// struct CountOnes<N, Acc = lit!(0)>(N, Acc);
+/// impl<N: ToUint, Acc: ToUint> ToUint for CountOnes<N, Acc> {
 ///     type ToUint = uint::From<ops::Tern<
 ///         N,
-///         CountOnesL<
+///         CountOnes<
 ///             uint::From<ops::Half<N>>,
 ///             ops::Add<Acc, ops::Parity<N>>,
 ///         >,
 ///         Acc,
 ///     >>;
 /// }
-/// type CountOnes<N> = uint::From<CountOnesL<N, uint::FromU128<0>>>;
 /// assert_eq!(
 ///     uint::to_u128::<CountOnes<lit!(0b1010101010101010101010)>>(),
 ///     Some(11),
@@ -143,8 +147,7 @@ pub type AppendBit<N, P> = InternalOp!(uint::From<N>, ::AppendAsBit<uint::From<P
 /// ```
 //
 // Tern(C, T, F) := if C { T } else { F }
-#[apply(lazy)]
-pub type Tern<C, T, F> = InternalOp!(uint::From<C>, ::Ternary<T, F>);
+pub type Tern<C, T, F> = _Tern<C, T, F>;
 
 mod helper;
 pub(crate) use helper::*;

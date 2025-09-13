@@ -4,7 +4,7 @@
 //! ```
 //! # trait SomeBoundIn {}
 //! # trait SomeBoundOut {}
-//! trait TCon {
+//! trait TFun {
 //!     type Apply<T: SomeBoundIn>: SomeBoundOut;
 //! }
 //! ```
@@ -13,8 +13,6 @@
 
 use core::mem::{ManuallyDrop, MaybeUninit};
 
-use crate::ToUint;
-
 /// An arbitrary type map from [`Sized`] to [`Sized`].
 ///
 /// See  for why this is useful.
@@ -22,7 +20,7 @@ pub trait TFun {
     /// Applies the type constructor to `T`.
     type Apply<T>;
 }
-/// The identity [`TCon`]. Maps `T` to `T`.
+/// The identity [`TFun`]. Maps `T` to `T`.
 pub struct TFunIdent(());
 impl TFun for TFunIdent {
     type Apply<T> = T;
@@ -38,35 +36,29 @@ impl TFun for TFunMaybeUninit {
     type Apply<T> = MaybeUninit<T>;
 }
 /// Maps `T` to [`Option<T>`]
-pub struct TConOption(());
-impl TFun for TConOption {
+pub struct TFunOption(());
+impl TFun for TFunOption {
     type Apply<T> = Option<T>;
 }
 /// Maps `T` to `U` for an unrelated `U`
-pub struct TConTrivial<U>(U);
-impl<U> TFun for TConTrivial<U> {
+pub struct TFunTrivial<U>(U);
+impl<U> TFun for TFunTrivial<U> {
     type Apply<T> = U;
 }
 
 /// Like [`TFun`], but the generic associated type is bounded by a lifetime parameter.
-/// This allows expressing type constructors such as [`T -> &'a T`](TConLtRef)
+/// This allows expressing type constructors such as [`T -> &'a T`](TFunLtRef)
 pub trait TFunLt<'a> {
     /// Applies the type constructor to `T`.
     type Apply<T: 'a>: 'a;
 }
 /// Maps `T` to `&T`
-pub struct TConLtRef(());
-impl<'a> TFunLt<'a> for TConLtRef {
+pub struct TFunLtRef(());
+impl<'a> TFunLt<'a> for TFunLtRef {
     type Apply<T: 'a> = &'a T;
 }
 /// Maps `T` to `&mut T`
-pub struct TConLtMut(());
-impl<'a> TFunLt<'a> for TConLtMut {
+pub struct TFunLtMut(());
+impl<'a> TFunLt<'a> for TFunLtMut {
     type Apply<T: 'a> = &'a mut T;
-}
-
-/// A type function from [`ToUint`] to itself.
-pub trait UintFn {
-    /// Applies the type constructor to `N`.
-    type Apply<N: ToUint>: ToUint;
 }

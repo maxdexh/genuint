@@ -469,7 +469,7 @@ where
         unsafe { self.as_mut_repr().len = new_len };
     }
 
-    /// Transfers the elements from the vector into a contiguous [`ArrDeqApi`](crate::array::ArrDeqApi).
+    /// Transfers the elements from the vector into a contiguous [`ArrDeqApi`].
     ///
     /// # Examples
     /// ```

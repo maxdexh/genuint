@@ -1,34 +1,13 @@
-//! Raw type conditional on a [`Uint`](crate::Uint).
-//!
-//! Raw in this context means that the ternary [`TernRaw`], which is implemented through an
-//! internal generic associated type on `Uint`, is not newtype wrapped, like
-//! [`TernRes`](crate::tern::TernRes) is.
-//!
-//! This means that any generic `TCon<TernRaw<C, T, F>>` is exactly the same type as `TCon<T>` or
-//! `TCon<F>` and therefore is valid to transmute given a known `C` (which can be runtime checked)
-//! or `T = F` (which may follow from other invariants, such as [`Uint`](crate::Uint) uniqueness.
-//! THis applies even to types with unspecified layout such as `TCon<X> = Vec<X>` or type
-//! projections like `TCon<X> = <X as Tr>::Assoc`. This property is expressed through [`pull_tcon`].
-//!
-//! But it also has the disadvantage that it is not possible to use impls of `T` and `F` if `C` is
-//! generic, it does not play nicely with type inferrence, especially of `C` and that it can't have
-//! methods.
+//! Functions for [`TernRaw`].
 
 use crate::{
     ToUint,
+    tern::TernRaw,
     tfun::{TFun, TFunLt},
     uint, utils,
 };
 
-/// A result-like structure that takes on the left `True` value if `Cond` is nonzero, or the right
-/// `False` value otherwise.
-///
-/// The type depends only on `Cond`. If `Cond` is nonzero, then `TernRaw<Cond, T, F>` is literally
-/// the same type as `T`. Otherwise it is the same type as `F`.
-pub type TernRaw<Cond, True, False> =
-    crate::internals::InternalOp!(crate::uint::From<Cond>, ::TernAny<True, False>);
-
-/// Pulls an arbitrary [`TCon`] out of a [`TernRaw`].
+/// Pulls an arbitrary [`TFun`] out of a [`TernRaw`].
 ///
 /// This function is the inverse of [`push_tcon`].
 ///
@@ -36,7 +15,7 @@ pub type TernRaw<Cond, True, False> =
 /// `TernRaw<C, (T, T), (F, F)>` into `(TernRaw<C, T, F>, TernRaw<C, T, F>)`.
 ///
 /// # Limitations
-/// Since [`TCon::Apply`] requires being implemented for all `T: Sized`, type constructors with extra bounds
+/// Since [`TFun::Apply`] requires being implemented for all `T: Sized`, type constructors with extra bounds
 /// (for example `T -> &'a T` would require `T: 'a`) cannot be expressed by this. It is possible to
 /// work around this by duplicating the definition of this struct
 pub const fn pull_tcon<C: ToUint, T, F, Con: TFun>(
@@ -52,7 +31,7 @@ pub const fn pull_tcon<C: ToUint, T, F, Con: TFun>(
     }
 }
 
-/// Pushes an arbitrary [`TCon`] out of a [`TernRaw`].
+/// Pushes an arbitrary [`TFun`] out of a [`TernRaw`].
 ///
 /// This function is the inverse of [`pull_tcon`].
 ///
@@ -60,7 +39,7 @@ pub const fn pull_tcon<C: ToUint, T, F, Con: TFun>(
 /// `(TernRaw<C, T, F>, TernRaw<C, T, F>)` into `TernRaw<C, (T, T), (F, F)>`.
 ///
 /// # Limitations
-/// Since [`TCon::Apply`] requires being implemented for all `T: Sized`, type constructors with extra bounds
+/// Since [`TFun::Apply`] requires being implemented for all `T: Sized`, type constructors with extra bounds
 /// (for example `T -> &'a T` would require `T: 'a`) cannot be expressed by this.
 pub const fn push_tcon<C: ToUint, T, F, Con: TFun>(
     tern: Con::Apply<TernRaw<C, T, F>>,
@@ -75,7 +54,7 @@ pub const fn push_tcon<C: ToUint, T, F, Con: TFun>(
     }
 }
 
-/// Like [`pull_tcon`], but for [`TConLt`].
+/// Like [`pull_tcon`], but for [`TFunLt`].
 pub const fn pull_tcon_lt<'a, C: ToUint, T: 'a, F: 'a, Con: TFunLt<'a>>(
     tern: TernRaw<C, Con::Apply<T>, Con::Apply<F>>,
 ) -> Con::Apply<TernRaw<C, T, F>> {
@@ -88,7 +67,7 @@ pub const fn pull_tcon_lt<'a, C: ToUint, T: 'a, F: 'a, Con: TFunLt<'a>>(
         )
     }
 }
-/// Like [`push_tcon`], but for [`TConLt`].
+/// Like [`push_tcon`], but for [`TFunLt`].
 pub const fn push_tcon_lt<'a, C: ToUint, T: 'a, F: 'a, Con: TFunLt<'a>>(
     tern: Con::Apply<TernRaw<C, T, F>>,
 ) -> TernRaw<C, Con::Apply<T>, Con::Apply<F>> {

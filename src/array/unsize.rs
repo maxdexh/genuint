@@ -10,6 +10,9 @@ use crate::array::{Array, func_mods::*};
 
 macro_rules! decl_unsize {
     ($ty:ident { $($mods:tt)* } $name:ident) => {
+        #[doc = core::concat!("Performs the conversion for ", $ty!(docname), ".")]
+        ///
+        /// See the [module level documentation](self).
         #[track_caller]
         $($mods)* fn $name<A: Array>(arr: $ty!(typ, A)) -> $ty!(typ, [A::Item]) {
             // SAFETY: `Array` to slice cast

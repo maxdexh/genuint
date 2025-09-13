@@ -73,7 +73,7 @@ pub type CountOnesL<N> = Tern<
     _0,
 >;
 
-/// Type-level equivalent of [`u128::count_ones`].
+/// Type-level [`u128::count_ones`].
 #[apply(opaque)]
 #[apply(test_op! test_count_ones, N.count_ones().into())]
 pub type CountOnes<N> = CountOnesL<N>;
