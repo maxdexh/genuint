@@ -104,7 +104,10 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     }
 }
 
-impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
+impl<A, T, N: Uint> ArrVecApi<A>
+where
+    A: Array<Item = T, Length = N>,
+{
     /// Creates a vector from a backing array.
     ///
     /// The initial length of the vector will be zero. This method has the same effect as
@@ -481,9 +484,11 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     pub const fn into_deque(self) -> crate::array::ArrDeqApi<A> {
         ArrDeqApi::from_vec_impl(self)
     }
-}
 
-impl<T, N: Uint, A: Array<Item = T, Length = N>> ArrVecApi<A> {
+    /// Resizes a vector into `Self`.
+    ///
+    /// # Errors
+    /// If `A::Length > usize::MAX` or `A::Length < vec.len()`, the original vector is returned.
     pub const fn try_resize_from<B>(vec: ArrVecApi<B>) -> Result<Self, ArrVecApi<B>>
     where
         B: Array<Item = T>,

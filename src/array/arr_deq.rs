@@ -317,6 +317,10 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
 
     /// Like [`push_front`](Self::push_front), but returns [`Err`] on full deques.
     ///
+    /// # Errors
+    /// Returns back the input if the deque is full.
+    ///
+    /// # Examples
     /// ```
     /// use generic_uint::array::*;
     ///
@@ -348,6 +352,10 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
 
     /// Like [`push_back`](Self::push_back), but returns [`Err`] on full deques.
     ///
+    /// # Errors
+    /// Returns back the input if the deque is full.
+    ///
+    /// # Examples
     /// ```
     /// use generic_uint::array::*;
     ///

@@ -1,6 +1,22 @@
+//! Raw type conditional on a [`Uint`](crate::Uint).
+//!
+//! Raw in this context means that the ternary [`TernRaw`], which is implemented through an
+//! internal generic associated type on `Uint`, is not newtype wrapped, like
+//! [`TernRes`](crate::tern::TernRes) is.
+//!
+//! This means that any generic `TCon<TernRaw<C, T, F>>` is exactly the same type as `TCon<T>` or
+//! `TCon<F>` and therefore is valid to transmute given a known `C` (which can be runtime checked)
+//! or `T = F` (which may follow from other invariants, such as [`Uint`](crate::Uint) uniqueness.
+//! THis applies even to types with unspecified layout such as `TCon<X> = Vec<X>` or type
+//! projections like `TCon<X> = <X as Tr>::Assoc`. This property is expressed through [`pull_tcon`].
+//!
+//! But it also has the disadvantage that it is not possible to use impls of `T` and `F` if `C` is
+//! generic, it does not play nicely with type inferrence, especially of `C` and that it can't have
+//! methods.
+
 use crate::{
     ToUint,
-    tcon::{TCon, TConLt},
+    tfun::{TFun, TFunLt},
     uint, utils,
 };
 
@@ -21,12 +37,19 @@ pub type TernRaw<Cond, True, False> =
 ///
 /// # Limitations
 /// Since [`TCon::Apply`] requires being implemented for all `T: Sized`, type constructors with extra bounds
-/// (for example `T -> &'a T` would require `T: 'a`) cannot be expressed by this.
-pub const fn pull_tcon<C: ToUint, T, F, Con: TCon>(
+/// (for example `T -> &'a T` would require `T: 'a`) cannot be expressed by this. It is possible to
+/// work around this by duplicating the definition of this struct
+pub const fn pull_tcon<C: ToUint, T, F, Con: TFun>(
     tern: TernRaw<C, Con::Apply<T>, Con::Apply<F>>,
 ) -> Con::Apply<TernRaw<C, T, F>> {
     // SAFETY: Input and output are the same type
-    unsafe { utils::same_type_transmute(tern) }
+    unsafe {
+        utils::same_type_transmute!(
+            TernRaw::<C, Con::Apply<T>, Con::Apply<F>>,
+            Con::Apply<TernRaw<C, T, F>>,
+            tern,
+        )
+    }
 }
 
 /// Pushes an arbitrary [`TCon`] out of a [`TernRaw`].
@@ -39,26 +62,44 @@ pub const fn pull_tcon<C: ToUint, T, F, Con: TCon>(
 /// # Limitations
 /// Since [`TCon::Apply`] requires being implemented for all `T: Sized`, type constructors with extra bounds
 /// (for example `T -> &'a T` would require `T: 'a`) cannot be expressed by this.
-pub const fn push_tcon<C: ToUint, T, F, Con: TCon>(
+pub const fn push_tcon<C: ToUint, T, F, Con: TFun>(
     tern: Con::Apply<TernRaw<C, T, F>>,
 ) -> TernRaw<C, Con::Apply<T>, Con::Apply<F>> {
     // SAFETY: Input and output are the same type
-    unsafe { utils::same_type_transmute(tern) }
+    unsafe {
+        utils::same_type_transmute!(
+            Con::Apply<TernRaw<C, T, F>>,
+            TernRaw::<C, Con::Apply<T>, Con::Apply<F>>,
+            tern,
+        )
+    }
 }
 
 /// Like [`pull_tcon`], but for [`TConLt`].
-pub const fn pull_tcon_lt<'a, C: ToUint, T: 'a, F: 'a, Con: TConLt<'a>>(
+pub const fn pull_tcon_lt<'a, C: ToUint, T: 'a, F: 'a, Con: TFunLt<'a>>(
     tern: TernRaw<C, Con::Apply<T>, Con::Apply<F>>,
 ) -> Con::Apply<TernRaw<C, T, F>> {
     // SAFETY: Input and output are the same type
-    unsafe { utils::same_type_transmute(tern) }
+    unsafe {
+        utils::same_type_transmute!(
+            TernRaw::<C, Con::Apply<T>, Con::Apply<F>>,
+            Con::Apply<TernRaw<C, T, F>>,
+            tern,
+        )
+    }
 }
 /// Like [`push_tcon`], but for [`TConLt`].
-pub const fn push_tcon_lt<'a, C: ToUint, T: 'a, F: 'a, Con: TConLt<'a>>(
+pub const fn push_tcon_lt<'a, C: ToUint, T: 'a, F: 'a, Con: TFunLt<'a>>(
     tern: Con::Apply<TernRaw<C, T, F>>,
 ) -> TernRaw<C, Con::Apply<T>, Con::Apply<F>> {
     // SAFETY: Input and output are the same type
-    unsafe { utils::same_type_transmute(tern) }
+    unsafe {
+        utils::same_type_transmute!(
+            Con::Apply<TernRaw<C, T, F>>,
+            TernRaw::<C, Con::Apply<T>, Con::Apply<F>>,
+            tern
+        )
+    }
 }
 
 /// Unwraps the `True` value of a [`TernRaw`].
@@ -71,7 +112,7 @@ pub const fn expect_true<C: ToUint, T, F>(tern: TernRaw<C, T, F>, msg: &str) -> 
         panic!("{}", msg);
     }
     // SAFETY: C is nonzero, therefore `tern` is of type `T`
-    unsafe { utils::same_type_transmute(tern) }
+    unsafe { utils::same_type_transmute!(TernRaw<C, T, F>, T, tern) }
 }
 
 /// Wraps the `True` value of a [`TernRaw`].
@@ -84,7 +125,7 @@ pub const fn wrap_true<C: ToUint, T, F>(t: T, msg: &str) -> TernRaw<C, T, F> {
         panic!("{}", msg);
     }
     // SAFETY: C is nonzero, therefore `TernRaw<C, T, F> = T`
-    unsafe { utils::same_type_transmute(t) }
+    unsafe { utils::same_type_transmute!(T, TernRaw<C, T, F>, t) }
 }
 
 /// Unwraps the `False` value of a [`TernRaw`].
@@ -97,7 +138,7 @@ pub const fn expect_false<C: ToUint, T, F>(tern: TernRaw<C, T, F>, msg: &str) ->
         panic!("{}", msg);
     }
     // SAFETY: C is zero, therefore `tern` is of type `T`
-    unsafe { utils::same_type_transmute(tern) }
+    unsafe { utils::same_type_transmute!(TernRaw<C, T, F>, F, tern) }
 }
 
 /// Wraps the `False` value of a [`TernRaw`].
@@ -110,7 +151,7 @@ pub const fn wrap_false<C: ToUint, T, F>(f: F, msg: &str) -> TernRaw<C, T, F> {
         panic!("{}", msg);
     }
     // SAFETY: C is zero, therefore `TernRaw<C, T, F> = F`
-    unsafe { utils::same_type_transmute(f) }
+    unsafe { utils::same_type_transmute!(F, TernRaw<C, T, F>, f) }
 }
 
 macro_rules! match_tern_raw {

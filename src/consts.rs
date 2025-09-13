@@ -1,12 +1,20 @@
+//! [`Uint`](crate::Uint) contants.
+
 // immediately invoked macro that generates the `new_alias` macro, which takes in
 // a declaration name, a const value and a type to generate the type alias _N with
 // value N as a `Uint`
 macro_rules! generate_alias_cons {
     ($($struct:ident $prim:ident,)*) => {
-        $(pub struct $struct<const N: $prim>;)*
+        $(
+            #[doc = core::concat!("Holds a const generic [`", core::stringify!($prim), "`].")]
+            ///
+            /// Implements [`ToUint`](crate::ToUint) for small values.
+            pub struct $struct<const N: $prim>;
+        )*
 
         macro_rules! new_alias {
-            ($name:ident, $val:expr, $ty:ty) => {
+            ($name:ident, $val:literal, $ty:ty) => {
+                #[doc = core::concat!("Type-level `", $val, "`.")]
                 pub type $name = crate::uint::From<$ty>;
                 $(impl crate::ToUint for $struct<{ $val }> {
                     type ToUint = $name;
@@ -22,6 +30,19 @@ generate_alias_cons! {
     ConstU32 u32,
     ConstU16 u16,
 }
+/// Holds a const generic [`u8`].
+///
+/// Implements [`ToUint`](crate::ToUint) for all individual values, but not generically.
+/// That is to say that `ConstU8<N>: ToUint` for every `const N: u8` because there is an
+/// implementation for every single one, but this does not typecheck:
+/// ```compile_fail
+/// use generic_uint::{consts::ConstU8, ToUint};
+///
+/// fn take_uint<N: ToUint>() {}
+/// fn every_u8_is_to_uint<const N: u8>() {
+///     take_uint::<ConstU8<N>>()
+/// }
+/// ```
 pub struct ConstU8<const N: u8>;
 
 macro_rules! new_byte_alias {

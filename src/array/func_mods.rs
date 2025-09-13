@@ -13,6 +13,7 @@ macro_rules! decl_ptr {
         @[$dollar:tt]
         $name:ident,
         typ! { $tparam:ident => $($typ:tt)* },
+        doc = $docname:expr,
         into_raw = |$into_raw_par:pat_param| $into_raw:expr,
         from_raw = |$from_raw_par:pat_param| $from_raw:expr,
         modifiers! $modifiers:tt,
@@ -23,6 +24,7 @@ macro_rules! decl_ptr {
     ) => {
         macro_rules! $name {
             (typ, $dollar$tparam:ty) => { $($typ)* };
+            (docname) => { $docname };
             (into_raw, $ptr:expr) => {{ let $into_raw_par = $ptr; $into_raw }};
             (from_raw, $ptr:expr) => {{ let $from_raw_par = $ptr; $from_raw }};
             $((fn $fn, $cb:ident) => { $cb! { $name $modifiers $impl } };)*
@@ -34,6 +36,7 @@ macro_rules! decl_ptr {
 decl_ptr![
     Ref,
     typ! { inner => &$inner },
+    doc = "&A",
     into_raw = |r| core::ptr::from_ref(r).cast_mut(),
     from_raw = |r| &*r,
     modifiers! { pub const },
@@ -47,6 +50,7 @@ decl_ptr![
 decl_ptr![
     RefMut,
     typ! { inner => &mut $inner },
+    doc = "&mut A",
     into_raw = |r| core::ptr::from_mut(r),
     from_raw = |r| &mut *r,
     modifiers! {
@@ -62,6 +66,7 @@ decl_ptr![
 decl_ptr![
     Box,
     typ! { inner => alloc::boxed::Box<$inner> },
+    doc = "[`Box<A>`](std::boxed::Box)",
     into_raw = |r| alloc::boxed::Box::into_raw(r),
     from_raw = |r| alloc::boxed::Box::from_raw(r),
     modifiers! {
@@ -78,6 +83,7 @@ decl_ptr![
 decl_ptr![
     Rc,
     typ! { inner => alloc::rc::Rc<$inner> },
+    doc = "[`Rc<A>`](std::rc::Rc)",
     into_raw = |r| alloc::rc::Rc::into_raw(r).cast_mut(),
     from_raw = |r| alloc::rc::Rc::from_raw(r),
     modifiers! {
@@ -94,6 +100,7 @@ decl_ptr![
 decl_ptr![
     Arc,
     typ! { inner => alloc::sync::Arc<$inner> },
+    doc = "[`Arc<A>`](std::sync::Arc)",
     into_raw = |r| alloc::sync::Arc::into_raw(r).cast_mut(),
     from_raw = |r| alloc::sync::Arc::from_raw(r),
     modifiers! {

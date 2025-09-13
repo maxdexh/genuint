@@ -6,6 +6,12 @@ use crate::array::{Array, func_mods::*};
 
 macro_rules! decl_from_slice {
     ($ty:ident { $($mods:tt)* } ($name:ident, Result)) => {
+        #[doc = core::concat!("Performs the conversion for ", $ty!(docname), ".")]
+        ///
+        /// See the [module level documentation](self).
+        ///
+        /// # Errors
+        /// If the lengths do not match, the input is returned.
         $($mods)* fn $name<A: Array>(slice: $ty!(typ, [A::Item])) -> Result<$ty!(typ, A), $ty!(typ, [A::Item])> {
             match crate::uint::to_usize::<A::Length>() {
                 Some(arr_len) if arr_len == slice.len() => Ok(
@@ -20,6 +26,12 @@ macro_rules! decl_from_slice {
         }
     };
     ($ty:ident { $($mods:tt)* } ($name:ident, Option)) => {
+        #[doc = core::concat!("Performs the conversion for ", $ty!(docname), ".")]
+        ///
+        /// See the [module level documentation](self).
+        ///
+        /// # Errors
+        /// If the lengths do not match, `None` is returned.
         $($mods)* fn $name<A: Array>(slice: $ty!(typ, [A::Item])) -> Option<$ty!(typ, A)> {
             match crate::uint::to_usize::<A::Length>() {
                 // SAFETY:

@@ -1,16 +1,10 @@
 //! Implementation detail
 
-pub(crate) trait SelectMaxInt<const B: bool> {
-    type Output;
-}
-impl SelectMaxInt<false> for () {
-    type Output = u128;
-}
-impl SelectMaxInt<true> for () {
-    type Output = usize;
-}
-const IS_USIZE: bool = size_of::<usize>() > size_of::<u128>();
-pub(crate) type Umax = <() as SelectMaxInt<IS_USIZE>>::Output;
+pub(crate) type Umax = crate::tern::raw::TernRaw<
+    crate::consts::ConstU8<{ (size_of::<usize>() > size_of::<u128>()) as _ }>,
+    usize,
+    u128,
+>;
 
 pub(crate) const fn umax_strlen(n: Umax) -> usize {
     if n == 0 { 1 } else { n.ilog10() as usize + 1 }

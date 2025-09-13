@@ -1,13 +1,14 @@
 use crate::array::*;
 
-#[repr(transparent)]
 pub struct ArrDrop<T>(pub T);
 
 impl<A: Array> ArrDrop<A> {
     pub const fn enter(self) -> ArrDrop<ArrVecApi<A>> {
-        // SAFETY: repr(transparent)
-        let inner: A = unsafe { crate::utils::exact_transmute(self) };
-        ArrDrop(ArrVecApi::new_full(inner))
+        // SAFETY: `self` is by value, this struct can be destructured by read
+        unsafe {
+            crate::utils::destruct_read!(Self, (inner), self);
+            ArrDrop(ArrVecApi::new_full(inner))
+        }
     }
 }
 impl<A: Array> ArrDrop<ArrVecApi<A>> {

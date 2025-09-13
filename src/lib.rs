@@ -65,8 +65,8 @@ pub trait ToUint {
 pub mod array;
 pub mod consts;
 pub mod ops;
-pub mod tcon;
 pub mod tern;
+pub mod tfun;
 pub mod uint;
 
 #[doc(hidden)]

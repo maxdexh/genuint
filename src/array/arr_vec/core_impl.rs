@@ -54,3 +54,22 @@ impl<A: Array> Default for ArrVecApi<A> {
 impl<A: Array> type_const::DefaultConst for ArrVecApi<A> {
     const DEFAULT: Self = Self::new();
 }
+
+impl<A: Array<Item = T>, T> FromIterator<T> for ArrVecApi<A> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut this = Self::new();
+        this.extend(iter);
+        this
+    }
+}
+
+impl<A: Array<Item = T>, T> Extend<T> for ArrVecApi<A> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        let mut iter = iter.into_iter();
+        while !self.is_full()
+            && let Some(next) = iter.next()
+        {
+            self.push(next);
+        }
+    }
+}

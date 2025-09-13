@@ -7,6 +7,9 @@ use crate::array::{Array, func_mods::*};
 
 macro_rules! decl_retype {
     ($ty:ident { $($mods:tt)* } $name:ident) => {
+        #[doc = core::concat!("Performs the conversion for ", $ty!(docname), ".")]
+        ///
+        /// See the [module level documentation](self).
         $($mods)* fn $name<Src, Dst>(src: $ty!(typ, Src)) -> $ty!(typ, Dst)
         where
             Src: Array,

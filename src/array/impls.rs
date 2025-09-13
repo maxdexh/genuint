@@ -151,7 +151,7 @@ where
         Dst: Array<Item = T, Length = N>,
     {
         // SAFETY: `Array` layout guarantees
-        unsafe { utils::exact_transmute::<Self, Dst>(self) }
+        unsafe { utils::same_size_transmute!(Self, Dst, self) }
     }
 
     /// Tries to convert into an array with the same item and length.
@@ -166,7 +166,7 @@ where
     ) -> TernRes<ops::Eq<N, Dst::Length>, Dst, Self> {
         if uint::to_bool::<ops::Eq<N, Dst::Length>>() {
             // SAFETY: `Array` layout guarantees
-            crate::tern::TernRes::make_ok(unsafe { utils::exact_transmute::<Self, Dst>(self) })
+            crate::tern::TernRes::make_ok(unsafe { utils::same_size_transmute!(Self, Dst, self) })
         } else {
             crate::tern::TernRes::make_err(self)
         }
@@ -175,7 +175,7 @@ where
     /// [`core::array::from_fn`], but as a method.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use generic_uint::{array::*, consts::*};
     /// let arr = Arr::<_, _4>::from_fn(|i| i * i);
     /// assert_eq!(arr, [0, 1, 4, 9]);
@@ -191,7 +191,7 @@ where
     /// The same as `ArrApi::new(from).retype::<Self>()`.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use generic_uint::array::*;
     /// let arr = Arr::retype_from([1, 2, 3]);
     /// assert_eq!(arr, [1, 2, 3]);
@@ -250,7 +250,7 @@ where
         ArrApi::new(Concat(self.into_inner(), rhs))
     }
 
-    /// Flattens the inner array [`Flatten`].
+    /// Flattens the inner array via [`Flatten`].
     pub const fn flatten(self) -> ArrApi<Flatten<A>>
     where
         T: Array,
@@ -258,11 +258,39 @@ where
         ArrApi::new(Flatten(self.into_inner()))
     }
 
-    pub const fn into_uninit(self) -> ArrApi<MaybeUninit<A>> {
-        ArrApi::new(MaybeUninit::new(self.into_inner()))
+    /// Creates an array of uninit.
+    ///
+    /// This method is defined on `ArrApi<A>` and creates `ArrApi<MaybeUninit<A>>`.
+    /// This is so that [`Arr::uninit()`] infers the return type to
+    /// `ArrApi<MaybeUninit<ArrInner<_, _>>>`.
+    pub const fn uninit() -> ArrApi<MaybeUninit<A>> {
+        ArrApi::new(MaybeUninit::uninit())
+    }
+
+    /// Moves the items from another array of [`MaybeUninit<T>`] items.
+    ///
+    /// If the input array is larger than this array, the extra items will be forgotten.
+    /// If the input array is smaller, the missing items will be left uninitialized.
+    ///
+    /// This method is defined on `ArrApi<A>` and creates `ArrApi<MaybeUninit<A>>`.
+    /// This is so that [`Arr::resize_uninit_from`] infers the return type to
+    /// `ArrApi<MaybeUninit<ArrInner<_, _>>>`.
+    pub const fn resize_uninit_from<B>(arr: B) -> ArrApi<MaybeUninit<A>>
+    where
+        B: Array<Item = MaybeUninit<T>>,
+    {
+        // SAFETY: M := B::Length
+        // - if M >= N, then transmuting through a union forgets `M - N` elements,
+        //   which is always safe.
+        // - if M <= N, then transmuting through a union fills the rest of the array with
+        //   uninitialized memory, which is valid in this context.
+        unsafe { utils::union_transmute!(B, ArrApi<MaybeUninit<A>>, arr) }
     }
 
     /// Tries to turn the array into a builtin `[T; M]` array of the same size.
+    ///
+    /// # Errors
+    /// If `Self::Length != M`.
     ///
     /// # Examples
     /// ```
@@ -274,41 +302,11 @@ where
     /// assert_eq!(arr.try_into_builtin_arr::<4>(), Err(arr));
     /// ```
     pub const fn try_into_builtin_arr<const M: usize>(self) -> Result<[T; M], Self> {
-        const { assert!(crate::uint::to_usize::<crate::consts::_3>().unwrap() == 3) }
         if len_is::<Self>(M) {
             // SAFETY: `Array` invariant
-            Ok(unsafe { crate::utils::exact_transmute::<Self, [T; M]>(self) })
+            Ok(unsafe { utils::same_size_transmute!(Self, [T; M], self) })
         } else {
             Err(self)
         }
-    }
-}
-
-impl<T, N: Uint, A> ArrApi<A>
-where
-    A: Array<Item = MaybeUninit<T>, Length = N>,
-{
-    pub const fn uninit() -> Self {
-        // SAFETY: Shortcut for the already safe `arr_convert(MaybeUninit::uninit())`
-        #[allow(clippy::uninit_assumed_init)]
-        unsafe {
-            MaybeUninit::uninit().assume_init()
-        }
-    }
-
-    /// Moves the items from another array of [`MaybeUninit<T>`] items.
-    ///
-    /// If the input array is larger than this array, the extra items will be forgotten.
-    /// If the input array is smaller, the missing items will be left uninitialized.
-    pub const fn resize_uninit_from<B>(arr: B) -> Self
-    where
-        B: Array<Item = MaybeUninit<T>>,
-    {
-        // SAFETY: M := B::Length
-        // - if M >= N, then transmuting through a union forgets `M - N` elements,
-        //   which is always safe.
-        // - if M <= N, then transmuting through a union fills the rest of the array with
-        //   uninitialized memory, which is valid in this context.
-        unsafe { utils::union_transmute::<B, Self>(arr) }
     }
 }

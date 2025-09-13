@@ -1,12 +1,21 @@
 use core::{mem::MaybeUninit, ptr::NonNull};
 pub(crate) use generic_uint_proc::__apply as apply;
 
-/// Performs the operation of writing the argument into a `repr(C)` union
+/// Performs the operation of moving the argument into a `repr(C)` union
 /// of `Src` and `Dst` and reading out `Dst`.
 ///
+/// In particular, the following operations are equivalent (`SRC := size_of::<Src>(), DST: size_of::<Dst>()`):
+/// - If `SRC >= DST` (a shrinking transmute), this is equivalent to [`core::mem::transmute_copy`] from
+///   `Src` to `Dst` (plus forgetting the input)
+/// - If `SRC == DST`, it is equivalent to [`core::mem::transmute`]
+/// - It is always equivalent to swapping `min(SRC, DST)` bytes of `MaybeUninit::new(src)` and
+///   `MaybeUninit::<Dst>::uninit()` and calling `assume_init` on the latter.
+///   I.e. if `SRC <= DST` (a growing transmute) does a regular transmute in addition to leaving
+///   the remaining bytes of `Dst` uninitialized.
+///
 /// # Safety
-/// The described operation must be safe
-pub(crate) const unsafe fn union_transmute<Src, Dst>(src: Src) -> Dst {
+/// The described operation must be safe.
+pub(crate) const unsafe fn __union_transmute<Src, Dst>(src: Src) -> Dst {
     use core::mem::ManuallyDrop;
     #[repr(C)]
     union Helper<Src, Dst> {
@@ -21,32 +30,51 @@ pub(crate) const unsafe fn union_transmute<Src, Dst>(src: Src) -> Dst {
         .dst
     })
 }
+macro_rules! union_transmute {
+    ($Src:ty, $Dst:ty, $src:expr $(,)?) => {
+        crate::utils::__union_transmute::<$Src, $Dst>($src)
+    };
+}
+pub(crate) use union_transmute;
 
 /// Transmutes types of the same size.
 ///
 /// # Safety
 /// `Src` and `Dst` must be the same size and be valid for transmutes
-pub(crate) const unsafe fn exact_transmute<Src, Dst>(src: Src) -> Dst {
+pub(crate) const unsafe fn __same_size_transmute<Src, Dst>(src: Src) -> Dst {
     if size_of::<Src>() != size_of::<Dst>() {
-        // SAFETY: This, by definition, does not happen
+        // SAFETY: By safety requirement
         unsafe { core::hint::unreachable_unchecked() }
     }
     // SAFETY: `Src` and `Dst` are valid for transmutes
-    unsafe { core::mem::transmute_copy(&core::mem::ManuallyDrop::new(src)) }
+    unsafe { __union_transmute::<Src, Dst>(src) }
 }
+macro_rules! same_size_transmute {
+    ($Src:ty, $Dst:ty, $src:expr $(,)?) => {
+        crate::utils::__same_size_transmute::<$Src, $Dst>($src)
+    };
+}
+pub(crate) use same_size_transmute;
 
 /// Transmutes a type to itself
 ///
 /// # Safety
-/// `Src` and `Dst` must be the same type.
-pub(crate) const unsafe fn same_type_transmute<Src, Dst>(src: Src) -> Dst {
+/// `Src` and `Dst` must be the same type. More checks that rely on this fact may be added in the
+/// future.
+pub(crate) const unsafe fn __same_type_transmute<Src, Dst>(src: Src) -> Dst {
     if align_of::<Src>() != align_of::<Dst>() {
         // SAFETY: `Src` and `Dst` are the same, so they have the same alignment
         unsafe { core::hint::unreachable_unchecked() }
     }
     // SAFETY: `Src` and `Dst` are the same, so they have the same size
-    unsafe { exact_transmute(src) }
+    unsafe { __same_size_transmute(src) }
 }
+macro_rules! same_type_transmute {
+    ($Src:ty, $Dst:ty, $src:expr $(,)?) => {
+        crate::utils::__same_type_transmute::<$Src, $Dst>($src)
+    };
+}
+pub(crate) use same_type_transmute;
 
 /// # Safety
 /// All elements must be initialized
