@@ -1,6 +1,6 @@
 use super::*;
 
-#[apply(lazy)]
+#[apply(lazy! unchecked)]
 // This is a variation of binary addition.
 //
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R), C <= 1.
@@ -8,7 +8,7 @@ use super::*;
 // We also assume L <= R + C. For all other inputs, we do not care about the result.
 //
 // USub(L, R, C) := L - R - C
-pub type USubL<L, R, C = _0> = If<
+pub(crate) type _SubUnchecked<L, R, C = _0> = If<
     R,
     //   L - R - C
     // = 2 * HL + PL - (2 * HR + PR) - C
@@ -27,46 +27,46 @@ pub type USubL<L, R, C = _0> = If<
     // = 2 * (HL - HR - CC) + X % 2
     // = Append(USub(HL, HR, CC), X % 2)
     AppendBit<
-        USubL<
-            H<L>,
-            H<R>,
+        _SubUnchecked<
+            _H<L>,
+            _H<R>,
             // Because CC is -(X / 2) using floor division, we have X / 2 < 0  iff  X < 0.
             // Thus, CC = 1  iff  CC > 0  iff  X / 2 < 0  iff  X < 0  iff  PL < PR + C
             If<
-                P<L>,
+                _P<L>,
                 // PL = 1, so CC = 1  iff  1 < PR + C  iff  PR = 1 and C = 1  iff  And(PR, C) = 1
-                AndSC<P<R>, C>,
+                _AndSC<_P<R>, C>,
                 // PL = 0, so CC = 1  iff  0 < PR + C  iff  PR = 1  or C = 1  iff   Or(PR, C) = 1
-                OrSC<P<R>, C>,
+                _OrSC<_P<R>, C>,
             >,
         >,
         //   X % 2
         // = (PL - PR - C) % 2
         // = (PL + PR + C) % 2   (euclidian mod gives either 0 or 1)
         // = Xor(PL, PR, C)
-        Xor3<P<L>, P<R>, C>,
+        _Xor3<_P<L>, _P<R>, C>,
     >,
-    // R = 0, so L - 0 - C = L - C = SatDecIf(L, C)
-    satdec::SatDecIfL<L, C>,
+    // R = 0, so L - 0 - C = L - C = SatSubBit(L, C)
+    _SatSubBit<L, C>,
 >;
 
-/// Type-level [`u128::abs_diff`].
-#[apply(opaque)]
+/// Type-level [`abs_diff`](u128::abs_diff).
+#[apply(opaque! abs_diff::_AbsDiff)]
 #[apply(test_op! test_abs_diff, L.abs_diff(R))]
 // AbsDiff(L, R) := |L - R| = if L < R { R - L } else { L - R }
 pub type AbsDiff<L, R> = If<
     //
-    cmp::LtL<L, R>,
-    USubL<R, L>,
-    USubL<L, R>,
+    _Lt<L, R>,
+    _SubUnchecked<R, L>,
+    _SubUnchecked<L, R>,
 >;
 
-/// Type-level [`u128::saturating_sub`].
-#[apply(opaque)]
+/// Type-level [`saturating_sub`](u128::saturating_sub).
+#[apply(opaque! sat_sub::_SatSub)]
 #[apply(test_op! test_sat_sub, L.saturating_sub(R))]
 pub type SatSub<L, R> = If<
     //
-    cmp::LtL<R, L>,
-    USubL<L, R>,
+    _Lt<R, L>,
+    _SubUnchecked<L, R>,
     _0,
 >;

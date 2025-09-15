@@ -1,35 +1,49 @@
 use super::*;
 
-/// Halves the value of a [`Uint`] by removing one bit from the end.
-///
-/// Effectively a more efficient implementation of [`Div<N, _2>`].
-///
-/// See the [module level documentation](crate::ops) for details on how to combine
-/// primitive operations.
-pub type Half<N> = _Half<N>;
-#[apply(lazy)]
-pub type _Half<N> = InternalOp!(uint::From<N>, Half);
+// Just show e.g. Half<N> = _Half<N> in the docs.
+mod real {
+    use super::*;
+    #[apply(lazy)]
+    pub type _Half<N> = InternalOp!(uint::From<N>, Half);
+    #[apply(lazy)]
+    pub type _Parity<N> = InternalOp!(uint::From<N>, Parity);
+    #[apply(lazy)]
+    pub type _AppendBit<N, P> = InternalOp!(uint::From<P>, AppendMeAsBit<uint::From<N>>);
+    #[apply(lazy)]
+    pub type _If<C, T, F> = InternalOp!(uint::From<C>, If<T, F>);
+    #[apply(lazy)]
+    pub type _Opaque<P, Out> = uint::From<InternalOp!(uint::From<P>, Opaque<Out>)>;
+}
 
-/// More efficient implementation of [`Rem<N, _2>`].
+/// Halves the value of a number by removing one bit from the end.
+///
+/// Effectively a more efficient implementation of [`Div<N, _2>`] or [`Shr<N, _1>`].
+/// This, together with [`Parity`] and [`If`], can be used to implement operations that
+/// recursively destructure a number and accumulate a result.
 ///
 /// See the [module level documentation](crate::ops) for details on how to combine
 /// primitive operations.
-pub type Parity<N> = _Parity<N>;
-#[apply(lazy)]
-pub type _Parity<N> = InternalOp!(uint::From<N>, Parity);
+pub type Half<N> = real::_Half<N>;
+
+/// Calculates the parity of a number (whether it is even or odd) by getting its last bit.
+///
+/// Effectively a more efficient implementation of [`Rem<N, _2>`] or [`BitAnd<N, _1>`].
+/// This, together with [`Half`] and [`If`], can be used to implement operations that
+/// recursively destructure a number and accumulate a result.
+///
+/// See the [module level documentation](crate::ops) for details on how to combine
+/// primitive operations.
+pub type Parity<N> = real::_Parity<N>;
 
 /// Adds a single bit to the end of a number.
 ///
 /// Effectively a more efficient implementation of `Add<Mul<N, _2>, IsTruthy<P>>`,
-/// or `BitOr<Shl<N, _1>, IsTruthy<P>>`; both of these operations use this one
-/// internally. It is meant to be used for building the output of an operation recursively
-/// bit-by-bit.
+/// or `BitOr<Shl<N, _1>, IsTruthy<P>>`. It is meant to be used for building the
+/// output of an operation recursively bit-by-bit.
 ///
 /// See the [module level documentation](crate::ops) for details on how to combine
 /// primitive operations.
-pub type AppendBit<N, P> = _AppendBit<N, P>;
-#[apply(lazy)]
-pub type _AppendBit<N, P> = InternalOp!(uint::From<P>, AppendMeAsBit<uint::From<N>>);
+pub type AppendBit<N, P> = real::_AppendBit<N, P>;
 
 /// If-else/Ternary operation.
 ///
@@ -45,9 +59,7 @@ pub type _AppendBit<N, P> = InternalOp!(uint::From<P>, AppendMeAsBit<uint::From<
 /// # Opaqueness
 /// This operation is not opaque in `Then` and `Else`. If `Cond` is known, then
 /// the compiler might normalize this to `Then` or `Else`.
-pub type If<Cond, Then, Else> = _If<Cond, Then, Else>;
-#[apply(lazy)]
-pub type _If<C, T, F> = InternalOp!(uint::From<C>, If<T, F>);
+pub type If<Cond, Then, Else> = real::_If<Cond, Then, Else>;
 
 /// Makes `Out` opaque with respect to the value of a parameter `P`.
 ///
@@ -56,9 +68,7 @@ pub type _If<C, T, F> = InternalOp!(uint::From<C>, If<T, F>);
 /// [`P::ToUint`](ToUint).
 ///
 /// See the [module level documentation](crate::ops) for details on opaqueness.
-pub type Opaque<P, Out> = _Opaque<P, Out>;
-#[apply(lazy)]
-pub type _Opaque<P, Out> = uint::From<InternalOp!(uint::From<P>, Opaque<Out>)>;
+pub type Opaque<P, Out> = real::_Opaque<P, Out>;
 
 #[test]
 fn opaqueness_tests() {

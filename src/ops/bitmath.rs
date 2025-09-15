@@ -1,8 +1,11 @@
 use super::*;
 
-#[apply(lazy)]
+/// Type-level bitwise AND.
+#[doc(alias = "&")]
+#[apply(opaque! bit_and::_BitAnd)]
+#[apply(test_op! test_bit_and, L & R)]
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
-pub type BitAndL<L, R> = If<
+pub type BitAnd<L, R> = If<
     L,
     // Because L is the result of appending LP to LH (and the same thing for R), and
     // LP and RP are suffixes of equal bit length (1), we have
@@ -10,70 +13,55 @@ pub type BitAndL<L, R> = If<
     // L & R = (2 * LH + LP) & (2 * RH + RP) = 2 * (LH & RH) + (RH & RP)
     AppendBit<
         //
-        BitAndL<H<R>, H<L>>, // LH & RH = RH & LH, switching will terminate faster
-        AndSC<P<L>, P<R>>,
+        _BitAnd<_H<R>, _H<L>>, // LH & RH = RH & LH, switching will terminate faster
+        _AndSC<_P<L>, _P<R>>,
     >,
     // 0 & R = 0
     _0,
 >;
 
-/// Type-level bitwise AND.
-#[apply(opaque)]
-#[apply(test_op! test_bit_and, L & R)]
-#[doc(alias = "&")]
-pub type BitAnd<L, R> = BitAndL<L, R>;
-
-#[apply(lazy)]
-pub type BitOrL<L, R> = If<
+/// Type-level bitwise OR.
+#[doc(alias = "|")]
+#[apply(opaque! bit_or::_BitOr)]
+#[apply(test_op! test_bit_or, L | R)]
+pub type BitOr<L, R> = If<
     L,
     // This works by analogy with BitAnd
     AppendBit<
         //
-        BitOrL<H<R>, H<L>>,
-        OrSC<P<L>, P<R>>,
+        _BitOr<_H<R>, _H<L>>,
+        _OrSC<_P<L>, _P<R>>,
     >,
     // 0 | R = R
     R,
 >;
 
-/// Type-level bitwise OR.
-#[apply(opaque)]
-#[apply(test_op! test_bit_or, L | R)]
-#[doc(alias = "|")]
-pub type BitOr<L, R> = BitOrL<L, R>;
-
-#[apply(lazy)]
-pub type BitXorL<L, R> = If<
+/// Type-level bitwise XOR.
+#[doc(alias = "^")]
+#[apply(opaque! bit_xor::_BitXor)]
+#[apply(test_op! test_bit_xor, L ^ R)]
+pub type BitXor<L, R> = If<
     L,
     // This works by analogy with BitAnd
     AppendBit<
         //
-        BitXorL<H<R>, H<L>>,
-        Xor<P<L>, P<R>>,
+        _BitXor<_H<R>, _H<L>>,
+        _Xor<_P<L>, _P<R>>,
     >,
     // 0 ^ R = R
     R,
 >;
 
-/// Type-level bitwise XOR.
-#[apply(opaque)]
-#[apply(test_op! test_bit_xor, L ^ R)]
-#[doc(alias = "^")]
-pub type BitXor<L, R> = BitXorL<L, R>;
-
-#[apply(lazy)]
-pub type CountOnesL<N> = If<
+/// Type-level [`count_ones`](u128::count_ones).
+#[apply(opaque! count_ones::_CountOnes)]
+#[apply(test_op! test_count_ones, N.count_ones().into())]
+pub type CountOnes<N> = If<
     //
     N,
-    add::IncIfL<
+    add::_PlusBit<
         //
-        CountOnesL<H<N>>,
-        P<N>,
+        _CountOnes<_H<N>>,
+        _P<N>,
     >,
     _0,
 >;
-
-/// Type-level [`u128::count_ones`].
-#[apply(opaque)]
-#[apply(test_op! test_count_ones, N.count_ones().into())]
-pub type CountOnes<N> = CountOnesL<N>;

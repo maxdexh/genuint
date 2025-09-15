@@ -1,13 +1,21 @@
 use super::*;
 
 // DoubleIf(N, C) := if C { 2 * N } else { N }
-type DoubleIfL<N, C> = If<C, AppendBit<N, _0>, N>;
+type _DoubleIf<N, C> = If<C, AppendBit<N, _0>, N>;
 
+/// Type-level left bitshift.
+#[doc(alias = "<<")]
+#[apply(opaque! shl::_Shl)]
+#[apply(test_op!
+    test_shl,
+    L << R,
+    ..,
+    ..=15,
+)]
 // Shl(L, R) := L << R = L * Pow(2, R)
 //
 // R = 2 * H + P, H = H(R), P = P(R)
-#[apply(lazy)]
-pub type ShlL<L, R> = If<
+pub type Shl<L, R> = If<
     R,
     //   Shl(L, R)
     // = Shl(L, 2 * H + P)
@@ -16,34 +24,31 @@ pub type ShlL<L, R> = If<
     // = L * Pow(2, H) * Pow(2, H) * Pow(2, P)
     // = if P { 2 * Shl(Shl(L, H), H) } else { Shl(Shl(L, H), H) }
     // = DoubleIf(Shl(Shl(L, H), H), P)
-    DoubleIfL<
+    _DoubleIf<
         //
-        ShlL<ShlL<L, H<R>>, H<R>>,
-        P<R>,
+        _Shl<_Shl<L, _H<R>>, _H<R>>,
+        _P<R>,
     >,
     // Shl(L, 0) = L
     L,
 >;
 
-/// Type-level left bitshift.
-#[doc(alias = "<<")]
-#[apply(opaque)]
-#[apply(test_op!
-    test_shl,
-    L << R,
-    ..,
-    ..=15,
-)]
-pub type Shl<L, R> = ShlL<L, R>;
-
 // HalfIf(N, C) := if C { H(N) } else { N }
 type HalfIfL<N, C> = If<C, Half<N>, N>;
 
+/// Type-level right bitshift.
+#[doc(alias = ">>")]
+#[apply(opaque! shr::_Shr)]
+#[apply(test_op!
+    test_shr,
+    L >> R,
+    ..,
+    ..=15,
+)]
 // Shr(L, R) := L >> R = L / Pow(2, R)
 //
 // R = 2 * H + P, H = H(R), P = P(R)
-#[apply(lazy)]
-pub type ShrL<L, R> = If<
+pub type Shr<L, R> = If<
     R,
     //   Shr(L, R)
     // = Shr(L, 2 * H + P)
@@ -54,19 +59,8 @@ pub type ShrL<L, R> = If<
     // = HalfIf(Shr(Shr(L, H), H), P)
     HalfIfL<
         //
-        ShrL<ShrL<L, H<R>>, H<R>>,
-        P<R>,
+        _Shr<_Shr<L, _H<R>>, _H<R>>,
+        _P<R>,
     >,
     L,
 >;
-
-/// Type-level right bitshift.
-#[doc(alias = ">>")]
-#[apply(opaque)]
-#[apply(test_op!
-    test_shr,
-    L >> R,
-    ..,
-    ..=15,
-)]
-pub type Shr<L, R> = ShrL<L, R>;

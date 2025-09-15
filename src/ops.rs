@@ -22,6 +22,21 @@ macro_rules! lazy {
             type ToUint = $crate::uint::From<$val>;
         }
     };
+    (
+        ($mod:ident)
+        $(#[$attr:meta])*
+        $v:vis type $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty;
+    ) => {
+        mod $mod {
+            use super::*;
+            $(#[$attr])*
+            pub struct $name<$($param $(= $def)?),*>($($param),*);
+            impl<$($param: $crate::ToUint),*> $crate::ToUint for $name<$($param),*> {
+                type ToUint = $crate::uint::From<$val>;
+            }
+        }
+        $v use $mod::*;
+    };
 }
 pub(crate) use lazy;
 
@@ -35,28 +50,32 @@ macro_rules! __make_opaque {
 }
 pub(crate) use __make_opaque;
 
-// TODO: annotate lazy instead with name of opaque
 macro_rules! opaque {
     (
         $(())?
         $(#[$attr:meta])*
         pub type $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty;
     ) => {
-        #[$crate::utils::apply($crate::ops::lazy)]
-        $(#[$attr])*
-        pub type $name<$($param $(= $def)?),*> = $crate::ops::__make_opaque!($($param)*, $val);
+        $crate::ops::lazy! {
+            $(#[$attr])*
+            pub type $name<$($param $(= $def)?),*> = $crate::ops::__make_opaque!($($param)*, $val);
+        }
     };
     (
-        ($with_lazy:ident)
+        ($mod:ident::$non_opaque:ident)
         $(#[$attr:meta])*
-        pub type $name:ident<$($param:ident $(= $def:ty)?),* $(,)?> = $val:ty;
+        pub type $name:ident<$($param:ident),* $(,)?> = $val:ty;
     ) => {
-        #[$crate::utils::apply($crate::ops::lazy)]
-        pub type $with_lazy<$($param),*> = $val;
+        mod $mod {
+            use super::*;
+            #[$crate::utils::apply($crate::ops::lazy)]
+            pub type $non_opaque<$($param),*> = $val;
+        }
+        pub(crate) use $mod::*;
 
         $crate::ops::opaque! {
             $(#[$attr])*
-            pub type $name<$($param $(= $def)?),*> = $with_lazy<$($param),*>;
+            pub type $name<$($param),*> = $non_opaque<$($param),*>;
         }
     };
 }
@@ -84,39 +103,33 @@ mod helper;
 pub(crate) use helper::*;
 
 mod trivial;
-pub use trivial::{IsTruthy, IsZero};
-
-mod satdec;
+pub use trivial::*;
 
 mod testing;
 
 mod bitmath;
-pub use bitmath::{BitAnd, BitOr, BitXor, CountOnes};
+pub use bitmath::*;
 
 mod log;
-pub use log::{BaseLen, ILog};
+pub use log::*;
 
 mod add;
-pub use add::Add;
+pub use add::*;
 
 mod mul;
-pub use mul::Mul;
+pub use mul::*;
 
 mod cmp;
-pub use cmp::{Eq, Ge, Gt, Le, Lt, Max, Min, Ne};
+pub use cmp::*;
 
 mod sub;
-pub use sub::{AbsDiff, SatSub};
+pub use sub::*;
 
 mod divrem;
-pub use divrem::{Div, Rem};
+pub use divrem::*;
 
 mod shift;
-pub use shift::{Shl, Shr};
+pub use shift::*;
 
 mod pow;
-pub use pow::Pow;
-
-#[cfg(any(test, doctest, doc))]
-#[doc(hidden)]
-pub mod _opaque_tests {}
+pub use pow::*;

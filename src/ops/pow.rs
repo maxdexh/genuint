@@ -1,38 +1,46 @@
 use super::*;
 
 // Quad(N) := 4 * N
-type QuadL<N> = AppendBit<AppendBit<N, _0>, _0>;
+type _Quad<N> = AppendBit<AppendBit<N, _0>, _0>;
 
 // N = 2 * H + P, H = H(N), P = P(N)
 //
 // Square(N) := Pow(N, 2) = N * N
-#[apply(lazy)]
-pub type SquareL<N> = If<
+#[apply(lazy! square)]
+type _Square<N> = If<
     N,
     If<
-        P<N>,
+        _P<N>,
         // P = 1
         // Pow(N, 2) = Pow(2 * H + 1, 2) = 4 * Pow(H, 2) + 4 * H + 1
-        add::AddL<
+        add::_Add<
             //
-            QuadL<SquareL<H<N>>>,
-            QuadL<H<N>>,
+            _Quad<_Square<_H<N>>>,
+            _Quad<_H<N>>,
             _1,
         >,
         // P = 0
         // Pow(N, 2) = Pow(2 * H, 2) = 4 * Pow(H, 2)
-        QuadL<SquareL<H<N>>>,
+        _Quad<_Square<_H<N>>>,
     >,
     // Pow(0, 2) = 0
     _0,
 >;
 
 // MulIf(N, F, C) := if C { N * F } else { N }
-type MulIfL<N, F, C> = If<C, mul::MulL<F, N>, N>;
+type _MulIf<N, F, C> = If<C, _Mul<F, N>, N>;
 
+/// Type-level exponentiation
+#[apply(opaque! pow_impl::_Pow)]
+#[apply(test_op!
+    test_pow,
+    B.pow(E.try_into().unwrap()),
+    ..,
+    // Cap the exponent at 10 for tests
+    ..=10,
+)]
 // E = 2 * H + P, H = H(E), P = P(E)
-#[apply(lazy)]
-pub type PowL<B, E> = If<
+pub type Pow<B, E> = If<
     E,
     //   Pow(B, E)
     // = Pow(B, 2 * H + P)
@@ -40,22 +48,12 @@ pub type PowL<B, E> = If<
     // = Square(Pow(B, H)) * if P { B } else { 1 }
     // = if P { Square(Pow(B, H)) * B } else { Square(Pow(B, H)) }
     // = MulIf(Square(Pow(B, H)), B, P)
-    MulIfL<
+    _MulIf<
         //
-        PowL<SquareL<B>, H<E>>,
+        _Pow<_Square<B>, _H<E>>,
         B,
-        P<E>,
+        _P<E>,
     >,
     // Pow(B, 0) = 1 (including if B = 0)
     _1,
 >;
-
-/// Type-level exponentiation
-#[apply(opaque)]
-#[apply(test_op!
-    test_pow,
-    B.pow(E.try_into().unwrap()),
-    ..,
-    ..=10,
-)]
-pub type Pow<B, E> = PowL<B, E>;
