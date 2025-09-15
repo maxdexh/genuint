@@ -83,6 +83,9 @@ pub use primitives::{AppendBit, Half, If, Opaque, Parity};
 mod helper;
 pub(crate) use helper::*;
 
+mod trivial;
+pub use trivial::{IsTruthy, IsZero};
+
 mod satdec;
 
 mod testing;

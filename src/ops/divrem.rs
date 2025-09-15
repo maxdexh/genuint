@@ -47,7 +47,7 @@ pub type DivUncheckedL<L, R> = If<
     AppendBit<
         //
         DivUncheckedL<H<L>, R>,
-        BitNot<cmp::LtL<URemL<L, R>, R>>,
+        IsZero<cmp::LtL<URemL<L, R>, R>>,
     >,
     _0,
 >;

@@ -1,7 +1,7 @@
 use super::*;
 
 #[apply(lazy)]
-pub type IncIfL<N, C = _1> = If<C, AppendBit<IncIfL<H<N>, P<N>>, BitNot<P<N>>>, N>;
+pub type IncIfL<N, C = _1> = If<C, AppendBit<IncIfL<H<N>, P<N>>, IsZero<P<N>>>, N>;
 
 #[apply(lazy)]
 // This is just binary addition.

@@ -32,7 +32,7 @@ pub type Eq<L, R> = EqL<L, R>;
 /// The result of this operation is either `0` or `1`.
 #[doc(alias = "!=")]
 #[apply(opaque)]
-pub type Ne<L, R> = BitNot<Eq<L, R>>;
+pub type Ne<L, R> = IsZero<Eq<L, R>>;
 
 #[apply(lazy)]
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
@@ -88,7 +88,7 @@ pub type Gt<L, R> = Lt<R, L>;
 /// The result of this operation is either `0` or `1`.
 #[doc(alias = ">=")]
 #[apply(opaque! GeL)]
-pub type Ge<L, R> = BitNot<Lt<L, R>>;
+pub type Ge<L, R> = IsZero<Lt<L, R>>;
 
 /// Type-level less-than-or-equal operator.
 ///
