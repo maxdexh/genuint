@@ -41,10 +41,11 @@ pub trait _Uint: _Arrays + 'static {
     type _AsBit: _Bit;
 }
 
+// Hide the implementation of TernRaw in the docs
 pub trait TernRawImpl {
     type Tern<T, F>;
 }
-impl<C: ToUint> TernRawImpl for C {
+impl<C: Uint> TernRawImpl for C {
     type Tern<T, F> = InternalOp!(C::ToUint, ::TernRaw<T, F>);
 }
 pub type TernRaw<C, T, F> = <C as TernRawImpl>::Tern<T, F>;

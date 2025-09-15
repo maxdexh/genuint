@@ -25,7 +25,7 @@ use crate::{ToUint, uint};
 /// This type's disadvantage compared to [`TernRaw`] are that it is not possible to use impls of
 /// `T` and `F` if `C` is generic, it does not play nicely with type inferrence, especially of
 /// `C` and that it can't have methods. Its "methods" are defined in the [`raw`] module.
-pub type TernRaw<Cond, True, False> = crate::internals::TernRaw<Cond, True, False>;
+pub type TernRaw<Cond, True, False> = crate::internals::TernRaw<uint::From<Cond>, True, False>;
 
 /// A [`Result`]-like type that only has ok or error instances, depending on a [`ToUint`] condition.
 ///
