@@ -31,32 +31,23 @@ pub trait _Uint: _Arrays + 'static {
 
     type TernRaw<T, F>;
 
-    type Ternary<T: ToUint, F: ToUint>: ToUint;
-    type Opaque<N: ToUint>: ToUint;
+    type Ternary<T: ToUint, F: ToUint>: _Uint;
+    type Opaque<N: ToUint>: _Uint;
 
-    type Half: Uint;
-    type Parity: Uint;
-    type AppendAsBit<B: Uint>: Uint;
+    type Half: _Uint;
+    type Parity: _Uint;
+    type AppendAsBit<B: Uint>: _Uint;
 
     type _AsBit: _Bit;
 }
-
-// Hide the implementation of TernRaw in the docs
-pub trait TernRawImpl {
-    type Tern<T, F>;
-}
-impl<C: Uint> TernRawImpl for C {
-    type Tern<T, F> = InternalOp!(C::ToUint, ::TernRaw<T, F>);
-}
-pub type TernRaw<C, T, F> = <C as TernRawImpl>::Tern<T, F>;
 
 impl _Uint for O {
     const IS_NONZERO: bool = false;
 
     type TernRaw<T, F> = F;
 
-    type Ternary<T: ToUint, F: ToUint> = F;
-    type Opaque<N: ToUint> = N;
+    type Ternary<T: ToUint, F: ToUint> = _Internals<F::ToUint>;
+    type Opaque<N: ToUint> = _Internals<N::ToUint>;
 
     type Half = _0;
     type Parity = _0;
@@ -69,8 +60,8 @@ impl _Uint for I {
 
     type TernRaw<T, F> = T;
 
-    type Ternary<T: ToUint, F: ToUint> = T;
-    type Opaque<N: ToUint> = N;
+    type Ternary<T: ToUint, F: ToUint> = _Internals<T::ToUint>;
+    type Opaque<N: ToUint> = _Internals<N::ToUint>;
 
     type Half = _0;
     type Parity = _1;
@@ -83,8 +74,8 @@ impl<Pre: _Pint, Last: _Bit> _Uint for A<Pre, Last> {
 
     type TernRaw<T, F> = T;
 
-    type Ternary<T: ToUint, F: ToUint> = T;
-    type Opaque<N: ToUint> = N;
+    type Ternary<T: ToUint, F: ToUint> = _Internals<T::ToUint>;
+    type Opaque<N: ToUint> = _Internals<N::ToUint>;
 
     type Half = Pre;
     type Parity = Last;
@@ -217,3 +208,12 @@ impl _Arrays for I {
 impl<Pre: _Pint, Pop: _Bit> _Arrays for A<Pre, Pop> {
     impl_body_bisect!(Pre, Pop);
 }
+
+// Hide the implementation of TernRaw in the docs
+pub trait TernRawImpl {
+    type Tern<T, F>;
+}
+impl<C: Uint> TernRawImpl for C {
+    type Tern<T, F> = InternalOp!(C::ToUint, ::TernRaw<T, F>);
+}
+pub type TernRaw<C, T, F> = <C as TernRawImpl>::Tern<T, F>;
