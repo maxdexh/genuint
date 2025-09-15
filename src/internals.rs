@@ -16,9 +16,9 @@ pub trait ArraySealed {}
 pub trait UintSealed: 'static {
     // Not public API
     #[doc(hidden)]
-    type __Ops: _Uint;
+    type __Internals: _Uint;
 }
-pub type _Internals<N> = <N as UintSealed>::__Ops;
+pub type _Internals<N> = <N as UintSealed>::__Internals;
 macro_rules! InternalOp {
     ($N:ty, $($item:tt)*) => {
         <crate::internals::_Internals<$N> as crate::internals::_Uint>$($item)*
@@ -98,10 +98,13 @@ impl<N: _Uint<_AsBit = Self>> _Bit for N {}
 pub trait _Pint: _Uint<_AsBit = I> {}
 impl<N: _Uint<_AsBit = I>> _Pint for N {}
 
+#[diagnostic::do_not_recommend]
 impl<N: _Uint> UintSealed for N {
-    type __Ops = N;
+    type __Internals = N;
 }
+#[diagnostic::do_not_recommend]
 impl<N: _Uint> Uint for N {}
+#[diagnostic::do_not_recommend]
 impl<N: _Uint> ToUint for N {
     type ToUint = Self;
 }
