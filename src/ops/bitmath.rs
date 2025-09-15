@@ -2,7 +2,7 @@ use super::*;
 
 #[apply(lazy)]
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
-pub type BitAndL<L, R> = Tern<
+pub type BitAndL<L, R> = If<
     L,
     // Because L is the result of appending LP to LH (and the same thing for R), and
     // LP and RP are suffixes of equal bit length (1), we have
@@ -24,7 +24,7 @@ pub type BitAndL<L, R> = Tern<
 pub type BitAnd<L, R> = BitAndL<L, R>;
 
 #[apply(lazy)]
-pub type BitOrL<L, R> = Tern<
+pub type BitOrL<L, R> = If<
     L,
     // This works by analogy with BitAnd
     AppendBit<
@@ -43,7 +43,7 @@ pub type BitOrL<L, R> = Tern<
 pub type BitOr<L, R> = BitOrL<L, R>;
 
 #[apply(lazy)]
-pub type BitXorL<L, R> = Tern<
+pub type BitXorL<L, R> = If<
     L,
     // This works by analogy with BitAnd
     AppendBit<
@@ -62,7 +62,7 @@ pub type BitXorL<L, R> = Tern<
 pub type BitXor<L, R> = BitXorL<L, R>;
 
 #[apply(lazy)]
-pub type CountOnesL<N> = Tern<
+pub type CountOnesL<N> = If<
     //
     N,
     add::IncIfL<

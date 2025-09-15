@@ -1,98 +1,91 @@
 #![allow(clippy::use_self)]
 
-use crate::{ToUint, Uint, array::Array};
+use crate::{
+    ToUint, Uint,
+    array::Array,
+    uimpl::{_0, _1, A},
+};
 
-// Alias so other modules do not have to refer to internals directly, which may change
-pub(crate) type _0 = O;
-pub(crate) type _1 = I;
+// NOTE: items from this module with names starting with _,
+// except the above, are not meant to be used from anywhere
+// but this module. This includes associated items.
 
-pub struct I;
-pub struct O;
-
-pub struct A<H, P>(H, P);
-
-pub trait ArraySealed {}
-
-pub trait UintSealed: 'static {
-    // Not public API
-    #[doc(hidden)]
-    type __Internals: _Uint;
+pub trait _Tern {
+    type _Tern<T, F>;
 }
-pub type _Internals<N> = <N as UintSealed>::__Internals;
+impl<C: Uint> _Tern for C {
+    type _Tern<T, F> = InternalOp!(C::ToUint, TernRaw<T, F>);
+}
+pub type TernRaw<C, T, F> = <C as _Tern>::_Tern<T, F>;
+
+pub type _Internals<N> = <N as UintSealed>::__Uint;
 macro_rules! InternalOp {
     ($N:ty, $($item:tt)*) => {
-        <crate::internals::_Internals<$N> as crate::internals::_Uint>$($item)*
+        <crate::internals::_Internals<$N> as crate::internals::_Uint>::$($item)*
     };
 }
 pub(crate) use InternalOp;
 
+pub trait ArraySealed {}
+
+// Map the intenral API to the public one using an
+// undocumented associated type. Since _Uint is in
+// a private module, __Internals cannot be used to
+// access the operations.
+pub trait UintSealed: 'static {
+    // Not public API
+    #[doc(hidden)]
+    type __Uint: _Uint;
+}
 pub trait _Uint: _Arrays + 'static {
     const IS_NONZERO: bool;
 
+    // This needs to evaluate directly to `T` or `F` because it is observable
+    // for generic `T` and `F` (not that one could do anything else, since there
+    // are no trait bounds)
     type TernRaw<T, F>;
 
-    type Ternary<T: ToUint, F: ToUint>: _Uint;
-    type Opaque<N: ToUint>: _Uint;
+    // These are exposed only through structs implementing ToUint, so we can
+    // do the ToUint conversion on the result here directly. This has the
+    // advantage of making errors more readable, since if this was `: ToUint`,
+    // then `uint::From<If<C, T, F>>` would normalize to
+    // <<< C as UintSealed>::__Uint
+    //       as _Uint>::IfImpl<T, F>
+    //       as ToUint>::ToUint
+    // Converting to `Uint` here removes the final `ToUint` conversion.
+    //
+    // WARN: Do not project to _Uint early, since that would cause
+    // `uint::From<If<_1, T, F>>` (T: Uint) to normalize to
+    // `<T as UintSealed>::__Uint`, rather than `T`.
+    type If<T: ToUint, F: ToUint>: Uint;
+    type Opaque<N: ToUint>: Uint;
 
+    // Opaque in all arguments, including `Self`. Thus it's safe to return
+    // _Uint directly, to save some projections.
+    // This makes errors more readable, e.g. `uint::From<Half<Half<N>>>`
+    // (N: Uint) normalizes to
+    // <<< N as UintSealed>::__Uint
+    //       as _Uint>::Half
+    //       as _Uint>::Half
+    // Without having to project to _Uint for the second primitive operation.
     type Half: _Uint;
     type Parity: _Uint;
-    type AppendAsBit<B: Uint>: _Uint;
+    type AppendMeAsBit<N: Uint>: _Uint;
 
-    type _AsBit: _Bit;
+    // AppendBit<N, P> has to project through N and P to make the operation
+    // opaque with respect to both, so simply implementing with a helper
+    // `_ToBit: _Bit` doesn't work, because `uint::From<Half<AppendBit<Const, P>>>`
+    // would normalize to `Const`.
+    type _DirectAppend<B: _Bit>: _Uint;
 }
 
-impl _Uint for O {
-    const IS_NONZERO: bool = false;
-
-    type TernRaw<T, F> = F;
-
-    type Ternary<T: ToUint, F: ToUint> = _Internals<F::ToUint>;
-    type Opaque<N: ToUint> = _Internals<N::ToUint>;
-
-    type Half = _0;
-    type Parity = _0;
-    type AppendAsBit<B: Uint> = InternalOp!(B, ::_AsBit);
-
-    type _AsBit = Self;
-}
-impl _Uint for I {
-    const IS_NONZERO: bool = true;
-
-    type TernRaw<T, F> = T;
-
-    type Ternary<T: ToUint, F: ToUint> = _Internals<T::ToUint>;
-    type Opaque<N: ToUint> = _Internals<N::ToUint>;
-
-    type Half = _0;
-    type Parity = _1;
-    type AppendAsBit<B: Uint> = A<Self, InternalOp!(B, ::_AsBit)>;
-
-    type _AsBit = Self;
-}
-impl<Pre: _Pint, Last: _Bit> _Uint for A<Pre, Last> {
-    const IS_NONZERO: bool = true;
-
-    type TernRaw<T, F> = T;
-
-    type Ternary<T: ToUint, F: ToUint> = _Internals<T::ToUint>;
-    type Opaque<N: ToUint> = _Internals<N::ToUint>;
-
-    type Half = Pre;
-    type Parity = Last;
-    type AppendAsBit<B: Uint> = A<Self, InternalOp!(B, ::_AsBit)>;
-
-    type _AsBit = I;
-}
-
-pub trait _Bit: _Uint<_AsBit = Self> {}
-impl<N: _Uint<_AsBit = Self>> _Bit for N {}
-
-pub trait _Pint: _Uint<_AsBit = I> {}
-impl<N: _Uint<_AsBit = I>> _Pint for N {}
+//
+pub trait _Pint: _Uint {}
+pub trait _Bit: _Uint {}
 
 #[diagnostic::do_not_recommend]
 impl<N: _Uint> UintSealed for N {
-    type __Internals = N;
+    type __Uint = N;
 }
 #[diagnostic::do_not_recommend]
 impl<N: _Uint> Uint for N {}
@@ -100,6 +93,62 @@ impl<N: _Uint> Uint for N {}
 impl<N: _Uint> ToUint for N {
     type ToUint = Self;
 }
+
+// 0
+impl _Bit for _0 {}
+impl _Uint for _0 {
+    const IS_NONZERO: bool = false;
+
+    type TernRaw<T, F> = F;
+
+    type If<T: ToUint, F: ToUint> = F::ToUint;
+    type Opaque<N: ToUint> = N::ToUint;
+
+    type Half = _0;
+    type Parity = _0;
+
+    type AppendMeAsBit<N: Uint> = InternalOp!(N, _DirectAppend<Self>);
+    type _DirectAppend<B: _Bit> = B;
+}
+
+// 1
+impl _Bit for _1 {}
+impl _Pint for _1 {}
+impl _Uint for _1 {
+    const IS_NONZERO: bool = true;
+
+    type TernRaw<T, F> = T;
+
+    type If<T: ToUint, F: ToUint> = T::ToUint;
+    type Opaque<N: ToUint> = N::ToUint;
+
+    type Half = _0;
+    type Parity = _1;
+
+    type AppendMeAsBit<N: Uint> = InternalOp!(N, _DirectAppend<Self>);
+    type _DirectAppend<B: _Bit> = A<Self, B>;
+}
+
+// 2 * N + B where N > 0, B <= 1. Together with 0 and 1, this covers
+// all non-negative integers.
+impl<Pre: _Pint, Last: _Bit> _Pint for A<Pre, Last> {}
+impl<Pre: _Pint, Last: _Bit> _Uint for A<Pre, Last> {
+    const IS_NONZERO: bool = true;
+
+    type TernRaw<T, F> = T;
+
+    type If<T: ToUint, F: ToUint> = T::ToUint;
+    type Opaque<N: ToUint> = N::ToUint;
+
+    type Half = Pre;
+    type Parity = Last;
+
+    type AppendMeAsBit<N: Uint> = InternalOp!(N, _DirectAppend<_1>);
+    type _DirectAppend<B: _Bit> = A<Self, B>;
+}
+
+// Array internals. Expressed through a supertrait of _Uint so that it can be generated more
+// easily, and extended by future special traits like `Freeze`.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ArrBisect<A, P>(A, A, P);
@@ -199,21 +248,12 @@ gen_arr_internals![
     ],
     ArrApi,
 ];
-impl _Arrays for O {
+impl _Arrays for _0 {
     impl_body_zero!();
 }
-impl _Arrays for I {
+impl _Arrays for _1 {
     impl_body_one!();
 }
 impl<Pre: _Pint, Pop: _Bit> _Arrays for A<Pre, Pop> {
     impl_body_bisect!(Pre, Pop);
 }
-
-// Hide the implementation of TernRaw in the docs
-pub trait TernRawImpl {
-    type Tern<T, F>;
-}
-impl<C: Uint> TernRawImpl for C {
-    type Tern<T, F> = InternalOp!(C::ToUint, ::TernRaw<T, F>);
-}
-pub type TernRaw<C, T, F> = <C as TernRawImpl>::Tern<T, F>;

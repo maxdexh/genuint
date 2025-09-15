@@ -31,7 +31,7 @@ const fn to_umax_overflowing<N: Uint>() -> (Umax, bool) {
 
 /// Returns whether `N::ToUint` is nonzero.
 pub const fn to_bool<N: ToUint>() -> bool {
-    crate::internals::InternalOp!(N::ToUint, ::IS_NONZERO)
+    crate::internals::InternalOp!(N::ToUint, IS_NONZERO)
 }
 /// Returns the decimal representation of `N::ToUint` for arbitrarily large `N`.
 pub const fn to_str<N: ToUint>() -> &'static str {

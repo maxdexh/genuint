@@ -8,7 +8,7 @@ use super::*;
 // We also assume L <= R + C. For all other inputs, we do not care about the result.
 //
 // USub(L, R, C) := L - R - C
-pub type USubL<L, R, C = _0> = Tern<
+pub type USubL<L, R, C = _0> = If<
     R,
     //   L - R - C
     // = 2 * HL + PL - (2 * HR + PR) - C
@@ -32,7 +32,7 @@ pub type USubL<L, R, C = _0> = Tern<
             H<R>,
             // Because CC is -(X / 2) using floor division, we have X / 2 < 0  iff  X < 0.
             // Thus, CC = 1  iff  CC > 0  iff  X / 2 < 0  iff  X < 0  iff  PL < PR + C
-            Tern<
+            If<
                 P<L>,
                 // PL = 1, so CC = 1  iff  1 < PR + C  iff  PR = 1 and C = 1  iff  And(PR, C) = 1
                 AndSC<P<R>, C>,
@@ -54,7 +54,7 @@ pub type USubL<L, R, C = _0> = Tern<
 #[apply(opaque)]
 #[apply(test_op! test_abs_diff, L.abs_diff(R))]
 // AbsDiff(L, R) := |L - R| = if L < R { R - L } else { L - R }
-pub type AbsDiff<L, R> = Tern<
+pub type AbsDiff<L, R> = If<
     //
     cmp::LtL<L, R>,
     USubL<R, L>,
@@ -64,7 +64,7 @@ pub type AbsDiff<L, R> = Tern<
 /// Type-level [`u128::saturating_sub`].
 #[apply(opaque)]
 #[apply(test_op! test_sat_sub, L.saturating_sub(R))]
-pub type SatSub<L, R> = Tern<
+pub type SatSub<L, R> = If<
     //
     cmp::LtL<R, L>,
     USubL<L, R>,

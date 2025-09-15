@@ -23,6 +23,44 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+// Hidden implementation details
+mod internals;
+mod uimpl;
+
+// Macro implementation details
+#[doc(hidden)]
+pub mod __mac;
+
+// internal utils
+mod const_fmt;
+mod maxint;
+mod utils;
+
+// Public API
+pub mod array;
+pub mod consts;
+pub mod ops;
+pub mod tern;
+pub mod tfun;
+pub mod uint;
+
+/// A type-level non-negative integer.
+///
+/// See the [crate level documentation](crate).
+///
+/// It is guaranteed (including to unsafe code) that there is a one-to-one correspondence between
+/// the non-negative integers and the set of types that implement this trait.
+pub trait Uint: ToUint<ToUint = Self> + 'static + internals::UintSealed {}
+
+/// A type that can be turned into a [`Uint`].
+///
+/// This is not only a conversion trait, but forms an important part in how most operations are
+/// implemented. See the [`ops`] module.
+pub trait ToUint {
+    #[allow(missing_docs)]
+    type ToUint: Uint;
+}
+
 /// Turns an integer literal into a [`Uint`].
 ///
 /// If you have a small constant value that is not a literal, use [`uint::FromU128`].
@@ -44,35 +82,3 @@ macro_rules! lit {
         $crate::__mac::__lit!(($l) $crate)
     };
 }
-
-mod internals;
-mod utils;
-
-/// A type-level non-negative integer.
-///
-/// See the [crate level documentation](crate).
-///
-/// It is guaranteed (including to unsafe code) that there is a one-to-one correspondence between
-/// the non-negative integers and the set of types that implement this trait.
-pub trait Uint: ToUint<ToUint = Self> + 'static + internals::UintSealed {}
-
-/// A type that can be turned into a [`Uint`].
-///
-/// TODO: Something something lazy uints refer to ops docs
-pub trait ToUint {
-    #[allow(missing_docs)]
-    type ToUint: Uint;
-}
-
-pub mod array;
-pub mod consts;
-pub mod ops;
-pub mod tern;
-pub mod tfun;
-pub mod uint;
-
-#[doc(hidden)]
-pub mod __mac;
-
-mod const_fmt;
-mod maxint;

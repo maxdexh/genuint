@@ -52,7 +52,7 @@ where
     E: Array<Item = T>,
 {
     type Item = T;
-    type Length = uint::From<crate::ops::Tern<C, O::Length, E::Length>>;
+    type Length = uint::From<crate::ops::If<C, O::Length, E::Length>>;
 }
 impl<C: Uint, T, O, E> ArraySealed for crate::tern::TernRes<C, O, E>
 where

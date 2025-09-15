@@ -15,7 +15,7 @@ macro_rules! generate_alias_cons {
         macro_rules! new_alias {
             ($name:ident, $val:literal, $ty:ty) => {
                 #[doc = core::concat!("Type-level `", $val, "`.")]
-                pub type $name = crate::uint::From<$ty>;
+                pub type $name = $ty;
                 $(#[doc(hidden)] impl crate::ToUint for $struct<$val> {
                     type ToUint = $name;
                 })*
@@ -55,12 +55,12 @@ macro_rules! new_byte_alias {
     };
 }
 
-new_byte_alias!(_0, 0, crate::internals::_0);
-new_byte_alias!(_1, 1, crate::internals::_1);
+new_byte_alias!(_0, 0, crate::uimpl::_0);
+new_byte_alias!(_1, 1, crate::uimpl::_1);
 
 macro_rules! bisect {
     ($name:ident, $val:expr, $half:ty, $parity:ty, $cb:ident) => {
-        $cb! { $name, $val, crate::ops::AppendBit<$half, $parity> }
+        $cb! { $name, $val, crate::uimpl::A<$half, $parity> }
     };
 }
 include!(concat!(env!("OUT_DIR"), "/consts.rs"));

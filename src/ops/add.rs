@@ -1,7 +1,7 @@
 use super::*;
 
 #[apply(lazy)]
-pub type IncIfL<N, C = _1> = Tern<C, AppendBit<IncIfL<H<N>, P<N>>, BitNot<P<N>>>, N>;
+pub type IncIfL<N, C = _1> = If<C, AppendBit<IncIfL<H<N>, P<N>>, BitNot<P<N>>>, N>;
 
 #[apply(lazy)]
 // This is just binary addition.
@@ -9,7 +9,7 @@ pub type IncIfL<N, C = _1> = Tern<C, AppendBit<IncIfL<H<N>, P<N>>, BitNot<P<N>>>
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R), C <= 1.
 //
 // Add(L, R, C) := L + R + C
-pub type AddL<L, R, C = _0> = Tern<
+pub type AddL<L, R, C = _0> = If<
     L,
     //   L + R + C
     // = (2 * LH + LP) + (2 * RH + RP) + C
@@ -26,7 +26,7 @@ pub type AddL<L, R, C = _0> = Tern<
             H<R>,
             // Since X = LP + RP + C <= 3, we have X / 2 being either 0 or 1,
             // and therefore X / 2 = 1 iff LP + RP + C >= 2, else X / 2 = 0.
-            Tern<
+            If<
                 //
                 P<L>,
                 // LP = 1, so LP + RP + C >= 2 iff RP + C >= 1 iff RP = 1 or  C = 1

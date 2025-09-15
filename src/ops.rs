@@ -7,7 +7,7 @@
 // - Remove unnecessary intermediate ops that were only used to lazify
 
 #[allow(unused)] // for docs
-use crate::Uint;
+use crate::{ToUint, Uint};
 use crate::{consts::*, internals::InternalOp, uint, utils::apply};
 
 macro_rules! lazy {
@@ -24,17 +24,6 @@ macro_rules! lazy {
     };
 }
 pub(crate) use lazy;
-
-/// Makes `Out` opaque with respect to a paramter `P`.
-///
-/// See the [module level documentation](self) for more details.
-///
-/// Note the order of the arguments! It is chosen to be this way so that when nesting multiple
-/// `Opaque`s (for multiple parameters), the output type is always at the end, which is a useful
-/// property to have when looking at the type through error messages or an lsp.
-// TODO: Try a type function based approach for opaqueness, i.e. have a
-// GAT ApplyOpaquely<F: TFunUint> = F::Apply<Self>
-pub type Opaque<P, Out> = _Opaque<P, Out>;
 
 macro_rules! __make_opaque {
     ($pop:ident $($param:ident)*, $out:ty) => {
@@ -88,66 +77,8 @@ macro_rules! test_op {
 }
 pub(crate) use test_op;
 
-/// More efficient implementation of [`Div<N, _2>`].
-///
-/// This is currently a primitive operation. When diretly passed to [`uint::From`], the
-/// compiler will probably normalize it to a type projection on an internal associated
-/// type of [`Uint`].
-// H(N) := N / 2
-pub type Half<N> = _Half<N>;
-
-/// More efficient implementation of [`Rem<N, _2>`].
-///
-/// This is currently a primitive operation.
-// P(N) := N % 2
-pub type Parity<N> = _Parity<N>;
-
-/// More efficient implementation of `Add<Mul<N, _2>, Tern<P, _1, _0>>`.
-///
-/// Equivalent to `2 * N + (P != 0) as _` in basic arithmetic or `(N << 1) | (P != 0) as _`
-/// in bit manipulation. This operation is useful for building the output of operations
-/// recursively bit-by-bit.
-///
-/// This is currently a primitive operation. When diretly passed to [`uint::From`], the
-/// compiler will probably normalize it to a type projection on an internal associated
-/// type of [`Uint`].
-pub type AppendBit<N, P> = _AppendBit<N, P>;
-
-/// If-else/Ternary operation.
-///
-/// If the first argument is nonzero, evaluates to the second argument, otherwise to the third.
-///
-/// This will only access ("evaluate") [`ToUint::ToUint`](crate::ToUint::ToUint) for the required
-/// argument. This means that this operation can be used for the exit condition of a recursive
-/// operation (see examples below).
-///
-/// This is currently a primitive operation. When diretly passed to [`uint::From`], the
-/// compiler will probably normalize it to a type projection on an internal associated
-/// type of [`Uint`].
-///
-/// # Examples
-/// Exiting from a recursive operation
-/// ```
-/// use generic_uint::{ToUint, ops, uint, lit};
-/// struct CountOnes<N, Acc = lit!(0)>(N, Acc);
-/// impl<N: ToUint, Acc: ToUint> ToUint for CountOnes<N, Acc> {
-///     type ToUint = uint::From<ops::Tern<
-///         N,
-///         CountOnes<
-///             uint::From<ops::Half<N>>,
-///             ops::Add<Acc, ops::Parity<N>>,
-///         >,
-///         Acc,
-///     >>;
-/// }
-/// assert_eq!(
-///     uint::to_u128::<CountOnes<lit!(0b1010101010101010101010)>>(),
-///     Some(11),
-/// );
-/// ```
-//
-// Tern(C, T, F) := if C { T } else { F }
-pub type Tern<C, T, F> = _Tern<C, T, F>;
+mod primitives;
+pub use primitives::{AppendBit, Half, If, Opaque, Parity};
 
 mod helper;
 pub(crate) use helper::*;
@@ -182,3 +113,11 @@ pub use shift::{Shl, Shr};
 
 mod pow;
 pub use pow::Pow;
+
+#[cfg(test)]
+#[doc(hidden)]
+pub const fn _type_eq_chk<A, B>()
+where
+    core::iter::Once<A>: Iterator<Item = B>,
+{
+}

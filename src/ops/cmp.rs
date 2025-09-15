@@ -7,7 +7,7 @@ use super::*;
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
 //
 // Eq(L, R) := Cond!(L == R)
-pub type EqL<L, R> = Tern<
+pub type EqL<L, R> = If<
     L,
     //     L = R
     // iff 2 * HL + PL = 2 * HR + PR
@@ -16,7 +16,7 @@ pub type EqL<L, R> = Tern<
     // iff And(Xnor(PL, PR), Eq(HL, HR)) = 1
     AndL<Xnor<P<L>, P<R>>, EqL<H<R>, H<L>>>,
     // case L = 0:  0 = R  iff  (if R { 0 } else { 1 }) = 1
-    Tern<R, _0, _1>,
+    If<R, _0, _1>,
 >;
 
 /// Type-level equality operator.
@@ -39,23 +39,23 @@ pub type Ne<L, R> = BitNot<Eq<L, R>>;
 //
 // LtByLast(L, R) := Cond!(HL = HR and PL = 0 and PR = 1)
 pub type LtByLastL<L, R> = AndSC<
-    Tern<P<L>, _0, P<R>>, // Cond!(not PL and PR)
-    EqL<H<L>, H<R>>,      // Cond!(HL = HR)
+    If<P<L>, _0, P<R>>, // Cond!(not PL and PR)
+    EqL<H<L>, H<R>>,    // Cond!(HL = HR)
 >;
 
 #[apply(lazy)]
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
 //
 // Lt(L, R) := Cond!(L < R)
-pub type LtL<L, R> = Tern<
+pub type LtL<L, R> = If<
     R,
-    Tern<
+    If<
         L,
         //     L < R
         // iff 2 * HL + PL < 2 * HR + PR
         // iff HL < HR or HL = HR and PL = 0 and PR = 1
         // iff Lt(HL, HR) = 1 or LtByLast(L, R) = 1
-        Tern<LtL<H<L>, H<R>>, _1, LtByLastL<L, R>>,
+        If<LtL<H<L>, H<R>>, _1, LtByLastL<L, R>>,
         // 0 < R is true because R = 0 was already checked
         _1,
     >,
@@ -100,8 +100,8 @@ pub type Le<L, R> = Ge<L, R>;
 
 /// Type-level `min` operator.
 #[apply(opaque! MinL)]
-pub type Min<L, R> = Tern<LtL<L, R>, R, L>;
+pub type Min<L, R> = If<LtL<L, R>, R, L>;
 
 /// Type-level `max` operator.
 #[apply(opaque! MaxL)]
-pub type Max<L, R> = Tern<LtL<L, R>, L, R>;
+pub type Max<L, R> = If<LtL<L, R>, L, R>;

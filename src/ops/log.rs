@@ -1,7 +1,7 @@
 use super::*;
 
 #[apply(lazy)]
-pub type ILogUncheckedL<B, N> = Tern<
+pub type ILogUncheckedL<B, N> = If<
     //
     cmp::LtL<N, B>,
     _0,
@@ -15,7 +15,7 @@ pub type ILogUncheckedL<B, N> = Tern<
 >;
 
 #[apply(lazy)]
-pub type ILogL<B, N> = Tern<
+pub type ILogL<B, N> = If<
     // Check B > 1 and N > 0
     AndSC<H<B>, N>,
     ILogUncheckedL<B, N>,
@@ -41,7 +41,7 @@ pub type ILogL<B, N> = Tern<
 pub type ILog<B, N> = ILogL<B, N>;
 
 #[apply(lazy)]
-pub type BaseLenL<B, N> = Tern<H<B>, Tern<N, add::IncIfL<ILogL<B, N>>, _1>, BaseLenL<B, N>>;
+pub type BaseLenL<B, N> = If<H<B>, If<N, add::IncIfL<ILogL<B, N>>, _1>, BaseLenL<B, N>>;
 
 /// Type-level version of `N.to_string().len()` in base `B`
 ///

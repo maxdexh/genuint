@@ -7,9 +7,9 @@ type QuadL<N> = AppendBit<AppendBit<N, _0>, _0>;
 //
 // Square(N) := Pow(N, 2) = N * N
 #[apply(lazy)]
-pub type SquareL<N> = Tern<
+pub type SquareL<N> = If<
     N,
-    Tern<
+    If<
         P<N>,
         // P = 1
         // Pow(N, 2) = Pow(2 * H + 1, 2) = 4 * Pow(H, 2) + 4 * H + 1
@@ -28,11 +28,11 @@ pub type SquareL<N> = Tern<
 >;
 
 // MulIf(N, F, C) := if C { N * F } else { N }
-type MulIfL<N, F, C> = Tern<C, mul::MulL<F, N>, N>;
+type MulIfL<N, F, C> = If<C, mul::MulL<F, N>, N>;
 
 // E = 2 * H + P, H = H(E), P = P(E)
 #[apply(lazy)]
-pub type PowL<B, E> = Tern<
+pub type PowL<B, E> = If<
     E,
     //   Pow(B, E)
     // = Pow(B, 2 * H + P)

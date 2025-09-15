@@ -2,7 +2,7 @@ use super::*;
 
 // SubIfGe(L, R) := if L >= R { L - R } else { L } = if L < R { L } else { L - R }
 #[apply(lazy)]
-pub type SubIfGeL<L, R> = Tern<
+pub type SubIfGeL<L, R> = If<
     //
     cmp::LtL<L, R>,
     L,
@@ -24,7 +24,7 @@ pub type URemInSL<L, R> = AppendBit<
 
 #[apply(lazy)]
 // 0 % R = 0. We also get L % R = URem(L, R) % R
-pub type URemL<L, R> = Tern<
+pub type URemL<L, R> = If<
     //
     L,
     URemInSL<L, R>,
@@ -41,7 +41,7 @@ pub type RemUncheckedL<L, R> = SubIfGeL<
 >;
 
 #[apply(lazy)]
-pub type DivUncheckedL<L, R> = Tern<
+pub type DivUncheckedL<L, R> = If<
     //
     L,
     AppendBit<
@@ -53,10 +53,10 @@ pub type DivUncheckedL<L, R> = Tern<
 >;
 
 #[apply(lazy)]
-pub type RemL<L, R> = Tern<R, RemUncheckedL<L, R>, RemL<L, R>>;
+pub type RemL<L, R> = If<R, RemUncheckedL<L, R>, RemL<L, R>>;
 
 #[apply(lazy)]
-pub type DivL<L, R> = Tern<R, DivUncheckedL<L, R>, DivL<L, R>>;
+pub type DivL<L, R> = If<R, DivUncheckedL<L, R>, DivL<L, R>>;
 
 /// Type-level remainder.
 ///

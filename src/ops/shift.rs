@@ -1,13 +1,13 @@
 use super::*;
 
 // DoubleIf(N, C) := if C { 2 * N } else { N }
-type DoubleIfL<N, C> = Tern<C, AppendBit<N, _0>, N>;
+type DoubleIfL<N, C> = If<C, AppendBit<N, _0>, N>;
 
 // Shl(L, R) := L << R = L * Pow(2, R)
 //
 // R = 2 * H + P, H = H(R), P = P(R)
 #[apply(lazy)]
-pub type ShlL<L, R> = Tern<
+pub type ShlL<L, R> = If<
     R,
     //   Shl(L, R)
     // = Shl(L, 2 * H + P)
@@ -37,13 +37,13 @@ pub type ShlL<L, R> = Tern<
 pub type Shl<L, R> = ShlL<L, R>;
 
 // HalfIf(N, C) := if C { H(N) } else { N }
-type HalfIfL<N, C> = Tern<C, Half<N>, N>;
+type HalfIfL<N, C> = If<C, Half<N>, N>;
 
 // Shr(L, R) := L >> R = L / Pow(2, R)
 //
 // R = 2 * H + P, H = H(R), P = P(R)
 #[apply(lazy)]
-pub type ShrL<L, R> = Tern<
+pub type ShrL<L, R> = If<
     R,
     //   Shr(L, R)
     // = Shr(L, 2 * H + P)

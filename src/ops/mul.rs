@@ -2,7 +2,7 @@ use super::*;
 
 // AddIf(C, L, R) := if C { L + R } else { R }
 //                 = L + if C { R } else { 0 }
-type AddIfL<C, L, R> = Tern<C, add::AddL<L, R>, L>;
+type AddIfL<C, L, R> = If<C, add::AddL<L, R>, L>;
 
 // Double(N) := 2 * N
 pub type Double<N> = AppendBit<N, _0>;
@@ -11,7 +11,7 @@ pub type Double<N> = AppendBit<N, _0>;
 // H := H(L), P := P(L)
 //
 // Mul(L, R) := L * R
-pub type MulL<L, R> = Tern<
+pub type MulL<L, R> = If<
     L,
     // L * R = (2 * H + P) * R
     //       = 2 * (H * R) + P * R
