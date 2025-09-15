@@ -51,12 +51,53 @@ pub type _If<C, T, F> = InternalOp!(uint::From<C>, If<T, F>);
 
 /// Makes `Out` opaque with respect to the value of a parameter `P`.
 ///
-/// Wrapping a public operation `<Op<A1, A2, ...> as ToUint>::ToUint = Val` as
-/// `Opaque<A1, Opaque<A2, Opaque<..., Op<A1, A2, ...>>>>` has the following effects:
-/// - It will cause the compiler to not recursively normalize operations with one
-///   (large) constant and one generic input, like
+/// This operation just evaluates to the same value as `Out`, but only after
+/// going through a projection via an internal associated [`Uint`] type on
+/// [`P::ToUint`](ToUint).
 ///
 /// See the [module level documentation](crate::ops) for details on opaqueness.
 pub type Opaque<P, Out> = _Opaque<P, Out>;
 #[apply(lazy)]
 pub type _Opaque<P, Out> = uint::From<InternalOp!(uint::From<P>, Opaque<Out>)>;
+
+#[test]
+fn opaqueness_tests() {
+    struct Wat<L, R, const CLAIM_EQ: bool>(L, R);
+    trait HasMethod {
+        const CONST: ();
+    }
+    // `Wat` has a trait const
+    impl<L, R, const CLAIM_EQ: bool> HasMethod for Wat<L, R, CLAIM_EQ> {
+        const CONST: () = assert!(!CLAIM_EQ);
+    }
+    // It also has an inherent method of the same name, but only if
+    // L and R are the same type! Inherent methods are resolved first,
+    // so this method is called if and only if the compiler can prove
+    // that L = R.
+    impl<L, const CLAIM_EQ: bool> Wat<L, L, CLAIM_EQ> {
+        // Check that equality was claimed
+        const CONST: () = assert!(CLAIM_EQ);
+    }
+    macro_rules! check_eq {
+        ($lhs:ty, $rhs:ty) => {
+            _ = Wat::<$lhs, $rhs, true>::CONST
+        };
+    }
+    macro_rules! check_neq {
+        ($lhs:ty, $rhs:ty) => {
+            _ = Wat::<$lhs, $rhs, false>::CONST
+        };
+    }
+    fn accept<A: ToUint, B: ToUint>() {
+        // types that are provably the same
+        check_eq!(uint::From<If<_1, A, B>>, uint::From<A>);
+        check_eq!(uint::From<If<_0, A, B>>, uint::From<B>);
+        check_eq!(uint::From<Opaque<_0, A>>, uint::From<A>);
+
+        // types that are not provably the same
+        check_neq!(uint::From<Opaque<B, A>>, uint::From<A>);
+        check_neq!(uint::From<Opaque<B, A>>, Opaque<A, A>);
+        check_neq!(uint::From<Half<AppendBit<_0, A>>>, _0);
+    }
+    accept::<_3, _7>();
+}

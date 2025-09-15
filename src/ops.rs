@@ -114,10 +114,6 @@ pub use shift::{Shl, Shr};
 mod pow;
 pub use pow::Pow;
 
-#[cfg(test)]
+#[cfg(any(test, doctest, doc))]
 #[doc(hidden)]
-pub const fn _type_eq_chk<A, B>()
-where
-    core::iter::Once<A>: Iterator<Item = B>,
-{
-}
+pub mod _opaque_tests {}
