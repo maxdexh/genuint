@@ -1,12 +1,15 @@
+#![allow(clippy::use_self)]
+
 use crate::{ToUint, Uint, array::Array};
 
-pub struct U<N>(N);
+// Alias so other modules do not have to refer to internals directly, which may change
+pub(crate) type _0 = O;
+pub(crate) type _1 = I;
+
 pub struct I;
 pub struct O;
 
-pub(crate) type _0 = U<O>;
-pub(crate) type _1 = U<I>;
-type A<H, P> = (H, P);
+pub struct A<H, P>(H, P);
 
 pub trait ArraySealed {}
 
@@ -16,6 +19,12 @@ pub trait UintSealed: 'static {
     type __Ops: _Uint;
 }
 pub type _Internals<N> = <N as UintSealed>::__Ops;
+macro_rules! InternalOp {
+    ($N:ty, $($item:tt)*) => {
+        <crate::internals::_Internals<$N> as crate::internals::_Uint>$($item)*
+    };
+}
+pub(crate) use InternalOp;
 
 pub trait _Uint: _Arrays + 'static {
     const IS_NONZERO: bool;
@@ -40,12 +49,6 @@ impl<C: ToUint> TernRawImpl for C {
 }
 pub type TernRaw<C, T, F> = <C as TernRawImpl>::Tern<T, F>;
 
-macro_rules! InternalOp {
-    ($N:ty, $($item:tt)*) => {
-        <crate::internals::_Internals<$N> as crate::internals::_Uint>$($item)*
-    };
-}
-pub(crate) use InternalOp;
 impl _Uint for O {
     const IS_NONZERO: bool = false;
 
@@ -56,7 +59,7 @@ impl _Uint for O {
 
     type Half = _0;
     type Parity = _0;
-    type AppendAsBit<B: Uint> = U<InternalOp!(B, ::_AsBit)>;
+    type AppendAsBit<B: Uint> = InternalOp!(B, ::_AsBit);
 
     type _AsBit = Self;
 }
@@ -70,7 +73,7 @@ impl _Uint for I {
 
     type Half = _0;
     type Parity = _1;
-    type AppendAsBit<B: Uint> = U<A<Self, InternalOp!(B, ::_AsBit)>>;
+    type AppendAsBit<B: Uint> = A<Self, InternalOp!(B, ::_AsBit)>;
 
     type _AsBit = Self;
 }
@@ -82,9 +85,9 @@ impl<Pre: _Pint, Last: _Bit> _Uint for A<Pre, Last> {
     type Ternary<T: ToUint, F: ToUint> = T;
     type Opaque<N: ToUint> = N;
 
-    type Half = U<Pre>;
-    type Parity = U<Last>;
-    type AppendAsBit<B: Uint> = U<A<Self, InternalOp!(B, ::_AsBit)>>;
+    type Half = Pre;
+    type Parity = Last;
+    type AppendAsBit<B: Uint> = A<Self, InternalOp!(B, ::_AsBit)>;
 
     type _AsBit = I;
 }
@@ -95,11 +98,11 @@ impl<N: _Uint<_AsBit = Self>> _Bit for N {}
 pub trait _Pint: _Uint<_AsBit = I> {}
 impl<N: _Uint<_AsBit = I>> _Pint for N {}
 
-impl<N: _Uint> UintSealed for U<N> {
+impl<N: _Uint> UintSealed for N {
     type __Ops = N;
 }
-impl<N: _Uint> Uint for U<N> {}
-impl<N: _Uint> ToUint for U<N> {
+impl<N: _Uint> Uint for N {}
+impl<N: _Uint> ToUint for N {
     type ToUint = Self;
 }
 #[repr(C)]
