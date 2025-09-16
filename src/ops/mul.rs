@@ -20,8 +20,11 @@ pub type Mul<L, R> = If<
     //       = 2 * (H * R) + if P { R } else { 0 }
     //       = AddIf(P, Double(H * R), R)
     _AddIf<
-        _P<L>, //
-        _Double<_Mul<_H<L>, R>>,
+        _P<L>,
+        _Double<
+            //
+            _Mul<_H<L>, R>,
+        >,
         R,
     >,
     // 0 * R = 0

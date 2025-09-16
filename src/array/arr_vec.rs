@@ -145,7 +145,7 @@ where
     /// ```
     /// use generic_uint::{array::*, uint};
     ///
-    /// type A = Arr<i32, uint::FromU128<10>>;
+    /// type A = Arr<i32, uint::lit!(10)>;
     /// assert_eq!(ArrVecApi::<A>::new(), []);
     /// ```
     pub const fn new() -> Self {

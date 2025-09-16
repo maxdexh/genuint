@@ -62,7 +62,12 @@ pub type Lt<L, R> = If<
         // iff 2 * HL + PL < 2 * HR + PR
         // iff HL < HR or HL = HR and PL = 0 and PR = 1
         // iff Lt(HL, HR) = 1 or LtByLast(L, R) = 1
-        If<_Lt<_H<L>, _H<R>>, _1, LtByLastL<L, R>>,
+        If<
+            //
+            _Lt<_H<L>, _H<R>>,
+            _1,
+            LtByLastL<L, R>,
+        >,
         // 0 < R is true because R = 0 was already checked
         _1,
     >,
@@ -85,7 +90,7 @@ pub type Gt<L, R> = Lt<R, L>;
 /// The result of this operation is either `0` or `1`.
 #[doc(alias = ">=")]
 #[apply(opaque! ge_impl::_Ge)]
-pub type Ge<L, R> = _IsZero<Lt<L, R>>;
+pub type Ge<L, R> = _IsZero<_Lt<L, R>>;
 
 /// Type-level less-than-or-equal operator.
 ///

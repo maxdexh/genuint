@@ -50,7 +50,7 @@ pub type Pow<B, E> = If<
     // = MulIf(Square(Pow(B, H)), B, P)
     _MulIf<
         //
-        _Pow<_Square<B>, _H<E>>,
+        _Square<_Pow<B, _H<E>>>,
         B,
         _P<E>,
     >,

@@ -1,18 +1,33 @@
 //! Utilities related to [`ToUint`] implementors.
 
-use crate::{
-    ToUint, Uint,
-    consts::{self, ConstU128, ConstUsize},
-    maxint::Umax,
-    ops, uint,
-};
+use crate::{ToUint, Uint, consts, maxint::Umax, ops, uint};
 
 /// Alias for [`ToUint::ToUint`].
 pub type From<N> = <N as ToUint>::ToUint;
-/// Composition of [`From`] with [`ConstUsize`].
-pub type FromUsize<const N: usize> = From<ConstUsize<N>>;
-/// Composition of [`From`] with [`ConstU128`].
-pub type FromU128<const N: u128> = From<ConstU128<N>>;
+
+/// Turns an integer literal into a [`Uint`].
+///
+/// If you have a small constant value that is not a literal, use [`uint::FromU128`].
+///
+/// # Examples
+/// ```
+/// #![recursion_limit = "1024"] // `lit!` doesn't recurse, the type is just long
+///
+/// use generic_uint::uint;
+/// assert_eq!(uint::to_u128::<uint::lit!(1)>(), Some(1));
+/// assert_eq!(
+///     uint::to_u128::<uint::lit!(100000000000000000000000000000)>(),
+///     Some(100000000000000000000000000000),
+/// )
+/// ```
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __lit {
+    ($l:literal) => {
+        $crate::uint::From<$crate::__mac::__lit!(($l) $crate)>
+    };
+}
+pub use __lit as lit;
 
 const fn to_umax_overflowing<N: Uint>() -> (Umax, bool) {
     // NOTE: This does unnecessary work. We only need to look at the last UMaxInt::BITS.

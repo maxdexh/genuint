@@ -45,7 +45,7 @@ tuple_impl! {
         Tuple
         impl<A, T> From<ArrApi<A>> for Tuple<T>
         where
-            A: Array<Item = T, Length = crate::uint::FromUsize<COUNT>>,
+            A: Array<Item = T, Length = crate::uint::From<crate::consts::ConstUsize<COUNT>>>,
         {
             fn from(value: ArrApi<A>) -> Self {
                 crate::array::ArrApi::retype::<[_; COUNT]>(value).into()
@@ -53,7 +53,7 @@ tuple_impl! {
         }
         impl<A, T> From<Tuple<T>> for ArrApi<A>
         where
-            A: Array<Item = T, Length = crate::uint::FromUsize<COUNT>>
+            A: Array<Item = T, Length = crate::uint::From<crate::consts::ConstUsize<COUNT>>>,
         {
             fn from(value: Tuple<T>) -> Self {
                 crate::array::ArrApi::retype_from(<[_; COUNT]>::from(value))

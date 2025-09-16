@@ -60,25 +60,3 @@ pub trait ToUint {
     #[allow(missing_docs)]
     type ToUint: Uint;
 }
-
-/// Turns an integer literal into a [`Uint`].
-///
-/// If you have a small constant value that is not a literal, use [`uint::FromU128`].
-///
-/// # Examples
-/// ```
-/// #![recursion_limit = "1024"] // `lit!` doesn't recurse, the type is just long
-///
-/// use generic_uint::{lit, uint};
-/// assert_eq!(uint::to_u128::<lit!(1)>(), Some(1));
-/// assert_eq!(
-///     uint::to_u128::<lit!(100000000000000000000000000000)>(),
-///     Some(100000000000000000000000000000),
-/// )
-/// ```
-#[macro_export]
-macro_rules! lit {
-    ($l:literal) => {
-        $crate::__mac::__lit!(($l) $crate)
-    };
-}

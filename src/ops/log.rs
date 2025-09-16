@@ -1,17 +1,17 @@
 use super::*;
 
+#[apply(lazy! unchecked_rec)]
+type _ILogUncheckedNormRec<B, N> = _ILogUnchecked<
+    B,
+    // Normalize recursive argument
+    uint::From<_DivUnchecked<N, B>>,
+>;
 #[apply(lazy! unchecked)]
-pub(crate) type _ILogUnchecked<B, N> = If<
+type _ILogUnchecked<B, N> = If<
     //
     _Lt<N, B>,
     _0,
-    _Inc<
-        _ILogUnchecked<
-            //
-            B,
-            _DivUnchecked<N, B>,
-        >,
-    >,
+    _Inc<_ILogUncheckedNormRec<B, N>>,
 >;
 
 /// Type-level [`ilog`](u128::ilog).

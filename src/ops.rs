@@ -111,11 +111,11 @@ macro_rules! opaque {
                 pub type $LazyBase<$($P $(= $Def)?),*> = $Val;
             }
             crate::ops::pub_lazy! {
+                $(#[$attr])*
                 pub type $Name<$($P $(= $Def)?),*> = crate::ops::VarOpaque!($LazyBase<$($P),*>);
             }
         }
-        $(#[$attr])*
-        $v type $Name<$($P $(= $Def)?),*> = $mod::$Name<$($P),*>;
+        $v use $mod::$Name;
     };
 }
 pub(crate) use opaque;

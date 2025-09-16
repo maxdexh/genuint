@@ -25,7 +25,7 @@ pub type Shl<L, R> = If<
     // = if P { 2 * Shl(Shl(L, H), H) } else { Shl(Shl(L, H), H) }
     // = DoubleIf(Shl(Shl(L, H), H), P)
     _DoubleIf<
-        //
+        // NOTE: Shl is slightly faster without normalizing the argument
         _Shl<_Shl<L, _H<R>>, _H<R>>,
         _P<R>,
     >,
@@ -58,7 +58,7 @@ pub type Shr<L, R> = If<
     // = if P { H(Shr(Shr(L, H), H)) } else { Shr(Shr(L, H), H) }
     // = HalfIf(Shr(Shr(L, H), H), P)
     HalfIfL<
-        //
+        // NOTE: Shr is slightly faster without normalizing the argument
         _Shr<_Shr<L, _H<R>>, _H<R>>,
         _P<R>,
     >,

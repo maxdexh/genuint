@@ -12,7 +12,7 @@ where
     crate::consts::ConstUsize<N>: crate::ToUint,
 {
     type Item = T;
-    type Length = crate::uint::FromUsize<N>;
+    type Length = crate::uint::From<crate::consts::ConstUsize<N>>;
 }
 impl<T, const N: usize> ArraySealed for [T; N] where crate::consts::ConstUsize<N>: crate::ToUint {}
 

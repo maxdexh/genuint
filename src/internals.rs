@@ -37,7 +37,7 @@ pub trait UintSealed: 'static {
     #[doc(hidden)]
     type __Uint: _Uint;
 }
-pub trait _Uint: _Arrays + 'static {
+pub trait _Uint: _UintArrs + 'static {
     const IS_NONZERO: bool;
 
     // This needs to evaluate directly to `T` or `F` because it is observable
@@ -221,7 +221,7 @@ macro_rules! gen_arr_internals {
 }
 use crate::array::ArrApi;
 gen_arr_internals![
-    _Arrays,
+    _UintArrs,
     [
         [
             _Arr,
@@ -248,12 +248,12 @@ gen_arr_internals![
     ],
     ArrApi,
 ];
-impl _Arrays for _0 {
+impl _UintArrs for _0 {
     impl_body_zero!();
 }
-impl _Arrays for _1 {
+impl _UintArrs for _1 {
     impl_body_one!();
 }
-impl<Pre: _Pint, Pop: _Bit> _Arrays for A<Pre, Pop> {
+impl<Pre: _Pint, Pop: _Bit> _UintArrs for A<Pre, Pop> {
     impl_body_bisect!(Pre, Pop);
 }

@@ -29,14 +29,17 @@ pub(crate) type _SubUnchecked<L, R, C = _0> = If<
         _SubUnchecked<
             _H<L>,
             _H<R>,
-            // Because CC is -(X / 2) using floor division, we have X / 2 < 0  iff  X < 0.
-            // Thus, CC = 1  iff  CC > 0  iff  X / 2 < 0  iff  X < 0  iff  PL < PR + C
-            If<
-                _P<L>,
-                // PL = 1, so CC = 1  iff  1 < PR + C  iff  PR = 1 and C = 1  iff  And(PR, C) = 1
-                _AndSC<_P<R>, C>,
-                // PL = 0, so CC = 1  iff  0 < PR + C  iff  PR = 1  or C = 1  iff   Or(PR, C) = 1
-                _OrSC<_P<R>, C>,
+            // Normalize recursive argument
+            uint::From<
+                // Because CC is -(X / 2) using floor division, we have X / 2 < 0  iff  X < 0.
+                // Thus, CC = 1  iff  CC > 0  iff  X / 2 < 0  iff  X < 0  iff  PL < PR + C
+                If<
+                    _P<L>,
+                    // PL = 1, so CC = 1  iff  1 < PR + C  iff  PR = 1 and C = 1  iff  And(PR, C) = 1
+                    _AndSC<_P<R>, C>,
+                    // PL = 0, so CC = 1  iff  0 < PR + C  iff  PR = 1  or C = 1  iff   Or(PR, C) = 1
+                    _OrSC<_P<R>, C>,
+                >,
             >,
         >,
         //   X % 2

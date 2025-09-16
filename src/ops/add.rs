@@ -36,17 +36,19 @@ pub(crate) type _CarryAdd<L, R, C = _0> = If<
     AppendBit<
         // LH + RH + X / 2
         _CarryAdd<
+            _H<R>, // swap args to converge faster
             _H<L>,
-            _H<R>,
-            // Since X = LP + RP + C <= 3, we have X / 2 being either 0 or 1,
-            // and therefore X / 2 = 1 iff LP + RP + C >= 2, else X / 2 = 0.
-            If<
-                //
-                _P<L>,
-                // LP = 1, so LP + RP + C >= 2 iff RP + C >= 1 iff RP = 1 or  C = 1
-                _OrSC<_P<R>, C>,
-                // LP = 0, so LP + RP + C >= 2 iff RP + C >= 2 iff RP = 1 and C = 1
-                _AndSC<_P<R>, C>,
+            // Normalize recursive argument
+            uint::From<
+                // Since X = LP + RP + C <= 3, we have X / 2 being either 0 or 1,
+                // and therefore X / 2 = 1 iff LP + RP + C >= 2, else X / 2 = 0.
+                If<
+                    _P<L>,
+                    // LP = 1, so LP + RP + C >= 2 iff RP + C >= 1 iff RP = 1 or  C = 1
+                    _OrSC<_P<R>, C>,
+                    // LP = 0, so LP + RP + C >= 2 iff RP + C >= 2 iff RP = 1 and C = 1
+                    _AndSC<_P<R>, C>,
+                >,
             >,
         >,
         // X % 2 is 1 iff X is odd, i.e. if an odd number of LP, RP, C are 1.
