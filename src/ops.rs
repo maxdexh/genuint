@@ -4,9 +4,8 @@
 
 // TODO:
 // - Optimize test speed; compare times against before lazification; analyze how types expand
-// - Remove unnecessary intermediate ops that were only used to lazify
 
-#[allow(unused)] // for docs
+#[expect(unused)] // for docs
 use crate::{ToUint, Uint};
 use crate::{consts::*, internals::InternalOp, uint, utils::apply};
 
