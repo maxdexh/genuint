@@ -1,5 +1,5 @@
 [package]
-name = "generic-uint-proc"
+name = "genuint-proc"
 version.workspace = true
 edition = "2024"
 

@@ -1,16 +1,16 @@
 [workspace]
 package.version = "0.1.0"
-members = ["generic-uint-proc"]
+members = ["proc"]
 
 [package]
 version.workspace = true
-name = "generic-uint"
+name = "genuint"
 edition = "2024"
 
 [dependencies]
 const-util = "2.2.0"
 type-const = "1.1.1"
-generic-uint-proc = { path = "generic-uint-proc" }
+genuint-proc = { path = "proc" }
 
 
 [features]

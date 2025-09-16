@@ -1,3 +1,3 @@
 pub mod arr;
 
-pub use generic_uint_proc::__lit;
+pub use genuint_proc::__lit;

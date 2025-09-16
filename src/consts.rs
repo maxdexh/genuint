@@ -36,7 +36,7 @@ generate_alias_cons! {
 /// That is to say that `ConstU8<N>: ToUint` for every `const N: u8` because there is an
 /// implementation for every single one, but this does not typecheck:
 /// ```compile_fail
-/// use generic_uint::{consts::ConstU8, ToUint};
+/// use genuint::{consts::ConstU8, ToUint};
 ///
 /// fn take_uint<N: ToUint>() {}
 /// fn every_u8_is_to_uint<const N: u8>() {

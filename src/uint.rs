@@ -13,7 +13,7 @@ pub type From<N> = <N as ToUint>::ToUint;
 /// ```
 /// #![recursion_limit = "1024"] // `lit!` doesn't recurse, the type is just long
 ///
-/// use generic_uint::uint;
+/// use genuint::uint;
 /// assert_eq!(uint::to_u128::<uint::lit!(1)>(), Some(1));
 /// assert_eq!(
 ///     uint::to_u128::<uint::lit!(100000000000000000000000000000)>(),

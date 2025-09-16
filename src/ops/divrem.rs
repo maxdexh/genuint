@@ -74,7 +74,7 @@ pub(crate) type _DivUnchecked<L, R> = If<
 /// Dividing by zero gives a "overflow while evaluating" error.
 ///
 /// ```compile_fail
-/// use generic_uint::{ops::Rem, uint, consts::*};
+/// use genuint::{ops::Rem, uint, consts::*};
 /// const _: fn(uint::From<Rem<_1, _0>>) = |_| {};
 /// ```
 #[doc(alias = "%")]
@@ -99,7 +99,7 @@ pub type Rem<L, R> = If<
 /// Dividing by zero gives a "overflow while evaluating" error.
 ///
 /// ```compile_fail
-/// use generic_uint::{ops::Div, uint, consts::*};
+/// use genuint::{ops::Div, uint, consts::*};
 /// const _: fn(uint::From<Div<_1, _0>>) = |_| {};
 /// ```
 #[doc(alias = "/")]

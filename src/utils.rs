@@ -1,5 +1,5 @@
 use core::{mem::MaybeUninit, ptr::NonNull};
-pub(crate) use generic_uint_proc::__apply as apply;
+pub(crate) use genuint_proc::__apply as apply;
 
 /// Performs the operation of moving the argument into a `repr(C)` union
 /// of `Src` and `Dst` and reading out `Dst`.

@@ -20,7 +20,7 @@ type _ILogUnchecked<B, N> = If<
 /// Using `B <= 1` or `N == 0` gives an "overflow while evaluating" error.
 ///
 /// ```compile_fail
-/// use generic_uint::{ops::ILog, uint, consts::*};
+/// use genuint::{ops::ILog, uint, consts::*};
 /// const _: fn(uint::From<ILog<_1, _0>>) = |_| {};
 /// ```
 #[apply(opaque! ilog::_ILog)]
@@ -44,7 +44,7 @@ pub type ILog<B, N> = If<
 /// Using `B <= 1` gives an "overflow while evaluating" error.
 ///
 /// ```compile_fail
-/// use generic_uint::{ops::BaseLen, uint, consts::*};
+/// use genuint::{ops::BaseLen, uint, consts::*};
 /// const _: fn(uint::From<BaseLen<_1, _0>>) = |_| {};
 /// ```
 #[apply(opaque! base_len::_BaseLen)]

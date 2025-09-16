@@ -26,29 +26,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "generic-uint"
-version = "0.1.0"
-dependencies = [
- "const-util",
- "generic-uint-proc",
- "type-const",
-]
-
-[[package]]
-name = "generic-uint-proc"
-version = "0.1.0"
-dependencies = [
- "ibig",
- "num",
-]
-
-[[package]]
 name = "generic-upper-bound"
 version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3f24331785711088a235ea51db79cb5d2098dfbbf8d9cab3f75cebe2d2539f6"
 dependencies = [
  "type-const",
+]
+
+[[package]]
+name = "genuint"
+version = "0.1.0"
+dependencies = [
+ "const-util",
+ "genuint-proc",
+ "type-const",
+]
+
+[[package]]
+name = "genuint-proc"
+version = "0.1.0"
+dependencies = [
+ "ibig",
+ "num",
 ]
 
 [[package]]

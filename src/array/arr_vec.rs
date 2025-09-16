@@ -82,7 +82,7 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     /// use core::mem::MaybeUninit;
     ///
     /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
@@ -115,7 +115,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     /// use core::mem::MaybeUninit;
     ///
     /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
@@ -143,7 +143,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::{array::*, uint};
+    /// use genuint::{array::*, uint};
     ///
     /// type A = Arr<i32, uint::lit!(10)>;
     /// assert_eq!(ArrVecApi::<A>::new(), []);
@@ -156,7 +156,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     ///
     /// assert_eq!(ArrVecApi::new_full([1, 2, 3]), [1, 2, 3]);
     /// ```
@@ -172,7 +172,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     /// use core::mem::MaybeUninit;
     ///
     /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
@@ -194,7 +194,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     ///
     /// let mut vec = ArrVecApi::new_full([1, 2, 3]);
     /// vec.pop();
@@ -217,7 +217,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     /// use core::mem::MaybeUninit;
     ///
     /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
@@ -250,7 +250,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     ///
     /// let mut vec = ArrVecApi::new_full([1, 2, 3]);
     /// vec.as_mut_slice().reverse();
@@ -276,7 +276,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     ///
     /// assert_eq!(ArrVecApi::<[i32; 20]>::new().capacity(), 20);
     /// ```
@@ -288,7 +288,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     ///
     /// assert_eq!(ArrVecApi::<[i32; 20]>::new().is_full(), false);
     /// assert_eq!(ArrVecApi::new_full([1; 20]).is_full(), true);
@@ -316,7 +316,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     ///
     /// let mut vec = ArrVecApi::<[i32; 2]>::new();
     /// vec.push(1);
@@ -348,7 +348,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     /// const fn works_in_const<A: Array<Item = i32>>(arr: A) -> i32 {
     ///     let mut vec = ArrVecApi::new_full(arr);
     ///     let mut sum = 0;
@@ -379,7 +379,7 @@ where
     /// If the vector is full.
     ///
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     ///
     /// let mut vec = ArrVecApi::<[_; 20]>::new();
     /// vec.push(1);
@@ -394,7 +394,7 @@ where
     /// Like [`push`](Self::push), but returns [`Err`] on full vecs.
     ///
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     ///
     /// let mut vec = ArrVecApi::<[_; 2]>::new();
     /// assert_eq!(vec.try_push(1), Ok(()));
@@ -426,7 +426,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::{array::*, consts::*};
+    /// use genuint::{array::*, consts::*};
     ///
     /// assert_eq!(
     ///     ArrVecApi::<[i32; 20]>::new().pop(),
@@ -473,7 +473,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use generic_uint::array::*;
+    /// use genuint::array::*;
     ///
     /// let mut vec = ArrVecApi::<[_; 20]>::new();
     /// vec.push(1);
