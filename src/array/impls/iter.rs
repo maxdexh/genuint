@@ -1,6 +1,6 @@
 use crate::{Uint, array::*};
 
-// TODO: no
+// TODO: There are some APIs missing here
 pub struct IntoIter<A: Array> {
     pub(crate) deq: ArrDeqApi<A>,
 }

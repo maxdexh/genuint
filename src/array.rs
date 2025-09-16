@@ -17,7 +17,7 @@ use crate::internals;
 ///       When the array is dropped, exactly `N` instances of `T` are dropped
 ///       ([in order](https://doc.rust-lang.org/reference/destructors.html)), even if `N > usize::MAX`.
 ///     - Note that together with the point about the layout, this is sufficient to perform arbitrary
-///       casts and transmutes between equivalent array types. See [`retype`] and [`try_from_slice`].
+///       casts and transmutes between equivalent array types. See the [`convert`] module.
 /// - `MaybeUninit<[T; N]>` and `[MaybeUninit<T>; N]` are considered equivalent for the purposes of
 ///   this trait.
 /// - Arrays of arrays are equivalent to their flattened versions, e.g. `[[i32; 4]; 3]` is
@@ -137,8 +137,4 @@ mod arr_deq;
 mod arr_vec;
 mod impls;
 
-pub(crate) mod func_mods;
-pub mod retype;
-pub mod try_from_slice;
-pub mod try_retype;
-pub mod unsize;
+pub mod convert;

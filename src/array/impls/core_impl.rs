@@ -12,7 +12,7 @@ where
     /// # Panics
     /// If `N > usize::MAX`.
     pub const fn as_slice(&self) -> &[T] {
-        unsize::unsize_ref(self)
+        convert::unsize_ref(self)
     }
 
     /// Converts the array to a mutable slice.
@@ -22,7 +22,7 @@ where
     /// # Panics
     /// If `N > usize::MAX`.
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
-        unsize::unsize_mut(self)
+        convert::unsize_mut(self)
     }
 
     /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).

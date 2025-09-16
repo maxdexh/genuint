@@ -2,9 +2,6 @@
 //!
 //! TODO: Something about general techniques, lazy uints, etc.
 
-// TODO:
-// - Optimize test speed; compare times against before lazification; analyze how types expand
-
 #[expect(unused)] // for docs
 use crate::{ToUint, Uint};
 use crate::{consts::*, internals::InternalOp, uint, utils::apply};
