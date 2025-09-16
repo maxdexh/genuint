@@ -101,6 +101,7 @@ decl_ptr![
     from_raw = |r| alloc::boxed::Box::from_raw(r),
     modifiers! {
         #[cfg(feature = "alloc")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
         pub
     },
     fns {
@@ -118,6 +119,7 @@ decl_ptr![
     from_raw = |r| alloc::rc::Rc::from_raw(r),
     modifiers! {
         #[cfg(feature = "alloc")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
         pub
     },
     fns {
@@ -135,6 +137,7 @@ decl_ptr![
     from_raw = |r| alloc::sync::Arc::from_raw(r),
     modifiers! {
         #[cfg(feature = "alloc")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
         pub
     },
     fns {

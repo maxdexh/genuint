@@ -89,6 +89,7 @@ where
 }
 
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<'a, T, A> From<&'a ArrApi<A>> for alloc::borrow::Cow<'a, [T]>
 where
     A: Array<Item = T>,
@@ -100,6 +101,7 @@ where
 }
 
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<'a, T, A> From<&'a ArrApi<A>> for alloc::vec::Vec<T>
 where
     A: Array<Item = T>,
@@ -110,6 +112,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> From<&mut ArrApi<A>> for alloc::vec::Vec<T>
 where
     A: Array<Item = T>,
@@ -120,6 +123,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> From<ArrApi<A>> for alloc::sync::Arc<[T]>
 where
     A: Array<Item = T>,
@@ -129,6 +133,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> From<ArrApi<A>> for alloc::rc::Rc<[T]>
 where
     A: Array<Item = T>,
@@ -138,6 +143,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> From<ArrApi<A>> for alloc::boxed::Box<[T]>
 where
     A: Array<Item = T>,
@@ -147,6 +153,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> From<ArrApi<A>> for alloc::vec::Vec<T>
 where
     A: Array<Item = T>,
@@ -156,6 +163,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> From<ArrApi<A>> for alloc::collections::VecDeque<T>
 where
     A: Array<Item = T>,
@@ -165,6 +173,7 @@ where
     }
 }
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 impl<K, V, A> From<ArrApi<A>> for std::collections::HashMap<K, V>
 where
     A: Array<Item = (K, V)>,
@@ -175,6 +184,7 @@ where
     }
 }
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 impl<T, A> From<ArrApi<A>> for std::collections::HashSet<T>
 where
     A: Array<Item = T>,
@@ -185,6 +195,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<K, V, A> From<ArrApi<A>> for alloc::collections::BTreeMap<K, V>
 where
     A: Array<Item = (K, V)>,
@@ -195,6 +206,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> From<ArrApi<A>> for alloc::collections::BTreeSet<T>
 where
     A: Array<Item = T>,
@@ -205,6 +217,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> From<ArrApi<A>> for alloc::collections::BinaryHeap<T>
 where
     A: Array<Item = T>,
@@ -215,6 +228,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> From<ArrApi<A>> for alloc::collections::LinkedList<T>
 where
     A: Array<Item = T>,
@@ -225,6 +239,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> TryFrom<alloc::boxed::Box<[T]>> for alloc::boxed::Box<ArrApi<A>>
 where
     A: Array<Item = T>,
@@ -235,6 +250,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> TryFrom<alloc::vec::Vec<T>> for ArrApi<A>
 where
     A: Array<Item = T>,
@@ -253,6 +269,7 @@ where
     }
 }
 #[cfg(feature = "alloc")]
+#[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
 impl<T, A> TryFrom<alloc::vec::Vec<T>> for alloc::boxed::Box<ArrApi<A>>
 where
     A: Array<Item = T>,

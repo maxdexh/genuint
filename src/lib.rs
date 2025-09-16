@@ -1,9 +1,7 @@
 //! TODO: Docs go here
-
-// TODO: Doc features
-// TODO: doctests
-#![cfg_attr(test, recursion_limit = "512")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(not(any(test, doc, feature = "std")), no_std)]
+#![cfg_attr(test, recursion_limit = "512")]
 #![warn(
     clippy::nursery,
     clippy::missing_panics_doc,
@@ -19,6 +17,7 @@
     // `Ok({ ... })`
     clippy::unit_arg,
 )]
+// TODO: doctests
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
