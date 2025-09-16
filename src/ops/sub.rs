@@ -1,15 +1,14 @@
 use super::*;
 
 #[apply(lazy! unchecked)]
-// This is a variation of binary addition.
+// HL := H(L), PL := P(L), HR := H(R), PR := P(R), C <= 1, L <= R + C.
+// Result is unspecified for malformed input.
 //
-// HL := H(L), PL := P(L), HR := H(R), PR := P(R), C <= 1.
-//
-// We also assume L <= R + C. For all other inputs, we do not care about the result.
-//
-// USub(L, R, C) := L - R - C
+// SubUnchecked(L, R, C) := L - R - C
 pub(crate) type _SubUnchecked<L, R, C = _0> = If<
     R,
+    // This is a variation of binary addition.
+    //
     //   L - R - C
     // = 2 * HL + PL - (2 * HR + PR) - C
     // = 2 * (HL - HR) + PL - PR - C
@@ -25,7 +24,7 @@ pub(crate) type _SubUnchecked<L, R, C = _0> = If<
     //   L - R - C
     // = 2 * (HL - HR) - 2 * CC + X % 2
     // = 2 * (HL - HR - CC) + X % 2
-    // = Append(USub(HL, HR, CC), X % 2)
+    // = Append(SubUnchecked(HL, HR, CC), X % 2)
     AppendBit<
         _SubUnchecked<
             _H<L>,
@@ -46,13 +45,13 @@ pub(crate) type _SubUnchecked<L, R, C = _0> = If<
         // = Xor(PL, PR, C)
         _Xor3<_P<L>, _P<R>, C>,
     >,
-    // R = 0, so L - 0 - C = L - C = SatSubBit(L, C)
-    _SatSubBit<L, C>,
+    // L - 0 - C = L - C = if C { DecUnchecked(L) } else { L }
+    If<C, _DecUnchecked<L>, L>,
 >;
 
 /// Type-level [`abs_diff`](u128::abs_diff).
-#[apply(opaque! abs_diff::_AbsDiff)]
 #[apply(test_op! test_abs_diff, L.abs_diff(R))]
+#[apply(opaque! abs_diff::_AbsDiff)]
 // AbsDiff(L, R) := |L - R| = if L < R { R - L } else { L - R }
 pub type AbsDiff<L, R> = If<
     //

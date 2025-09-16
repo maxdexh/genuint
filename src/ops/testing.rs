@@ -2,12 +2,12 @@
 
 use crate::{
     Uint,
-    consts::{_0, _1},
-    ops::_SatSubBit,
+    consts::_0,
+    ops::{_DecUnchecked, If},
     uint,
 };
 
-pub(crate) type SatDec<N> = uint::From<_SatSubBit<N, _1>>;
+pub(crate) type SatDec<N> = uint::From<If<N, _DecUnchecked<N>, _0>>;
 
 #[test]
 /// Make sure the test runner is actually testing anything, since it uses SatDec to traverse ranges.
@@ -26,7 +26,7 @@ fn test_satdec() {
     tests! { 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 }
 }
 
-pub(crate) type DefaultHi = crate::consts::_50;
+pub(crate) type DefaultHi = crate::consts::_10;
 pub(crate) type DefaultLo = crate::consts::_0;
 
 /// A type-level linked list of `Uint`s

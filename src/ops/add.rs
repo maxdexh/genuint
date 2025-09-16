@@ -1,8 +1,13 @@
 use super::*;
 
 #[apply(lazy! inc)]
+// H := H(N), P := P(N).
+//
 // Inc(N) := N + 1
-// Binary increment: flip bits at the end up to and including the last zero bit
+// N + 1 = 2 * H + P + 1
+//       = if P { 2 * H + 2 } else { 2 * H + 1 }
+//       = if P { 2 * (H + 1) } else { 2 * H + 1 }
+//       = if P { AppendBit(H + 1, 0) } else { AppendBit(H, 1) }
 pub(crate) type _Inc<N> = If<
     _P<N>, //
     AppendBit<_Inc<_H<N>>, _0>,
@@ -12,13 +17,13 @@ pub(crate) type _Inc<N> = If<
 #[apply(lazy! plus_bit)]
 pub(crate) type _PlusBit<N, C> = If<C, _Inc<N>, N>;
 
-#[apply(lazy! add_impl)]
+#[apply(lazy! carry_add)]
 // This is just binary addition.
 //
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R), C <= 1.
 //
 // Add(L, R, C) := L + R + C
-pub(crate) type _Add<L, R, C = _0> = If<
+pub(crate) type _CarryAdd<L, R, C = _0> = If<
     L,
     //   L + R + C
     // = (2 * LH + LP) + (2 * RH + RP) + C
@@ -30,7 +35,7 @@ pub(crate) type _Add<L, R, C = _0> = If<
     // = Append(LH + RH + X / 2, X % 2)
     AppendBit<
         // LH + RH + X / 2
-        _Add<
+        _CarryAdd<
             _H<L>,
             _H<R>,
             // Since X = LP + RP + C <= 3, we have X / 2 being either 0 or 1,
@@ -52,6 +57,6 @@ pub(crate) type _Add<L, R, C = _0> = If<
 >;
 
 /// Type-level addition.
-#[apply(opaque)]
+#[apply(opaque! hide_carry::_Add)]
 #[apply(test_op! test_add, L + R)]
-pub type Add<L, R> = _Add<L, R>;
+pub type Add<L, R> = _CarryAdd<L, R>;

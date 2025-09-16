@@ -13,7 +13,7 @@ type _Square<N> = If<
         _P<N>,
         // P = 1
         // Pow(N, 2) = Pow(2 * H + 1, 2) = 4 * Pow(H, 2) + 4 * H + 1
-        add::_Add<
+        add::_CarryAdd<
             //
             _Quad<_Square<_H<N>>>,
             _Quad<_H<N>>,

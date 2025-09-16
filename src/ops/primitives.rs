@@ -3,15 +3,15 @@ use super::*;
 // Just show e.g. Half<N> = _Half<N> in the docs.
 mod real {
     use super::*;
-    #[apply(lazy)]
+    #[apply(pub_lazy)]
     pub type _Half<N> = InternalOp!(uint::From<N>, Half);
-    #[apply(lazy)]
+    #[apply(pub_lazy)]
     pub type _Parity<N> = InternalOp!(uint::From<N>, Parity);
-    #[apply(lazy)]
+    #[apply(pub_lazy)]
     pub type _AppendBit<N, P> = InternalOp!(uint::From<P>, AppendMeAsBit<uint::From<N>>);
-    #[apply(lazy)]
+    #[apply(pub_lazy)]
     pub type _If<C, T, F> = InternalOp!(uint::From<C>, If<T, F>);
-    #[apply(lazy)]
+    #[apply(pub_lazy)]
     pub type _Opaque<P, Out> = uint::From<InternalOp!(uint::From<P>, Opaque<Out>)>;
 }
 

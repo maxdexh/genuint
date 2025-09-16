@@ -7,7 +7,7 @@ use super::*;
 ///
 /// The result of this operation is either `0` or `1`.
 #[doc(alias = "==")]
-#[apply(opaque! eq_impl::_Eq)]
+#[apply(opaque! pub(self) eq_impl::_Eq)]
 #[apply(test_op! test_eq, (L == R) as _)]
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
 //
@@ -49,7 +49,7 @@ type LtByLastL<L, R> = _AndSC<
 ///
 /// The result of this operation is either `0` or `1`.
 #[doc(alias = "<")]
-#[apply(opaque! lt_impl::_Lt)]
+#[apply(opaque! pub(crate) lt_impl::_Lt)]
 #[apply(test_op! test_lt, (L < R) as _)]
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
 //
