@@ -23,6 +23,7 @@ macro_rules! generate_alias_cons {
         }
     };
 }
+// TODO: move to `uint`
 generate_alias_cons! {
     ConstUsize usize,
     ConstU128 u128,

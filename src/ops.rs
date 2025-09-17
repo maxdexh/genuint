@@ -1,15 +1,116 @@
-//! Module defining the fundamental and other useful operations for [`Uint`]s.
+//! Module defining operations for [`Uint`]s.
 //!
-//! TODO: Something about general techniques, lazy uints, etc.
+//! # Primitive operations
+//! Currently, there are 4 nontrivial primitive operations: [`Half`], [`Parity`], [`If`] and [`AppendBit`].
+//! They are primitive in the sense that they are implemented using an internal associated type of [`Uint`]
+//! and that they use the underlying internal `impl`s to distinguish between different [`Uint`]s.
+//!
+//! These primitives are already enough to form a turing-complete system, and all other
+//! operations in this module are just implemented on top of them. The way to do this is
+//! described in the following sections.
+//!
+//! # Laziness and Recursion
+//! The way to implement an operation where the output requires looking at the entire number is to
+//! do it recursively. However, naively using type aliases for this does not work and will
+//! instantly lead to `E0391: cycle detected when expanding type alias`.
+//!
+//! Instead, one has to go through [`ToUint`] to make the operation "lazy", as in its value is only
+//! computed when it is projected to [`ToUint::ToUint`]. For example, consider the following
+//! implementation of [`BitAnd`]:
+//! ```
+//! use genuint::{ToUint, consts::*, ops::*, uint};
+//! pub struct MyBitAnd<L, R>(L, R);
+//! impl<L: ToUint, R: ToUint> ToUint for MyBitAnd<L, R> {
+//!     type ToUint = uint::From<If<
+//!         L,
+//!         // take the bitand of the previous bits and append the and of the last bit
+//!         AppendBit<
+//!             MyBitAnd<Half<L>, Half<R>>,
+//!             If<Parity<L>, Parity<R>, _0>, // boolean AND
+//!         >,
+//!         _0, // 0 & R = 0
+//!     >>;
+//! }
+//! assert_eq!(uint::to_usize::<MyBitAnd<_3, _5>>(), Some(3 & 5));
+//! assert_eq!(uint::to_usize::<MyBitAnd<_7, _122>>(), Some(7 & 122));
+//! ```
+//! Because `BitAnd2` is [`ToUint`] here and [`If`] works by only evaluating
+//! [`ToUint::ToUint`] for the branch that is needed for the output, this will
+//! safely exit when `L` becomes 0.
+//!
+//! #### Normalizing recursive arguments
+//! Because [`Half`] is itself lazy, the above definition of `BitAnd2` will
+//! result in the arguments to `BitAnd2` accumulating `Half<Half<...>>`
+//! for every recusive step. This can be fixed by applying
+//! [`uint::From`] to the recursive arguments. See the final version below.
+//!
+//! Normalizing recursive arguments is almost always beneficial for compile times.
+//! If the recursive arguments are nontrivial to calculate or might themselves result
+//! in infinite loops when normalized, they can be refactored out into a seperate
+//! lazy type alias. For an example of this, see the implementation of [`ILog`],
+//! which uses division in its recursive arguments.
+//!
+//! # Opaqueness
+//! The reason this is useful is that because types are heavily normalized
+//! by the compiler, it is easy to accidentally leak implementation details about
+//! them in a public API, which would make them impossible to normalize in the future,
+//! as someone could rely on them behaving a certain way in generic contexts.
+//! An example of this would be `Parity<AppendBit<N, B>> = B` where the arguments are generic.
+//!
+//! Furthermore, when using things like `uint::From<Min<UsizeMax, N>>` where `N` is generic,
+//! the compiler might try to normalize the entire recursive `Min` operation, which may cause
+//! spurious "overflow while ..." errors.
+//!
+//! These things can be guarded against using [`Opaque`]. `Opaque<P, Out>` always evaluates
+//! to `Out`, but only after projecting through an internal associated type of `P`, like
+//!`<P as Uint>::_Eval<Out>`.
+//!
+//! This means that the compiler can only determine the value of [`Opaque<P, Out>`]
+//! after it has determined the value of `P`, and it cannot do any normalization
+//! specific to the implementation of `Out::ToUint` before that.
+//!
+//! The way to use this is, given an operation `Op<A, B>` that evaluates to
+//! `OpImpl<A, B, ...>`, where `OpImpl` is some lazy type alias (a struct
+//! implementing [`ToUint`]), to implement it as
+//! `Op<A, B> = Opaque<A, Opaque<B, OpImpl<A, B>>>`.
+//!
+//! # Complete example implementation of [`BitAnd`]
+//! ```
+//! use genuint::{ToUint, consts::*, ops::*, uint};
+//! pub struct _MyBitAnd<L, R>(L, R); // hide this in a private module
+//! impl<L: ToUint, R: ToUint> ToUint for _MyBitAnd<L, R> {
+//!     type ToUint = uint::From<If<
+//!         L,
+//!         // take the bitand of the previous bits and append the and of the last bit
+//!         AppendBit<
+//!             _MyBitAnd<
+//!                 uint::From<Half<L>>,
+//!                 uint::From<Half<R>>,
+//!             >,
+//!             If<Parity<L>, Parity<R>, _0>, // boolean AND
+//!         >,
+//!         _0, // 0 & R = 0
+//!     >>;
+//! }
+//! pub type MyBitAnd<L, R> = Opaque<L, Opaque<R, _MyBitAnd<L, R>>>;
+//! fn check_input<L: ToUint, R: ToUint>() {
+//!     assert_eq!( // works fully generically!
+//!         uint::to_u128::<MyBitAnd<L, R>>().unwrap(),
+//!         uint::to_u128::<L>().unwrap() & uint::to_u128::<R>().unwrap(),
+//!     )
+//! }
+//! check_input::<_3, _5>();
+//! check_input::<_59, _122>();
+//! check_input::<uint::lit!(0b10101000110111111), uint::lit!(0b11110111011111)>()
+//! ```
+//!
+//! More examples can be found in this module, though the internal implementations make heavy use
+//! of macros to cut down on the repitition seen here.
 
 #[expect(unused)] // for docs
 use crate::{ToUint, Uint};
 use crate::{consts::*, internals::InternalOp, uint, utils::apply};
 
-/// Helper macro to translate type alias syntax into lazy uint functions.
-/// Visibility must be `pub`. This should only be used in non-public
-/// modules or by other macros.
-///
 /// Input format:
 /// ```compile_fail
 /// #[apply(pub_lazy)]
@@ -39,8 +140,7 @@ macro_rules! pub_lazy {
 }
 pub(crate) use pub_lazy;
 
-/// Like [`pub_lazy`], but creates the item in a private module and reexports it at the declared
-/// visibility.
+/// Like [`pub_lazy`], but creates the item in a private module and reexports it at the declared visibility.
 macro_rules! lazy {
     (
         ($mod:ident)
