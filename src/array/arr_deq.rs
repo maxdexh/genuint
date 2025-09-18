@@ -204,7 +204,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     ///
     /// # Examples
     /// ```
-    /// use genuint::{array::*, consts::*};
+    /// use genuint::{array::*, small::*};
     ///
     /// assert_eq!(
     ///     ArrDeqApi::<[i32; 20]>::new().pop_front(),
@@ -243,7 +243,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     ///
     /// # Examples
     /// ```
-    /// use genuint::{array::*, consts::*};
+    /// use genuint::{array::*, small::*};
     ///
     /// assert_eq!(
     ///     ArrDeqApi::<[i32; 20]>::new().pop_back(),

@@ -20,7 +20,7 @@ use crate::{ToUint, uint};
 /// `TFun<F>` and therefore is valid to transmute given a known `C` (which can be runtime checked)
 /// or `T = F` (which may follow from other invariants, such as [`Uint`](crate::Uint) uniqueness.
 /// This applies even to types with unspecified layout such as `TFun<X> = Vec<X>` or type
-/// projections like `TFun<X> = <X as Tr>::Assoc`. This property is expressed through [`raw::pull_tcon`].
+/// projections like `TFun<X> = <X as Tr>::Assoc`.
 ///
 /// This type's disadvantage compared to [`TernRaw`] are that it is not possible to use impls of
 /// `T` and `F` if `C` is generic, it does not play nicely with type inferrence, especially of
@@ -57,15 +57,11 @@ impl<C: ToUint, T, E> TernRes<C, T, E> {
     }
     /// Equivalent of [`Result::as_ref`].
     pub const fn as_ref(&self) -> TernRes<C, &T, &E> {
-        TernRes::from_raw(raw::push_tcon_lt::<C, T, E, crate::tfun::TFunLtRef>(
-            &self.raw,
-        ))
+        TernRes::from_raw(raw::as_ref::<C, _, _>(&self.raw))
     }
     /// Equivalent of [`Result::as_mut`].
     pub const fn as_mut(&mut self) -> TernRes<C, &mut T, &mut E> {
-        TernRes::from_raw(raw::push_tcon_lt::<C, T, E, crate::tfun::TFunLtMut>(
-            &mut self.raw,
-        ))
+        TernRes::from_raw(raw::as_mut::<C, _, _>(&mut self.raw))
     }
     /// Turns this result in to a regular [`Result`].
     #[allow(clippy::missing_errors_doc)]
@@ -125,10 +121,14 @@ impl<C: ToUint, T, E> TernRes<C, T, E> {
 impl<C: ToUint, T> TernRes<C, T, T> {
     /// Creates a result where both variants have the same type.
     pub const fn new_trivial(x: T) -> Self {
-        Self::from_raw(raw::push_tcon::<C, T, T, crate::tfun::TFunTrivial<T>>(x))
+        Self::from_raw(
+            // SAFETY: TernRaw<C, T, T> is the same type as T or T, so it is T
+            unsafe { crate::utils::same_size_transmute!(T, TernRaw::<C, T, T>, x) },
+        )
     }
     /// Unwraps a result where both variants have the same type.
     pub const fn into_trivial(self) -> T {
-        raw::pull_tcon::<C, T, T, crate::tfun::TFunTrivial<T>>(self.into_raw())
+        // SAFETY: TernRaw<C, T, T> is the same type as T or T, so it is T
+        unsafe { crate::utils::same_size_transmute!(TernRaw::<C, T, T>, T, self.into_raw()) }
     }
 }

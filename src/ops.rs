@@ -11,14 +11,14 @@
 //!
 //! # Laziness and Recursion
 //! The way to implement an operation where the output requires looking at the entire number is to
-//! do it recursively. However, naively using type aliases for this does not work and will
-//! instantly lead to `E0391: cycle detected when expanding type alias`.
+//! do it recursively. However, regular type aliases do not support recursion, see error E0391
+//! "cycle detected when expanding type alias".
 //!
 //! Instead, one has to go through [`ToUint`] to make the operation "lazy", as in its value is only
 //! computed when it is projected to [`ToUint::ToUint`]. For example, consider the following
 //! implementation of [`BitAnd`]:
 //! ```
-//! use genuint::{ToUint, consts::*, ops::*, uint};
+//! use genuint::{ToUint, small::*, ops::*, uint};
 //! pub struct MyBitAnd<L, R>(L, R);
 //! impl<L: ToUint, R: ToUint> ToUint for MyBitAnd<L, R> {
 //!     type ToUint = uint::From<If<
@@ -76,7 +76,7 @@
 //!
 //! # Complete example implementation of [`BitAnd`]
 //! ```
-//! use genuint::{ToUint, consts::*, ops::*, uint};
+//! use genuint::{ToUint, small::*, ops::*, uint};
 //! pub struct _MyBitAnd<L, R>(L, R); // hide this in a private module
 //! impl<L: ToUint, R: ToUint> ToUint for _MyBitAnd<L, R> {
 //!     type ToUint = uint::From<If<
@@ -109,7 +109,7 @@
 
 #[expect(unused)] // for docs
 use crate::{ToUint, Uint};
-use crate::{consts::*, internals::InternalOp, uint, utils::apply};
+use crate::{internals::InternalOp, small::*, uint, utils::apply};
 
 /// Input format:
 /// ```compile_fail
@@ -164,7 +164,7 @@ macro_rules! VarOpaque {
     ($LazyBase:ident<$($P:ident),* $(,)?>) => {
         crate::ops::VarOpaque!(
             @$($P)*,
-            $LazyBase<$($P),*>
+            $LazyBase<$(crate::uint::From<$P>),*>
         )
     };
     (@$P:ident $($Ps:ident)*, $Out:ty) => {
@@ -189,16 +189,7 @@ pub(crate) use VarOpaque;
 /// visibility, for internal use elsewhere.
 macro_rules! opaque {
     (
-        (pub $base_vis:tt $mod:ident::$LazyBase:ident)
-        $($input:tt)*
-    ) => {
-        crate::ops::opaque! { ($mod::$LazyBase) $($input)* }
-
-        #[allow(clippy::needless_pub_self)]
-        pub $base_vis use $mod::$LazyBase;
-    };
-    (
-        ($mod:ident::$LazyBase:ident)
+        ($base_vis:vis $mod:ident::$LazyBase:ident)
         $(#[$attr:meta])*
         $v:vis type $Name:ident<$($P:ident $(= $Def:ty)?),* $(,)?> = $Val:ty;
     ) => {
@@ -212,6 +203,8 @@ macro_rules! opaque {
                 pub type $Name<$($P $(= $Def)?),*> = crate::ops::VarOpaque!($LazyBase<$($P),*>);
             }
         }
+        #[allow(unused_imports)]
+        $base_vis use $mod::$LazyBase;
         $v use $mod::$Name;
     };
 }

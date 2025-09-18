@@ -1,6 +1,6 @@
 //! Utilities related to [`ToUint`] implementors.
 
-use crate::{ToUint, Uint, consts, maxint::Umax, ops, uint};
+use crate::{ToUint, Uint, maxint::Umax, ops, small, uint};
 
 /// Alias for [`ToUint::ToUint`].
 pub type From<N> = <N as ToUint>::ToUint;
@@ -59,10 +59,10 @@ pub const fn to_str<N: ToUint>() -> &'static str {
                 doit::<
                     uint::From<
                         // Pop a digit
-                        ops::Div<N, consts::_10>,
+                        ops::Div<N, small::_10>,
                     >,
                 >(),
-                &[b'0' + to_usize::<ops::Rem<N, consts::_10>>().unwrap() as u8],
+                &[b'0' + to_usize::<ops::Rem<N, small::_10>>().unwrap() as u8],
             ];
         }
         const fn doit<N: Uint>() -> &'static [u8] {

@@ -426,7 +426,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use genuint::{array::*, consts::*};
+    /// use genuint::{array::*, small::*};
     ///
     /// assert_eq!(
     ///     ArrVecApi::<[i32; 20]>::new().pop(),

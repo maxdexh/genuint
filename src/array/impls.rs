@@ -133,7 +133,7 @@ where
     /// # Examples
     /// Retyping [`Arr`] to [`CopyArr`]:
     /// ```
-    /// use genuint::{array::*, consts::*};
+    /// use genuint::{array::*, small::*};
     /// let arr = Arr::<_, _5>::from_fn(|i| i * i);
     /// let converted: CopyArr<_, _> = arr.retype();
     /// let converted_copy = converted;
@@ -177,7 +177,7 @@ where
     ///
     /// # Examples
     /// ```rust
-    /// use genuint::{array::*, consts::*};
+    /// use genuint::{array::*, small::*};
     /// let arr = Arr::<_, _4>::from_fn(|i| i * i);
     /// assert_eq!(arr, [0, 1, 4, 9]);
     /// ```
@@ -205,7 +205,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use genuint::{array::*, consts::*};
+    /// use genuint::{array::*, small::*};
     /// let arr = Arr::<_, _4>::of(1);
     /// assert_eq!(arr, [1; 4]);
     /// ```
@@ -224,13 +224,14 @@ where
     /// # Examples
     /// ```
     /// extern crate type_const;
+    ///
     /// struct EmptyVecConst<T>(T);
     /// impl<T> type_const::Const for EmptyVecConst<T> {
     ///     type Type = Vec<T>;
     ///     const VALUE: Self::Type = Vec::new();
     /// }
     ///
-    /// use genuint::{array::*, consts::*};
+    /// use genuint::{array::*, small::*};
     /// assert_eq!(
     ///     Arr::<_, _4>::of_const::<EmptyVecConst<i32>>(),
     ///     [const { Vec::<i32>::new() }; 4],
@@ -295,7 +296,7 @@ where
     ///
     /// # Examples
     /// ```
-    /// use genuint::{array::*, consts::*};
+    /// use genuint::{array::*, small::*};
     ///
     /// let arr = Arr::<_, _3>::from_fn(|i| i); // type inference
     /// assert_eq!(arr.try_into_builtin_arr::<2>(), Err(arr));

@@ -36,9 +36,9 @@ pub(crate) type _SubUnchecked<L, R, C = _0> = If<
                 If<
                     _P<L>,
                     // PL = 1, so CC = 1  iff  1 < PR + C  iff  PR = 1 and C = 1  iff  And(PR, C) = 1
-                    _AndSC<_P<R>, C>,
+                    _And<_P<R>, C>,
                     // PL = 0, so CC = 1  iff  0 < PR + C  iff  PR = 1  or C = 1  iff   Or(PR, C) = 1
-                    _OrSC<_P<R>, C>,
+                    _Or<_P<R>, C>,
                 >,
             >,
         >,

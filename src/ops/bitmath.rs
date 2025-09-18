@@ -19,7 +19,7 @@ pub type BitAnd<L, R> = If<
     L,
     AppendBit<
         _BitAnd<_H<R>, _H<L>>, // A & B = B & A, switching will terminate faster
-        _AndSC<_P<L>, _P<R>>,
+        _And<_P<L>, _P<R>>,
     >,
     // 0 & R = 0
     _0,
@@ -34,7 +34,7 @@ pub type BitOr<L, R> = If<
     L,
     AppendBit<
         _BitOr<_H<R>, _H<L>>, // A | B = B | A
-        _OrSC<_P<L>, _P<R>>,
+        _Or<_P<L>, _P<R>>,
     >,
     // 0 | R = R
     R,

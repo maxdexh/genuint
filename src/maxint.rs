@@ -1,7 +1,7 @@
 //! Implementation detail
 
 pub(crate) type Umax = crate::tern::TernRaw<
-    crate::consts::ConstU8<{ (size_of::<usize>() > size_of::<u128>()) as _ }>,
+    crate::consts::ConstBool<{ size_of::<usize>() > size_of::<u128>() }>,
     usize,
     u128,
 >;

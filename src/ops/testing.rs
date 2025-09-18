@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::{Uint, consts::*, ops, uint};
+use crate::{Uint, ops, small::*, uint};
 
 pub(crate) type SatDec<N> = uint::From<ops::If<N, ops::_DecUnchecked<N>, _0>>;
 
@@ -21,9 +21,9 @@ fn test_satdec() {
     tests! { 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 }
 }
 
-const MORE_TESTS: usize = option_env!("more_uint_tests").is_some() as _;
-pub(crate) type DefaultHi = uint::From<ops::If<ConstUsize<MORE_TESTS>, _50, _10>>;
-pub(crate) type DefaultLo = crate::consts::_0;
+const MORE_TESTS: bool = option_env!("more_uint_tests").is_some();
+pub(crate) type DefaultHi = uint::From<ops::If<crate::consts::ConstBool<MORE_TESTS>, _50, _10>>;
+pub(crate) type DefaultLo = crate::small::_0;
 
 /// A type-level linked list of `Uint`s
 pub(crate) trait UintList: Sized {
@@ -78,7 +78,7 @@ where
     type RangesLo = LoTail;
     type RangesHi = <T::RangesHi as UintList>::Tail;
 
-    fn run_tests_on<L: UintList<Len = <Self::RangesLo as UintList>::Len>>() {
+    fn run_tests_on<L: UintList<Len = InputLen<Self>>>() {
         Self::good_traverse::<L, <T::RangesHi as UintList>::First>()
     }
 }

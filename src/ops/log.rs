@@ -32,7 +32,7 @@ type _ILogUnchecked<B, N> = If<
 )]
 pub type ILog<B, N> = If<
     // Check B > 1 and N > 0
-    _AndSC<_H<B>, N>,
+    _And<_H<B>, N>,
     _ILogUnchecked<B, N>,
     // Recurse infinitely
     _ILog<B, N>,

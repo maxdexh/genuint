@@ -1,7 +1,7 @@
 //! TODO: Docs go here
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![cfg_attr(not(any(test, doc, feature = "std")), no_std)]
-#![cfg_attr(test, recursion_limit = "512")]
+#![cfg_attr(test, recursion_limit = "1024")]
 #![warn(
     clippy::nursery,
     clippy::missing_panics_doc,
@@ -14,8 +14,6 @@
 #![allow(
     // use of pub(crate) over pub is for clarity
     clippy::redundant_pub_crate,
-    // `Ok({ ... })`
-    clippy::unit_arg,
 )]
 // TODO: doctests
 
@@ -39,8 +37,8 @@ mod utils;
 pub mod array;
 pub mod consts;
 pub mod ops;
+pub mod small;
 pub mod tern;
-pub mod tfun;
 pub mod uint;
 
 /// A type-level non-negative integer.

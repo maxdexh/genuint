@@ -1,101 +1,78 @@
-//! [`Uint`](crate::Uint) contants.
+//! Primitive-related [`Uint`] constants.
+//!
+//! Note that some types in this module require a high recursion limit.
 
-// immediately invoked macro that generates the `new_alias` macro, which takes in
-// a declaration name, a const value and a type to generate the type alias _N with
-// value N as a `Uint`
-macro_rules! generate_alias_cons {
-    ($($struct:ident $prim:ident,)*) => {
-        $(
-            #[doc = core::concat!("Holds a const generic [`", core::stringify!($prim), "`].")]
-            ///
-            /// Implements [`ToUint`](crate::ToUint) for small values.
-            pub struct $struct<const N: $prim>;
-        )*
+#[allow(unused_imports)] // for docs
+use crate::{ToUint, Uint};
+use crate::{ops, small::*, uint};
 
-        macro_rules! new_alias {
-            ($name:ident, $val:literal, $ty:ty) => {
-                #[doc = core::concat!("Type-level `", $val, "`.")]
-                pub type $name = $ty;
-                $(#[doc(hidden)] impl crate::ToUint for $struct<$val> {
-                    type ToUint = $name;
-                })*
-            };
-        }
-    };
-}
-// TODO: move to `uint`
-generate_alias_cons! {
-    ConstUsize usize,
-    ConstU128 u128,
-    ConstU64 u64,
-    ConstU32 u32,
-    ConstU16 u16,
-}
-/// Holds a const generic [`u8`].
+/// Holds a const [`u128`].
 ///
-/// Implements [`ToUint`](crate::ToUint) for all individual values, but not generically.
-/// That is to say that `ConstU8<N>: ToUint` for every `const N: u8` because there is an
-/// implementation for every single one, but this does not typecheck:
-/// ```compile_fail
-/// use genuint::{consts::ConstU8, ToUint};
+/// Implements [`ToUint`] for [`small`](crate::small) values.
+pub struct ConstU128<const N: u128>;
+
+/// Holds a const [`usize`].
 ///
-/// fn take_uint<N: ToUint>() {}
-/// fn every_u8_is_to_uint<const N: u8>() {
-///     take_uint::<ConstU8<N>>()
-/// }
-/// ```
-pub struct ConstU8<const N: u8>;
+/// Implements [`ToUint`] for [`small`](crate::small) values.
+pub struct ConstUsize<const N: usize>;
 
-macro_rules! new_byte_alias {
-    ($name:ident, $val:literal, $ty:ty) => {
-        new_alias!($name, $val, $ty);
-        #[doc(hidden)]
-        impl crate::ToUint for ConstU8<$val> {
-            type ToUint = $name;
-        }
-    };
+/// Holds a const [`bool`].
+///
+/// Implements [`ToUint`], using seperate impls for `true` and `false`.
+pub struct ConstBool<const B: bool>;
+impl ToUint for ConstBool<true> {
+    type ToUint = _1;
+}
+impl ToUint for ConstBool<false> {
+    type ToUint = _0;
 }
 
-new_byte_alias!(_0, 0, crate::uimpl::_0);
-new_byte_alias!(_1, 1, crate::uimpl::_1);
+/// [`usize::BITS`] as a [`Uint`].
+pub type PtrWidth = uint::From<ops::Shl<ConstUsize<{ size_of::<usize>() }>, _3>>;
 
-macro_rules! bisect {
-    ($name:ident, $val:expr, $half:ty, $parity:ty, $cb:ident) => {
-        $cb! { $name, $val, crate::uimpl::A<$half, $parity> }
-    };
+/// [`usize::MAX`] as a [`Uint`].
+pub type UsizeMax = uint::From<ops::SatSub<ops::Shl<_1, PtrWidth>, _1>>;
+
+/// [`isize::MAX`] as a [`Uint`].
+pub type IsizeMax = uint::From<ops::Half<UsizeMax>>;
+
+#[test]
+fn test_usize_max() {
+    assert_eq!(uint::to_usize::<PtrWidth>(), Some(usize::BITS as usize));
+    assert_eq!(uint::to_usize::<UsizeMax>(), Some(usize::MAX));
+    assert_eq!(uint::to_usize::<IsizeMax>(), Some(isize::MAX as usize));
 }
-include!(concat!(env!("OUT_DIR"), "/consts.rs"));
-
-/// [`usize::BITS`] as a [`Uint`](crate::Uint).
-pub type UsizeBits = crate::ops::Shl<ConstUsize<{ size_of::<usize>() }>, _3>;
-const _: () = assert!(crate::uint::to_usize::<UsizeBits>().unwrap() == usize::BITS as usize);
-
-/// [`usize::MAX`] as a [`Uint`](crate::Uint).
-pub type UsizeMax = crate::ops::SatSub<crate::ops::Shl<_1, UsizeBits>, _1>;
 
 macro_rules! gen_maxes {
     [
-        $bitsmac:ident,
-        $val:ty,
-        $([$name:ident, $bits:ident, $tnamefordocs:ty $(,)? ],)*
-    ] => {$(
-        macro_rules! $bitsmac {
-            () => ($bits)
+        $([$name:ident, $bits:ty, $prim:ty $(,)? ],)*
+    ] => {
+        $(
+            #[doc = concat!("[`", stringify!($prim), "::MAX`], but as a [`Uint`]")]
+            pub type $name = uint::From<
+                ops::_DecUnchecked<
+                    ops::Shl<_1, $bits>
+                >
+            >;
+        )*
+        #[test]
+        fn test_generated_maxes() {
+            $(assert_eq!(
+                uint::to_u128::<$name>(),
+                Some(<$prim>::MAX as u128),
+            );)*
         }
-        #[cfg(test)]
-        const _: () = {
-            type _Bits = $bits;
-        };
-        #[doc = concat!("[`", stringify!($tnamefordocs), "::MAX`], but as a [`Uint`](crate::Uint)")]
-        pub type $name = $val;
-    )*};
+    };
 }
 gen_maxes![
-    __bits,
-    crate::ops::SatSub<crate::ops::Shl<_1, __bits!()>, _1>,
-    [U8Max, _8, u8],
-    [U16Max, _16, u16],
-    [U32Max, _32, u32],
-    [U64Max, _64, u64],
-    [U128Max, _128, u128],
+    [I8Max, uint::lit!(7), i8],
+    [U8Max, uint::lit!(8), u8],
+    [I16Max, uint::lit!(15), i16],
+    [U16Max, uint::lit!(16), u16],
+    [I32Max, uint::lit!(31), i32],
+    [U32Max, uint::lit!(32), u32],
+    [I64Max, uint::lit!(63), i64],
+    [U64Max, uint::lit!(64), u64],
+    [I128Max, uint::lit!(127), i128],
+    [U128Max, uint::lit!(128), u128],
 ];

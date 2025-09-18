@@ -1,84 +1,17 @@
 //! Functions for [`TernRaw`].
 
-use crate::{
-    ToUint,
-    tern::TernRaw,
-    tfun::{TFun, TFunLt},
-    uint, utils,
-};
+use crate::{ToUint, tern::TernRaw, uint, utils};
 
-/// Pulls an arbitrary [`TFun`] out of a [`TernRaw`].
-///
-/// This function is the inverse of [`push_tcon`].
-///
-/// For example, this function can turn `TernRaw<C, Option<T>, Option<F>>` into `Option<TernRaw<C, T, F>>`, or
-/// `TernRaw<C, (T, T), (F, F)>` into `(TernRaw<C, T, F>, TernRaw<C, T, F>)`.
-///
-/// # Limitations
-/// Since [`TFun::Apply`] requires being implemented for all `T: Sized`, type constructors with extra bounds
-/// (for example `T -> &'a T` would require `T: 'a`) cannot be expressed by this. It is possible to
-/// work around this by duplicating the definition of this struct
-pub const fn pull_tcon<C: ToUint, T, F, Con: TFun>(
-    tern: TernRaw<C, Con::Apply<T>, Con::Apply<F>>,
-) -> Con::Apply<TernRaw<C, T, F>> {
-    // SAFETY: Input and output are the same type
-    unsafe {
-        utils::same_type_transmute!(
-            TernRaw::<C, Con::Apply<T>, Con::Apply<F>>,
-            Con::Apply<TernRaw<C, T, F>>,
-            tern,
-        )
-    }
+/// Turns reference to [`TernRaw`] into [`TernRaw`] of reference.
+pub const fn as_ref<C: ToUint, T, F>(tern: &TernRaw<C, T, F>) -> TernRaw<C, &T, &F> {
+    // SAFETY: Same type under type map `X -> &'a X` for some 'a
+    unsafe { utils::same_type_transmute!(&TernRaw<C, T, F>, TernRaw<C, &T, &F>, tern) }
 }
 
-/// Pushes an arbitrary [`TFun`] out of a [`TernRaw`].
-///
-/// This function is the inverse of [`pull_tcon`].
-///
-/// For example, this function can turn `Option<TernRaw<C, T, F>>` into `TernRaw<C, Option<T>, Option<F>>`, or
-/// `(TernRaw<C, T, F>, TernRaw<C, T, F>)` into `TernRaw<C, (T, T), (F, F)>`.
-///
-/// # Limitations
-/// Since [`TFun::Apply`] requires being implemented for all `T: Sized`, type constructors with extra bounds
-/// (for example `T -> &'a T` would require `T: 'a`) cannot be expressed by this.
-pub const fn push_tcon<C: ToUint, T, F, Con: TFun>(
-    tern: Con::Apply<TernRaw<C, T, F>>,
-) -> TernRaw<C, Con::Apply<T>, Con::Apply<F>> {
-    // SAFETY: Input and output are the same type
-    unsafe {
-        utils::same_type_transmute!(
-            Con::Apply<TernRaw<C, T, F>>,
-            TernRaw::<C, Con::Apply<T>, Con::Apply<F>>,
-            tern,
-        )
-    }
-}
-
-/// Like [`pull_tcon`], but for [`TFunLt`].
-pub const fn pull_tcon_lt<'a, C: ToUint, T: 'a, F: 'a, Con: TFunLt<'a>>(
-    tern: TernRaw<C, Con::Apply<T>, Con::Apply<F>>,
-) -> Con::Apply<TernRaw<C, T, F>> {
-    // SAFETY: Input and output are the same type
-    unsafe {
-        utils::same_type_transmute!(
-            TernRaw::<C, Con::Apply<T>, Con::Apply<F>>,
-            Con::Apply<TernRaw<C, T, F>>,
-            tern,
-        )
-    }
-}
-/// Like [`push_tcon`], but for [`TFunLt`].
-pub const fn push_tcon_lt<'a, C: ToUint, T: 'a, F: 'a, Con: TFunLt<'a>>(
-    tern: Con::Apply<TernRaw<C, T, F>>,
-) -> TernRaw<C, Con::Apply<T>, Con::Apply<F>> {
-    // SAFETY: Input and output are the same type
-    unsafe {
-        utils::same_type_transmute!(
-            Con::Apply<TernRaw<C, T, F>>,
-            TernRaw::<C, Con::Apply<T>, Con::Apply<F>>,
-            tern
-        )
-    }
+/// Turns mutable reference to [`TernRaw`] into [`TernRaw`] of mutable reference.
+pub const fn as_mut<C: ToUint, T, F>(tern: &mut TernRaw<C, T, F>) -> TernRaw<C, &mut T, &mut F> {
+    // SAFETY: Same type under type map `X -> &'a mut X` for some 'a
+    unsafe { utils::same_type_transmute!(&mut TernRaw<C, T, F>, TernRaw<C, &mut T, &mut F>, tern) }
 }
 
 /// Unwraps the `True` value of a [`TernRaw`].

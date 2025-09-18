@@ -154,7 +154,7 @@ pub fn __lit(input: TokenStream) -> TokenStream {
 
         // [`crate::consts::_0`, `crate::consts::_1`]
         let consts = {
-            let prefix = crate_path.clone().extended(pathseg("consts", span));
+            let prefix = crate_path.clone().extended(pathseg("small", span));
             [(prefix.clone(), "_0"), (prefix, "_1")]
                 .map(|(c, name)| c.extended(pathseg(name, span)))
         };

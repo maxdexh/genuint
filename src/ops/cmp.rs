@@ -7,7 +7,7 @@ use super::*;
 ///
 /// The result of this operation is either `0` or `1`.
 #[doc(alias = "==")]
-#[apply(opaque! pub(self) eq_impl::_Eq)]
+#[apply(opaque! eq_impl::_Eq)]
 #[apply(test_op! test_eq, (L == R) as _)]
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
 //
@@ -19,7 +19,7 @@ pub type Eq<L, R> = If<
     // iff PL = PR  and  HL = HR
     // iff Xnor(PL, PR) = 1  and  Eq(HL, HR) = 1
     // iff And(Xnor(PL, PR), Eq(HL, HR)) = 1
-    _AndL<
+    _And<
         //
         _Xnor<_P<L>, _P<R>>,
         _Eq<_H<R>, _H<L>>,
@@ -38,7 +38,7 @@ pub type Ne<L, R> = _IsZero<Eq<L, R>>;
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
 //
 // LtByLast(L, R) := Cond!(HL = HR and PL = 0 and PR = 1)
-type LtByLastL<L, R> = _AndSC<
+type LtByLastL<L, R> = _And<
     If<_P<L>, _0, _P<R>>, // Cond!(not PL and PR)
     _Eq<_H<L>, _H<R>>,    // Cond!(HL = HR)
 >;

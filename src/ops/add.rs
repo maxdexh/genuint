@@ -45,9 +45,9 @@ pub(crate) type _CarryAdd<L, R, C = _0> = If<
                 If<
                     _P<L>,
                     // LP = 1, so LP + RP + C >= 2 iff RP + C >= 1 iff RP = 1 or  C = 1
-                    _OrSC<_P<R>, C>,
+                    _Or<_P<R>, C>,
                     // LP = 0, so LP + RP + C >= 2 iff RP + C >= 2 iff RP = 1 and C = 1
-                    _AndSC<_P<R>, C>,
+                    _And<_P<R>, C>,
                 >,
             >,
         >,

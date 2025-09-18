@@ -25,11 +25,18 @@ pub type Shl<L, R> = If<
     // = if P { 2 * Shl(Shl(L, H), H) } else { Shl(Shl(L, H), H) }
     // = DoubleIf(Shl(Shl(L, H), H), P)
     _DoubleIf<
-        // NOTE: Shl is slightly faster without normalizing the argument
-        _Shl<_Shl<L, _H<R>>, _H<R>>,
+        // NOTE: From testing, this is the fastest known way to write this recursion
+        _Shl<
+            _Shl<
+                //
+                uint::From<L>,
+                _H<R>,
+            >,
+            _H<R>,
+        >,
         _P<R>,
     >,
-    // Shl(L, 0) = L
+    // L << 0 = L
     L,
 >;
 
@@ -49,7 +56,10 @@ type HalfIfL<N, C> = If<C, Half<N>, N>;
 //
 // R = 2 * H + P, H = H(R), P = P(R)
 pub type Shr<L, R> = If<
-    R,
+    // Also exit for L = 0, since we will reach that way more often than for Shl.
+    // This also makes it much less likely for this to hit the recursion limit,
+    // because that requires a large R, which might just make the result 0.
+    _And<L, R>,
     //   Shr(L, R)
     // = Shr(L, 2 * H + P)
     // = Shr(L, H + H + P)
@@ -58,9 +68,18 @@ pub type Shr<L, R> = If<
     // = if P { H(Shr(Shr(L, H), H)) } else { Shr(Shr(L, H), H) }
     // = HalfIf(Shr(Shr(L, H), H), P)
     HalfIfL<
-        // NOTE: Shr is slightly faster without normalizing the argument
-        _Shr<_Shr<L, _H<R>>, _H<R>>,
+        // NOTE: From testing, this is the fastest known way to write this recursion
+        _Shr<
+            _Shr<
+                //
+                uint::From<L>,
+                _H<R>,
+            >,
+            _H<R>,
+        >,
         _P<R>,
     >,
+    // R = 0: L >> 0 = L
+    // L = 0: L >> R = 0 >> R = 0 = L
     L,
 >;

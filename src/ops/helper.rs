@@ -1,11 +1,7 @@
 use super::*;
 
-// Short-circuiting And
-pub type _AndSC<L, R> = uint::From<If<L, R, _0>>;
-// Short-circuiting Or
-pub type _OrSC<L, R> = uint::From<If<L, _1, R>>;
-
-pub type _AndL<L, R> = If<L, R, _0>;
+pub type _And<L, R> = If<L, R, _0>;
+pub type _Or<L, R> = If<L, _1, R>;
 pub type _Xor<L, R> = uint::From<If<L, _IsZero<R>, R>>;
 pub type _Xnor<L, R> = uint::From<If<L, R, _IsZero<R>>>;
 pub type _Xor3<A, B, C> = uint::From<If<A, _Xnor<B, C>, _Xor<B, C>>>;
@@ -33,3 +29,6 @@ pub type _DecUnchecked<N> = If<
     AppendBit<_H<N>, _0>,
     AppendBit<_DecUnchecked<_H<N>>, _1>,
 >;
+
+#[apply(pub_lazy)]
+pub type _LazyNorm<N> = uint::From<N>;

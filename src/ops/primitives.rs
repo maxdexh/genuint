@@ -58,7 +58,7 @@ pub type AppendBit<N, P> = real::_AppendBit<N, P>;
 ///
 /// # Opaqueness
 /// This operation is not opaque in `Then` and `Else`. If `Cond` is known, then
-/// the compiler might normalize this to `Then` or `Else`.
+/// `uint::From<If<Cond, Then, Else>>` normalizes to `Then` or `Else`.
 pub type If<Cond, Then, Else> = real::_If<Cond, Then, Else>;
 
 /// Makes `Out` opaque with respect to the value of a parameter `P`.
@@ -78,6 +78,7 @@ fn opaqueness_tests() {
     }
     // `Wat` has a trait const
     impl<L, R, const CLAIM_EQ: bool> HasMethod for Wat<L, R, CLAIM_EQ> {
+        // Check that inequality was claimed
         const CONST: () = assert!(!CLAIM_EQ);
     }
     // It also has an inherent method of the same name, but only if
