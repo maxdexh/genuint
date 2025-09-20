@@ -239,16 +239,15 @@ impl<C: ToUint, T> CondOption<C, T> {
 
     /// Wraps the inner type of this option in [`ManuallyDrop`].
     ///
-    /// This may make it easier to do pattern matching after converting via [`Self::into_builtin`]
+    /// This may make it easier to do pattern matching after converting via [`Self::into_builtin`].
     pub const fn into_manual_drop(self) -> CondOption<C, ManuallyDrop<T>> {
-        // SAFETY: repr(transparent)
-        unsafe {
-            crate::utils::same_size_transmute!(
-                CondOption::<C, T>,
-                CondOption::<C, ManuallyDrop<T>>,
-                self,
-            )
-        }
+        ctx!(
+            |t| t.new_some(ManuallyDrop::new(t.unwrap_some(self))),
+            |f| {
+                f.drop_none(self);
+                f.new_none()
+            }
+        )
     }
 
     /// Equivalent of [`Option::as_ref`]

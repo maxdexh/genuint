@@ -46,7 +46,7 @@ impl<C: ToUint> CtxCond<C, true> {
         self.unwrap_true(ok.into_direct())
     }
     #[inline(always)]
-    pub const fn unwrap_some<T>(self, some: CondOption<C, T>) -> T {
+    pub const fn unwrap_some<T>(&self, some: CondOption<C, T>) -> T {
         self.unwrap_true(some.into_direct())
     }
 }

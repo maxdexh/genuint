@@ -53,3 +53,5 @@ pub trait ToUint {
     /// Performs the conversion to [`Uint`].
     type ToUint: Uint;
 }
+
+pub use uint::From as UintFrom;
