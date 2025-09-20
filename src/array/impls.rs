@@ -1,6 +1,6 @@
-use core::mem::MaybeUninit;
+use core::mem::{ManuallyDrop, MaybeUninit};
 
-use crate::tern::TernRes;
+use crate::condty::CondResult;
 use crate::{Uint, ops, uint, utils};
 
 use crate::array::{helper::*, *};
@@ -45,8 +45,8 @@ unsafe impl<A: Array<Item = B>, B: Array> Array for Flatten<A> {
 }
 impl<A: Array<Item = B>, B: Array> ArraySealed for Flatten<A> {}
 
-// SAFETY: repr(transparent), TernRaw<C, O, E> is O if C else E
-unsafe impl<C: Uint, T, O, E> Array for crate::tern::TernRes<C, O, E>
+// SAFETY: repr(transparent), CondDirect<C, O, E> is O if C else E
+unsafe impl<C: Uint, T, O, E> Array for crate::condty::CondResult<C, O, E>
 where
     O: Array<Item = T>,
     E: Array<Item = T>,
@@ -54,7 +54,7 @@ where
     type Item = T;
     type Length = uint::From<crate::ops::If<C, O::Length, E::Length>>;
 }
-impl<C: Uint, T, O, E> ArraySealed for crate::tern::TernRes<C, O, E>
+impl<C: Uint, T, O, E> ArraySealed for crate::condty::CondResult<C, O, E>
 where
     O: Array<Item = T>,
     E: Array<Item = T>,
@@ -69,18 +69,18 @@ mod tuple_convert;
 
 impl<A, B> Concat<A, B> {
     /// Returns the fields of this struct as a pair of arrays wrapped in
-    /// [`ManuallyDrop`](core::mem::ManuallyDrop).
+    /// [`ManuallyDrop`].
     ///
     /// May make it easier to destructure the result in `const` contexts.
-    #[must_use = "The pair returned by this function is wrapped in ManuallyDrop and may need cleanup"]
-    pub const fn into_man_drop(self) -> (core::mem::ManuallyDrop<A>, core::mem::ManuallyDrop<B>) {
+    ///
+    /// Note that the result of this method is not an [`Array`] as it only fulfills the layout
+    /// invariants. This is purely a convenience methods for destructuring.
+    #[must_use = "The values returned by this function are wrapped in ManuallyDrop and may need to be dropped"]
+    pub const fn into_manual_drop(self) -> Concat<ManuallyDrop<A>, ManuallyDrop<B>> {
         // SAFETY: `self` is passed by value and can be destructed by read
         unsafe {
             crate::utils::destruct_read!(Self, (lhs, rhs), self);
-            (
-                core::mem::ManuallyDrop::new(lhs),
-                core::mem::ManuallyDrop::new(rhs),
-            )
+            Concat(ManuallyDrop::new(lhs), ManuallyDrop::new(rhs))
         }
     }
 }
@@ -164,12 +164,12 @@ where
     /// functions from [`const_util::result`].
     pub const fn try_retype<Dst: Array<Item = T>>(
         self,
-    ) -> TernRes<ops::Eq<N, Dst::Length>, Dst, Self> {
+    ) -> CondResult<ops::Eq<N, Dst::Length>, Dst, Self> {
         if uint::to_bool::<ops::Eq<N, Dst::Length>>() {
             // SAFETY: `Array` layout guarantees
-            crate::tern::TernRes::make_ok(unsafe { utils::same_size_transmute!(Self, Dst, self) })
+            crate::condty::CondResult::make_ok(unsafe { utils::same_size_transmute!(Self, Dst, self) })
         } else {
-            crate::tern::TernRes::make_err(self)
+            crate::condty::CondResult::make_err(self)
         }
     }
 

@@ -1,5 +1,3 @@
-#![allow(clippy::use_self)]
-
 use crate::{
     ToUint, Uint,
     array::Array,
@@ -14,9 +12,9 @@ pub trait _Tern {
     type _Tern<T, F>;
 }
 impl<C: Uint> _Tern for C {
-    type _Tern<T, F> = InternalOp!(C::ToUint, TernRaw<T, F>);
+    type _Tern<T, F> = InternalOp!(C::ToUint, CondDirect<T, F>);
 }
-pub type TernRaw<C, T, F> = <C as _Tern>::_Tern<T, F>;
+pub type CondDirect<C, T, F> = <C as _Tern>::_Tern<T, F>;
 
 pub type _Internals<N> = <N as UintSealed>::__Uint;
 macro_rules! InternalOp {
@@ -41,7 +39,7 @@ pub trait _Uint: _UintArrs + 'static {
     // This needs to evaluate directly to `T` or `F` because it is observable
     // for generic `T` and `F` (not that one could do anything else, since there
     // are no trait bounds)
-    type TernRaw<T, F>;
+    type CondDirect<T, F>;
 
     // These are exposed only through structs implementing ToUint, so we can
     // do the ToUint conversion on the result here directly. This has the
@@ -97,7 +95,7 @@ impl _Bit for _0 {}
 impl _Uint for _0 {
     const IS_NONZERO: bool = false;
 
-    type TernRaw<T, F> = F;
+    type CondDirect<T, F> = F;
 
     type If<T: ToUint, F: ToUint> = F::ToUint;
     type Opaque<N: ToUint> = N::ToUint;
@@ -115,7 +113,7 @@ impl _Pint for _1 {}
 impl _Uint for _1 {
     const IS_NONZERO: bool = true;
 
-    type TernRaw<T, F> = T;
+    type CondDirect<T, F> = T;
 
     type If<T: ToUint, F: ToUint> = T::ToUint;
     type Opaque<N: ToUint> = N::ToUint;
@@ -133,7 +131,7 @@ impl<Pre: _Pint, Last: _Bit> _Pint for _U<Pre, Last> {}
 impl<Pre: _Pint, Last: _Bit> _Uint for _U<Pre, Last> {
     const IS_NONZERO: bool = true;
 
-    type TernRaw<T, F> = T;
+    type CondDirect<T, F> = T;
 
     type If<T: ToUint, F: ToUint> = T::ToUint;
     type Opaque<N: ToUint> = N::ToUint;

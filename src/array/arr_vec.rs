@@ -133,7 +133,7 @@ where
     /// The first `len` elements of the array are guaranteed to be initialized to valid values of `T`.
     ///
     /// Equivalent of [`Vec::into_raw_parts`].
-    #[must_use = "The returned array may contain valid items previously owned by the vec that need cleanup"]
+    #[must_use = "The returned array may contain valid items previously owned by the vec that may need to be dropped"]
     pub const fn into_uninit_parts(self) -> (ArrApi<MaybeUninit<A>>, usize) {
         let ArrVecRepr { len, arr } = self.into_repr();
         (arr, len)

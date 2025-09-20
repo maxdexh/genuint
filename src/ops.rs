@@ -1,25 +1,39 @@
 //! Module defining operations for [`Uint`]s.
 //!
+//! # Laziness
+//! Operations implemented as a struct implementing [`ToUint`] are called lazy. They are lazy
+//! in the sense that they will only be evaluted once the compiler "evaluates" the associated
+//! type projection [`<Op<...> as ToUint>::ToUint`](ToUint::ToUint), generally through use of
+//! [`uint::From`].
+//!
+//! All operations in this module are lazy. In order to get a [`Uint`] from them, e.g. for use
+//! with [arrays](crate::array), one has to use [`uint::From`] to evalute them.
+//!
+//! Lazy operations are in contrast to type aliases, e.g. `type Inc<N> = uint::From<Add<N, _1>>`,
+//! which directly expand at the usage site, though they can still be lazy if they expand to
+//! a lazy operation and don't convert anything to a [`Uint`].
+//!
 //! # Primitive operations
-//! Currently, there are the following nontrivial primitive operations:
+//! Operations that are implemented through a dedicated associated type are called primitive.
+//!
+//! Currently, there are the following nontrivial primitive operations. Their associated types
+//! are not public API.
 //! - [`Half<N>`] removes the last bit of [`N::ToUint`](ToUint).
-//!     - Equivalent expr: `N.into() / 2`
+//!     - Equivalent expr: `N.to_uint() / 2`
 //! - [`Parity<N>`] gets the last bit of [`N::ToUint`](ToUint).
-//!     - Equivalent expr: `N.into() % 2`
+//!     - Equivalent expr: `N.to_uint() % 2`
 //! - [`AppendBit<N, B>`] pushes [`B`](ToUint) as a bit to the end of [`N`](ToUint)
-//!     - Equivalent expr: `2 * N.into() + (B.into() != 0) as _`
+//!     - Equivalent expr: `2 * N.to_uint() + (B.to_uint() != 0) as _`
 //! - [`If<C, T, F>`] evaluates to [`T::ToUint`](ToUint) if `C` is nonzero, otherwise
-//!   to [`F::ToUint`](ToUint).
-//!     - Equivalent expr: `(if C != 0 { T } else { F }).into()`
+//!   to [`F::ToUint`](ToUint). Only the necessary [`ToUint::ToUint`] projection is evaluated.
+//!     - Equivalent expr: `if C != 0 { T.to_uint() } else { F.to_uint() }`
 //!
-//! They are primitive in the sense that they are implemented using an internal associated type of [`Uint`]
-//! and that they use the underlying internal `impl`s to distinguish between different [`Uint`]s.
-//!
-//! These primitives are already enough to form a turing-complete system, and all other
-//! operations in this module are just implemented on top of them. The way to do this is
+//! These primitives, together with [`ToUint`] implementations based on them (and [`uint::From`]),
+//! are sufficient for a [Turing-complete](https://en.wikipedia.org/wiki/Turing_completeness)
+//! system, and all other operations in this module are just implemented on top of them. The way to do this is
 //! described in the following sections.
 //!
-//! # Laziness and Recursion
+//! # Recursion
 //! The way to implement an operation where the output requires looking at the entire number is to
 //! do it recursively. However, regular type aliases do not support recursion, see error E0391
 //! "cycle detected when expanding type alias".
@@ -120,13 +134,24 @@
 //! check_input::<_59, _122>();
 //! check_input::<uint::lit!(0b10101000110111111), uint::lit!(0b11110111011111)>()
 //! ```
-//!
-//! More examples can be found in this module, though the internal implementations make heavy use
-//! of macros to cut down on the repitition seen here.
 
 #[expect(unused_imports)] // for docs
 use crate::{ToUint, Uint};
 use crate::{internals::InternalOp, small::*, uint, utils::apply};
+
+macro_rules! impl_lazy {
+    (
+        $(())?
+        $(#[$attr:meta])*
+        type $Name:ident<$($P:ident),* $(,)?> = $Val:ty;
+    ) => {
+        $(#[$attr])*
+        impl<$($P: crate::ToUint),*> crate::ToUint for $Name<$($P),*> {
+            type ToUint = crate::uint::From<$Val>;
+        }
+    };
+}
+pub(crate) use impl_lazy;
 
 /// Input format:
 /// ```compile_fail
@@ -150,8 +175,8 @@ macro_rules! pub_lazy {
     ) => {
         $(#[$attr])*
         pub struct $Name<$($P $(= $Def)?),*>($($P),*);
-        impl<$($P: crate::ToUint),*> crate::ToUint for $Name<$($P),*> {
-            type ToUint = crate::uint::From<$Val>;
+        crate::ops::impl_lazy! {
+            type $Name<$($P),*> = $Val;
         }
     };
 }

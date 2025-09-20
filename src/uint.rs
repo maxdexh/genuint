@@ -2,7 +2,7 @@
 
 use crate::{ToUint, Uint, maxint::Umax, ops, small, uint};
 
-/// Alias for [`ToUint::ToUint`].
+/// Alias for [`N::ToUint`](ToUint::ToUint).
 pub type From<N> = <N as ToUint>::ToUint;
 
 /// Turns an integer literal into a [`Uint`].
