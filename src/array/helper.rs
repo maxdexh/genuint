@@ -41,12 +41,6 @@ pub(crate) const fn init_fill<T: Copy>(mut buf: &mut [MaybeUninit<T>], item: T) 
         buf = rest;
     }
 }
-pub(crate) const fn init_fill_const<C: type_const::Const>(mut buf: &mut [MaybeUninit<C::Type>]) {
-    while let [first, rest @ ..] = buf {
-        *first = MaybeUninit::new(C::VALUE);
-        buf = rest;
-    }
-}
 
 /// # Panics
 /// If `A::Length > usize::MAX`

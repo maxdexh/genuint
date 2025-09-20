@@ -78,12 +78,6 @@ where
         Self::from_fn(|_| Default::default())
     }
 }
-impl<A> type_const::DefaultConst for ArrApi<A>
-where
-    A: Array<Item: type_const::DefaultConst>,
-{
-    const DEFAULT: Self = Self::of_const::<type_const::DefaultOf<A::Item>>();
-}
 impl<A> core::fmt::Debug for ArrApi<A>
 where
     A: Array<Item: core::fmt::Debug>,

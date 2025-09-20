@@ -3,6 +3,15 @@
 //! This module provides conditional types that depend on whether a `Uint` is zero.
 //! This is not "conditional typing" in the Haskell sense, but a simple type projection.
 
+macro_rules! ctx {
+    (|$ctxt:pat_param| $true:expr, |$ctxf:pat_param| $false:expr $(, $($C:ty $(,)?)?)?) => {{
+        match $crate::__mac::cond::hold::<$($($C)?)?>() {
+            Ok($ctxt) => $true,
+            Err($ctxf) => $false,
+        }
+    }};
+}
+
 pub mod direct;
 
 use core::mem::ManuallyDrop;
@@ -30,115 +39,258 @@ use crate::{ToUint, uint};
 pub type CondDirect<Cond, True, False> =
     crate::internals::CondDirect<<Cond as ToUint>::ToUint, True, False>;
 
-/// A [`Result`]-like type that only has ok or error instances, depending on a [`ToUint`] condition.
+/// A [`Result`]-like wrapper for [`CondDirect`]
 ///
-/// This struct is implemented as a `repr(transparent)` newtype wrapper for [`CondDirect`].
-/// If `Cond` is zero, then this struct is a `repr(transparent)` wrapper around `E`. Otherwise, it
-/// is a `repr(transparent)` wrapper around `T`.
+/// If `Cond` is nonzero, instances of this type are always `Ok` instances with inner type `T`,
+/// otherwise they are always `Err` instances with inner type `E`.
+///
+/// This type is a [`repr(transparent)`](https://doc.rust-lang.org/reference/type-layout.html#r-layout.repr.transparent)
+/// wrapper around the corresponding instance kind. This means that `Ok` instances have the same layout as
+/// `T` and `Err` instances have the same layout as `E`. No space is required to store the instance
+/// kind.
 #[repr(transparent)]
 pub struct CondResult<Cond: ToUint, T, E> {
-    /// The underlying [`CondDirect`].
+    /// The underlying [`CondDirect`]. The struct is `repr(transparent)` around this
+    /// field.
     pub direct: CondDirect<Cond, T, E>,
 }
 impl<C: ToUint, T, E> CondResult<C, T, E> {
-    /// Whether instances of this type are ok, i.e. `to_bool::<C>()`
+    /// Whether instances of this type are `Ok`
     pub const IS_OK: bool = uint::to_bool::<C>();
-    /// Whether instances of this type are errors, i.e. `!to_bool::<C>()`
+
+    /// Whether instances of this type are `Err`
     pub const IS_ERR: bool = !Self::IS_OK;
+
+    /// Whether this result is `Ok`
+    pub const fn is_ok(&self) -> bool {
+        uint::to_bool::<C>()
+    }
+
+    /// Whether this result is `Err`
+    pub const fn is_err(&self) -> bool {
+        !self.is_ok()
+    }
 
     /// Shorthand for `Self { direct }`.
     pub const fn from_direct(direct: CondDirect<C, T, E>) -> Self {
         Self { direct }
     }
 
-    /// Does the same thing as moving `self.raw`, but also works in `const` contexts.
-    pub const fn into_raw(self) -> CondDirect<C, T, E> {
+    /// Does the same thing as moving out of `self.direct`, but also works in `const` contexts.
+    pub const fn into_direct(self) -> CondDirect<C, T, E> {
         // SAFETY: `self` is by value and this struct is ok to unwrap by read
         unsafe {
-            crate::utils::destruct_read!(Self, { direct: raw }, self);
-            raw
+            crate::utils::destruct_read!(Self, { direct: direct }, self);
+            direct
         }
     }
+
     /// Equivalent of [`Result::as_ref`].
     pub const fn as_ref(&self) -> CondResult<C, &T, &E> {
         CondResult::from_direct(direct::as_ref::<C, _, _>(&self.direct))
     }
+
     /// Equivalent of [`Result::as_mut`].
     pub const fn as_mut(&mut self) -> CondResult<C, &mut T, &mut E> {
         CondResult::from_direct(direct::as_mut::<C, _, _>(&mut self.direct))
     }
-    /// Turns this result in to a regular [`Result`].
-    #[allow(clippy::missing_errors_doc)]
-    pub const fn into_result(self) -> Result<T, E> {
-        direct::match_tern_raw!(C, self.into_raw(), |t| Ok(t), |f| Err(f))
+
+    /// Turns this result into a regular builtin [`Result`].
+    #[expect(clippy::missing_errors_doc)]
+    pub const fn into_builtin(self) -> Result<T, E> {
+        ctx!(
+            //
+            |t| Ok(t.unwrap_ok(self)),
+            |f| Err(f.unwrap_err(self))
+        )
     }
 
-    /// Turns `T` into `Self` assuming `Self::IS_OK`
+    /// Creates an `Ok` instance, assuming [`Self::IS_OK`]
     ///
     /// # Panics
-    /// If `Self::IS_ERR`
-    pub const fn make_ok(ok: T) -> Self {
-        Self::from_direct(direct::wrap_true::<C, _, _>(
-            ok,
-            "Call to `make_ok` on error `CondResult`",
-        ))
+    /// If [`Self::IS_ERR`]
+    #[track_caller]
+    pub const fn new_ok(ok: T) -> Self {
+        ctx!(
+            //
+            |t| t.new_ok(ok),
+            |_| panic!("Call to `new_ok` on Err type")
+        )
     }
 
-    /// Turns `T` into `Self` assuming `Self::IS_ERR`
+    /// Equivalent of [`Result::unwrap`], but `const` and without the [`Debug`] bound.
     ///
     /// # Panics
-    /// If `Self::IS_OK`
-    pub const fn make_err(err: E) -> Self {
-        Self::from_direct(direct::wrap_false::<C, _, _>(
-            err,
-            "Call to `make_err` on ok `CondResult`",
-        ))
+    /// If [`Self::IS_ERR`]
+    pub const fn unwrap(self) -> T {
+        ctx!(
+            //
+            |t| t.unwrap_ok(self),
+            |_| panic!("Call to `unwrap` on Err type")
+        )
     }
 
-    /// Wraps the variants of this result in [`ManuallyDrop`].
+    /// Creates an `Err` instance, assuming [`Self::IS_ERR`]
+    ///
+    /// # Panics
+    /// If [`Self::IS_OK`]
+    #[track_caller]
+    pub const fn new_err(err: E) -> Self {
+        ctx!(
+            //
+            |_| panic!("Call to `new_err` on Ok type"),
+            |f| f.new_err(err),
+        )
+    }
+
+    /// Equivalent of [`Result::unwrap_err`], but `const` and without the [`Debug`] bound.
+    ///
+    /// # Panics
+    /// If [`Self::IS_OK`]
+    pub const fn unwrap_err(self) -> E {
+        ctx!(
+            //
+            |_| panic!("Call to `unwrap_err` on Ok type"),
+            |f| f.unwrap_err(self),
+        )
+    }
+
+    /// Wraps the content of this result in [`ManuallyDrop`].
     ///
     /// This may make it easier to destructure [`Self::into_result`] in `const` contexts when generics or
     /// [`Drop`] impls are involved.
-    #[must_use = "The variants of this result are wrapped in ManuallyDrop and may need to be dropped"]
+    #[must_use = "The content of this result are wrapped in ManuallyDrop and may need to be dropped"]
     #[allow(clippy::missing_errors_doc)]
     pub const fn into_manual_drop(self) -> CondResult<C, ManuallyDrop<T>, ManuallyDrop<E>> {
-        // SAFETY: repr(transparent)
-        unsafe {
-            crate::utils::same_size_transmute!(
-                CondResult::<C, T, E>,
-                CondResult::<C, ManuallyDrop<T>, ManuallyDrop<E>>,
-                self
-            )
-        }
-    }
-    /// Equivalent of [`Result::unwrap`], but uses a generic message so it's usable in `const` and
-    /// without [`Debug`] bounds.
-    pub const fn unwrap(self) -> T {
-        direct::expect_true::<C, _, _>(self.into_raw(), "Call to `unwrap` on error variant")
-    }
-
-    /// Equivalent of [`Result::unwrap_err`], but uses a generic message so it's usable in `const` and
-    /// without [`Debug`] bounds.
-    pub const fn unwrap_err(self) -> E {
-        direct::expect_false::<C, _, _>(self.into_raw(), "Call to `unwrap_err` on ok variant")
+        ctx!(
+            //
+            |t| t.new_ok(ManuallyDrop::new(t.unwrap_ok(self))),
+            |f| f.new_err(ManuallyDrop::new(f.unwrap_err(self))),
+        )
     }
 }
 
 impl<C: ToUint, T> CondResult<C, T, T> {
-    /// Creates a result where both variants have the same type.
-    pub const fn new_trivial(x: T) -> Self {
-        Self::from_direct(
-            // SAFETY: CondDirect<C, T, T> is the same type as T or T, so it is T
-            unsafe { crate::utils::same_size_transmute!(T, CondDirect::<C, T, T>, x) },
-        )
+    /// Creates a result where both instance kinds have the same type.
+    pub const fn new_trivial(inner: T) -> Self {
+        Self::from_direct(direct::new_trivial::<C, _>(inner))
     }
-    /// Unwraps a result where both variants have the same type.
+
+    /// Unwraps a result where both instance kinds have the same type.
     pub const fn unwrap_trivial(self) -> T {
-        // SAFETY: CondDirect<C, T, T> is the same type as T or T, so it is T
-        unsafe { crate::utils::same_size_transmute!(CondDirect::<C, T, T>, T, self.into_raw()) }
+        direct::unwrap_trivial::<C, _>(self.into_direct())
     }
 }
 
-pub struct CondOption<C: ToUint, T> {
-    raw: CondDirect<C, T, ()>,
+/// An [`Option`]-like wrapper for [`CondDirect`]
+///
+/// This struct is a `repr(transparent)` newtype wrapper for [`CondDirect<Cond, T, ()>`].
+/// If `Cond` is zero, then this struct is a `repr(transparent)` wrapper around `E`.
+/// Otherwise, it is a `repr(transparent)` wrapper around `()`.
+#[repr(transparent)]
+pub struct CondOption<Cond: ToUint, T> {
+    /// The underlying [`CondDirect`]. The struct is `repr(transparent)` around this
+    /// field.
+    pub direct: CondDirect<Cond, T, ()>,
+}
+
+impl<C: ToUint, T> CondOption<C, T> {
+    /// Whether instances of this type are `Some`
+    pub const IS_SOME: bool = uint::to_bool::<C>();
+
+    /// Whether instances of this type are `None`
+    pub const IS_NONE: bool = !Self::IS_SOME;
+
+    /// Whether this option is `Some`
+    pub const fn is_some(&self) -> bool {
+        Self::IS_SOME
+    }
+
+    /// Whether this result is `None`
+    pub const fn is_none(&self) -> bool {
+        uint::to_bool::<C>()
+    }
+
+    /// Shorthand for `Self { direct }`.
+    pub const fn from_direct(direct: CondDirect<C, T, ()>) -> Self {
+        Self { direct }
+    }
+
+    /// Does the same thing as moving out of `self.direct`, but also works in `const` contexts.
+    pub const fn into_direct(self) -> CondDirect<C, T, ()> {
+        // SAFETY: `self` is by value and this struct is ok to unwrap by read
+        unsafe {
+            crate::utils::destruct_read!(Self, { direct: direct }, self);
+            direct
+        }
+    }
+
+    /// Turns this option into a regular builtin [`Option`].
+    pub const fn into_builtin(self) -> Option<T> {
+        ctx!(
+            //
+            |t| Some(t.unwrap_some(self)),
+            |f| {
+                f.drop_none(self);
+                None
+            },
+        )
+    }
+
+    /// Wraps the inner type of this option in [`ManuallyDrop`].
+    ///
+    /// This may make it easier to do pattern matching after converting via [`Self::into_builtin`]
+    pub const fn into_manual_drop(self) -> CondOption<C, ManuallyDrop<T>> {
+        // SAFETY: repr(transparent)
+        unsafe {
+            crate::utils::same_size_transmute!(
+                CondOption::<C, T>,
+                CondOption::<C, ManuallyDrop<T>>,
+                self,
+            )
+        }
+    }
+
+    /// Equivalent of [`Option::as_ref`]
+    pub const fn as_ref(&self) -> CondOption<C, &T> {
+        ctx!(
+            //
+            |t| t.new_some(t.unwrap_true(direct::as_ref::<C, _, _>(&self.direct))),
+            |f| f.new_none(),
+        )
+    }
+
+    /// Equivalent of [`Option::as_mut`]
+    pub const fn as_mut(&mut self) -> CondOption<C, &mut T> {
+        ctx!(
+            //
+            |t| t.new_some(t.unwrap_true(direct::as_mut::<C, _, _>(&mut self.direct))),
+            |f| f.new_none(),
+        )
+    }
+
+    /// Equivalent of [`Option::unwrap`]
+    ///
+    /// # Panics
+    /// If [`Self::IS_NONE`]
+    pub const fn unwrap(self) -> T {
+        ctx!(
+            //
+            |t| t.unwrap_some(self),
+            |_| panic!("Call to `unwrap` on None instance"),
+        )
+    }
+
+    /// Discards the value in a `const` context, assuming that [`Self::IS_NONE`]
+    ///
+    /// # Panics
+    /// If [`Self::IS_SOME`]
+    #[track_caller]
+    pub const fn assert_none(self) {
+        ctx!(
+            //
+            |_| panic!("Call to `assert_none` on Some instance"),
+            |f| f.drop_none(self),
+        )
+    }
 }

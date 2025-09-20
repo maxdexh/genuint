@@ -238,11 +238,11 @@ macro_rules! decl_try_retype {
             Dst: Array<Item = Src::Item>,
         {
             match uint::to_bool::<ops::Eq<Src::Length, Dst::Length>>() {
-                true => CondResult::make_ok(
+                true => CondResult::new_ok(
                     // SAFETY: Src::Length == Dst::Length
                     unsafe { $ty!(from_raw, $ty!(into_raw, src).cast()) },
                 ),
-                false => CondResult::make_err(src),
+                false => CondResult::new_err(src),
             }
         }
     };

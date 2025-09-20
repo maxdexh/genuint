@@ -167,9 +167,11 @@ where
     ) -> CondResult<ops::Eq<N, Dst::Length>, Dst, Self> {
         if uint::to_bool::<ops::Eq<N, Dst::Length>>() {
             // SAFETY: `Array` layout guarantees
-            crate::condty::CondResult::make_ok(unsafe { utils::same_size_transmute!(Self, Dst, self) })
+            crate::condty::CondResult::new_ok(unsafe {
+                utils::same_size_transmute!(Self, Dst, self)
+            })
         } else {
-            crate::condty::CondResult::make_err(self)
+            crate::condty::CondResult::new_err(self)
         }
     }
 
@@ -215,31 +217,6 @@ where
     {
         let mut out = ArrApi::new(MaybeUninit::uninit());
         init_fill(out.as_mut_slice(), item);
-        // SAFETY: All elements have been initialized
-        unsafe { out.inner.assume_init() }
-    }
-
-    /// Equivalent to `[CONST; N]` (or `[const { expr }; N]`).
-    ///
-    /// # Examples
-    /// ```
-    /// extern crate type_const;
-    ///
-    /// struct EmptyVecConst<T>(T);
-    /// impl<T> type_const::Const for EmptyVecConst<T> {
-    ///     type Type = Vec<T>;
-    ///     const VALUE: Self::Type = Vec::new();
-    /// }
-    ///
-    /// use genuint::{array::*, small::*};
-    /// assert_eq!(
-    ///     Arr::<_, _4>::of_const::<EmptyVecConst<i32>>(),
-    ///     [const { Vec::<i32>::new() }; 4],
-    /// )
-    /// ```
-    pub const fn of_const<C: type_const::Const<Type = T>>() -> Self {
-        let mut out = ArrApi::new(MaybeUninit::uninit());
-        init_fill_const::<C>(out.as_mut_slice());
         // SAFETY: All elements have been initialized
         unsafe { out.inner.assume_init() }
     }

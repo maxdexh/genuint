@@ -59,7 +59,3 @@ impl<A: Array> Default for ArrDeqApi<A> {
         Self::new()
     }
 }
-
-impl<A: Array> type_const::DefaultConst for ArrDeqApi<A> {
-    const DEFAULT: Self = Self::new();
-}
