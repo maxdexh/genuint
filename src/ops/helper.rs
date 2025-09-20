@@ -29,6 +29,3 @@ pub type _DecUnchecked<N> = If<
     AppendBit<_H<N>, _0>,
     AppendBit<_DecUnchecked<_H<N>>, _1>,
 >;
-
-#[apply(pub_lazy)]
-pub type _LazyNorm<N> = uint::From<N>;

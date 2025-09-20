@@ -3,7 +3,7 @@
 use crate::{
     ToUint, Uint,
     array::Array,
-    uimpl::{_0, _1, A},
+    uimpl::{_0, _1, _U},
 };
 
 // NOTE: items from this module with names starting with _,
@@ -28,12 +28,10 @@ pub(crate) use InternalOp;
 
 pub trait ArraySealed {}
 
-// Map the intenral API to the public one using an
-// undocumented associated type. Since _Uint is in
-// a private module, __Internals cannot be used to
-// access the operations.
+// Map the internal API to the public one using an
+// undocumented associated type.
 pub trait UintSealed: 'static {
-    // Not public API
+    /// Not public API
     #[doc(hidden)]
     type __Uint: _Uint;
 }
@@ -126,13 +124,13 @@ impl _Uint for _1 {
     type Parity = _1;
 
     type AppendMeAsBit<N: Uint> = InternalOp!(N, _DirectAppend<Self>);
-    type _DirectAppend<B: _Bit> = A<Self, B>;
+    type _DirectAppend<B: _Bit> = _U<Self, B>;
 }
 
 // 2 * N + B where N > 0, B <= 1. Together with 0 and 1, this covers
 // all non-negative integers.
-impl<Pre: _Pint, Last: _Bit> _Pint for A<Pre, Last> {}
-impl<Pre: _Pint, Last: _Bit> _Uint for A<Pre, Last> {
+impl<Pre: _Pint, Last: _Bit> _Pint for _U<Pre, Last> {}
+impl<Pre: _Pint, Last: _Bit> _Uint for _U<Pre, Last> {
     const IS_NONZERO: bool = true;
 
     type TernRaw<T, F> = T;
@@ -144,7 +142,7 @@ impl<Pre: _Pint, Last: _Bit> _Uint for A<Pre, Last> {
     type Parity = Last;
 
     type AppendMeAsBit<N: Uint> = InternalOp!(N, _DirectAppend<_1>);
-    type _DirectAppend<B: _Bit> = A<Self, B>;
+    type _DirectAppend<B: _Bit> = _U<Self, B>;
 }
 
 // Array internals. Expressed through a supertrait of _Uint so that it can be generated more
@@ -254,6 +252,6 @@ impl _UintArrs for _0 {
 impl _UintArrs for _1 {
     impl_body_one!();
 }
-impl<Pre: _Pint, Pop: _Bit> _UintArrs for A<Pre, Pop> {
+impl<Pre: _Pint, Pop: _Bit> _UintArrs for _U<Pre, Pop> {
     impl_body_bisect!(Pre, Pop);
 }

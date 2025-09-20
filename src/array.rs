@@ -1,8 +1,9 @@
-//! Provides a drop-in replacement for builtin `[T; N]` arrays that uses a [`Uint`](crate::Uint)
-//! for its length parameter
+//! Drop-in replacement for builtin `[T; N]` arrays, using [`Uint`](crate::Uint) for the length
 
 use crate::internals;
 
+/// Trait for arrays whose length is measured as a [`Uint`](crate::Uint).
+///
 /// # Safety
 /// Currently, this trait is sealed.
 ///

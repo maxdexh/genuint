@@ -1,4 +1,4 @@
-//! Primitive-related [`Uint`] constants.
+//! Various [`Uint`] constants
 //!
 //! Note that some types in this module require a high recursion limit.
 
@@ -6,17 +6,17 @@
 use crate::{ToUint, Uint};
 use crate::{ops, small::*, uint};
 
-/// Holds a const [`u128`].
+/// Holds a const [`u128`]
 ///
 /// Implements [`ToUint`] for [`small`](crate::small) values.
 pub struct ConstU128<const N: u128>;
 
-/// Holds a const [`usize`].
+/// Holds a const [`usize`]
 ///
 /// Implements [`ToUint`] for [`small`](crate::small) values.
 pub struct ConstUsize<const N: usize>;
 
-/// Holds a const [`bool`].
+/// Holds a const [`bool`]
 ///
 /// Implements [`ToUint`], using seperate impls for `true` and `false`.
 pub struct ConstBool<const B: bool>;
@@ -27,13 +27,13 @@ impl ToUint for ConstBool<false> {
     type ToUint = _0;
 }
 
-/// [`usize::BITS`] as a [`Uint`].
+/// [`usize::BITS`] as a [`Uint`]
 pub type PtrWidth = uint::From<ops::Shl<ConstUsize<{ size_of::<usize>() }>, _3>>;
 
-/// [`usize::MAX`] as a [`Uint`].
+/// [`usize::MAX`] as a [`Uint`]
 pub type UsizeMax = uint::From<ops::SatSub<ops::Shl<_1, PtrWidth>, _1>>;
 
-/// [`isize::MAX`] as a [`Uint`].
+/// [`isize::MAX`] as a [`Uint`]
 pub type IsizeMax = uint::From<ops::Half<UsizeMax>>;
 
 #[test]
@@ -48,7 +48,7 @@ macro_rules! gen_maxes {
         $([$name:ident, $bits:ty, $prim:ty $(,)? ],)*
     ] => {
         $(
-            #[doc = concat!("[`", stringify!($prim), "::MAX`], but as a [`Uint`]")]
+            #[doc = concat!("[`", stringify!($prim), "::MAX`] as a [`Uint`]")]
             pub type $name = uint::From<
                 ops::_DecUnchecked<
                     ops::Shl<_1, $bits>

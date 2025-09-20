@@ -1,7 +1,17 @@
 //! Module defining operations for [`Uint`]s.
 //!
 //! # Primitive operations
-//! Currently, there are 4 nontrivial primitive operations: [`Half`], [`Parity`], [`If`] and [`AppendBit`].
+//! Currently, there are the following nontrivial primitive operations:
+//! - [`Half<N>`] removes the last bit of [`N::ToUint`](ToUint).
+//!     - Equivalent expr: `N.into() / 2`
+//! - [`Parity<N>`] gets the last bit of [`N::ToUint`](ToUint).
+//!     - Equivalent expr: `N.into() % 2`
+//! - [`AppendBit<N, B>`] pushes [`B`](ToUint) as a bit to the end of [`N`](ToUint)
+//!     - Equivalent expr: `2 * N.into() + (B.into() != 0) as _`
+//! - [`If<C, T, F>`] evaluates to [`T::ToUint`](ToUint) if `C` is nonzero, otherwise
+//!   to [`F::ToUint`](ToUint).
+//!     - Equivalent expr: `(if C != 0 { T } else { F }).into()`
+//!
 //! They are primitive in the sense that they are implemented using an internal associated type of [`Uint`]
 //! and that they use the underlying internal `impl`s to distinguish between different [`Uint`]s.
 //!
@@ -31,8 +41,15 @@
 //!         _0, // 0 & R = 0
 //!     >>;
 //! }
-//! assert_eq!(uint::to_usize::<MyBitAnd<_3, _5>>(), Some(3 & 5));
-//! assert_eq!(uint::to_usize::<MyBitAnd<_7, _122>>(), Some(7 & 122));
+//! fn check_input<L: ToUint, R: ToUint>() {
+//!     assert_eq!( // works fully generically!
+//!         uint::to_u128::<MyBitAnd<L, R>>().unwrap(),
+//!         uint::to_u128::<L>().unwrap() & uint::to_u128::<R>().unwrap(),
+//!     )
+//! }
+//! check_input::<_3, _5>();
+//! check_input::<_59, _122>();
+//! check_input::<uint::lit!(0b10101000110111111), uint::lit!(0b11110111011111)>()
 //! ```
 //! Because `BitAnd2` is [`ToUint`] here and [`If`] works by only evaluating
 //! [`ToUint::ToUint`] for the branch that is needed for the output, this will
@@ -107,7 +124,7 @@
 //! More examples can be found in this module, though the internal implementations make heavy use
 //! of macros to cut down on the repitition seen here.
 
-#[expect(unused)] // for docs
+#[expect(unused_imports)] // for docs
 use crate::{ToUint, Uint};
 use crate::{internals::InternalOp, small::*, uint, utils::apply};
 
