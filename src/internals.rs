@@ -12,7 +12,7 @@ pub trait _Tern {
     type _Tern<T, F>;
 }
 impl<C: Uint> _Tern for C {
-    type _Tern<T, F> = InternalOp!(C::ToUint, CondDirect<T, F>);
+    type _Tern<T, F> = InternalOp!(C, CondDirect<T, F>);
 }
 pub type CondDirect<C, T, F> = <C as _Tern>::_Tern<T, F>;
 
@@ -85,10 +85,6 @@ impl<N: _Uint> UintSealed for N {
 }
 #[diagnostic::do_not_recommend]
 impl<N: _Uint> Uint for N {}
-#[diagnostic::do_not_recommend]
-impl<N: _Uint> ToUint for N {
-    type ToUint = Self;
-}
 
 // 0
 impl _Bit for _0 {}

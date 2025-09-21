@@ -43,15 +43,28 @@ pub mod uint;
 ///
 /// It is guaranteed (including to unsafe code) that there is a one-to-one correspondence between
 /// the non-negative integers and the set of types that implement this trait.
-pub trait Uint: ToUint<ToUint = Self> + 'static + internals::UintSealed {}
+#[diagnostic::on_unimplemented(
+    message = "`{Self}` is not a `Uint`",
+    label = "`{Self}` was expected to implement `Uint` directly",
+    note = "Consider using `uint::From<{Self}>` if `{Self}: ToUint`"
+)]
+pub trait Uint: 'static + internals::UintSealed {}
 
 /// A type that can be turned into a [`Uint`]
 ///
 /// This is not only a conversion trait, but forms an important part in how most operations are
 /// implemented. See the [`ops`] module.
+#[diagnostic::on_unimplemented(
+    message = "Cannot convert `{Self}` to a `Uint`",
+    label = "To be used like a `Uint`, `{Self}` must implement `ToUint`"
+)]
 pub trait ToUint {
     /// Performs the conversion to [`Uint`].
     type ToUint: Uint;
+}
+#[diagnostic::do_not_recommend]
+impl<N: Uint> ToUint for N {
+    type ToUint = Self;
 }
 
 pub use uint::From as UintFrom;
