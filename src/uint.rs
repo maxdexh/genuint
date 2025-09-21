@@ -36,9 +36,9 @@ const fn to_umax_overflowing<N: Uint>() -> (Umax, bool) {
     // It might be worth it to perform a BitAnd on the `Uint` before plugging it in here.
     const {
         if to_bool::<N>() {
-            let (h, o1) = to_umax_overflowing::<uint::From<ops::Half<N>>>();
+            let (h, o1) = to_umax_overflowing::<uint::From<ops::PopBit<N>>>();
             let (t, o2) = h.overflowing_mul(2);
-            let (n, o3) = t.overflowing_add(to_bool::<ops::Parity<N>>() as _);
+            let (n, o3) = t.overflowing_add(to_bool::<ops::LastBit<N>>() as _);
             (n, o1 || o2 || o3)
         } else {
             (0, false)
@@ -155,10 +155,10 @@ pub const fn cmp<L: ToUint, R: ToUint>() -> core::cmp::Ordering {
                     false => Ordering::Equal,
                 }
             } else {
-                match doit::<From<ops::Half<L>>, From<ops::Half<R>>>() {
+                match doit::<From<ops::PopBit<L>>, From<ops::PopBit<R>>>() {
                     it @ (Ordering::Less | Ordering::Greater) => it,
                     Ordering::Equal => {
-                        match (to_bool::<ops::Parity<L>>(), to_bool::<ops::Parity<R>>()) {
+                        match (to_bool::<ops::LastBit<L>>(), to_bool::<ops::LastBit<R>>()) {
                             (true, true) | (false, false) => Ordering::Equal,
                             (true, false) => Ordering::Greater,
                             (false, true) => Ordering::Less,

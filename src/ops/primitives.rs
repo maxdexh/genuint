@@ -1,26 +1,26 @@
 use super::*;
 
-/// Halves the value of a number by removing one bit from the end.
+/// Halves the value of a number by removing the last bit.
 ///
 /// Effectively a more efficient implementation of [`Div<N, _2>`] or [`Shr<N, _1>`].
-/// This, together with [`Parity`] and [`If`], can be used to implement operations that
+/// This, together with [`LastBit`] and [`If`], can be used to implement operations that
 /// recursively destructure a number and accumulate a result.
 ///
 /// See the [module level documentation](crate::ops) for details on how to combine
 /// primitive operations.
 #[apply(pub_lazy)]
-pub type Half<N> = InternalOp!(uint::From<N>, Half);
+pub type PopBit<N> = InternalOp!(uint::From<N>, PopBit);
 
-/// Calculates the parity of a number (whether it is even or odd) by getting its last bit.
+/// Gets the parity of a number (even/odd) by getting its last bit.
 ///
 /// Effectively a more efficient implementation of [`Rem<N, _2>`] or [`BitAnd<N, _1>`].
-/// This, together with [`Half`] and [`If`], can be used to implement operations that
+/// This, together with [`PopBit`] and [`If`], can be used to implement operations that
 /// recursively destructure a number and accumulate a result.
 ///
 /// See the [module level documentation](crate::ops) for details on how to combine
 /// primitive operations.
 #[apply(pub_lazy)]
-pub type Parity<N> = InternalOp!(uint::From<N>, Parity);
+pub type LastBit<N> = InternalOp!(uint::From<N>, LastBit);
 
 /// Adds a single bit to the end of a number.
 ///
@@ -31,7 +31,7 @@ pub type Parity<N> = InternalOp!(uint::From<N>, Parity);
 /// See the [module level documentation](crate::ops) for details on how to combine
 /// primitive operations.
 #[apply(pub_lazy)]
-pub type AppendBit<N, P> = InternalOp!(uint::From<P>, AppendMeAsBit<uint::From<N>>);
+pub type PushBit<N, P> = InternalOp!(uint::From<P>, PushSelfAsBit<uint::From<N>>);
 
 /// If-else/Ternary operation.
 ///
@@ -98,7 +98,7 @@ fn opaqueness_tests() {
         // types that are not provably the same
         check_neq!(uint::From<Opaque<B, A>>, uint::From<A>);
         check_neq!(uint::From<Opaque<B, A>>, Opaque<A, A>);
-        check_neq!(uint::From<Half<AppendBit<_0, A>>>, _0);
+        check_neq!(uint::From<PopBit<PushBit<_0, A>>>, _0);
     }
     accept::<_3, _7>();
 }

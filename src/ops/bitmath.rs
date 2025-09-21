@@ -17,7 +17,7 @@ use super::*;
 // BitAnd(L, R) = BitWise(And, L, R), see above
 pub type BitAnd<L, R> = If<
     L,
-    AppendBit<
+    PushBit<
         _BitAnd<_H<R>, _H<L>>, // A & B = B & A, switching will terminate faster
         _And<_P<L>, _P<R>>,
     >,
@@ -32,7 +32,7 @@ pub type BitAnd<L, R> = If<
 // BitOr(L, R) = BitWise(Or, L, R), see above
 pub type BitOr<L, R> = If<
     L,
-    AppendBit<
+    PushBit<
         _BitOr<_H<R>, _H<L>>, // A | B = B | A
         _Or<_P<L>, _P<R>>,
     >,
@@ -47,7 +47,7 @@ pub type BitOr<L, R> = If<
 // BitXor(L, R) = BitWise(Xor, L, R), see above
 pub type BitXor<L, R> = If<
     L,
-    AppendBit<
+    PushBit<
         //
         _BitXor<_H<R>, _H<L>>, // A ^ B = B ^ A
         _Xor<_P<L>, _P<R>>,

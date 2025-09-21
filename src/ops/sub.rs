@@ -25,7 +25,7 @@ pub(crate) type _SubUnchecked<L, R, C = _0> = If<
     // = 2 * (HL - HR) - 2 * CC + X % 2
     // = 2 * (HL - HR - CC) + X % 2
     // = Append(SubUnchecked(HL, HR, CC), X % 2)
-    AppendBit<
+    PushBit<
         _SubUnchecked<
             _H<L>,
             _H<R>,

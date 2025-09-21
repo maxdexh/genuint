@@ -7,11 +7,11 @@ use super::*;
 // N + 1 = 2 * H + P + 1
 //       = if P { 2 * H + 2 } else { 2 * H + 1 }
 //       = if P { 2 * (H + 1) } else { 2 * H + 1 }
-//       = if P { AppendBit(H + 1, 0) } else { AppendBit(H, 1) }
+//       = if P { PushBit(H + 1, 0) } else { PushBit(H, 1) }
 pub(crate) type _Inc<N> = If<
     _P<N>, //
-    AppendBit<_Inc<_H<N>>, _0>,
-    AppendBit<_H<N>, _1>,
+    PushBit<_Inc<_H<N>>, _0>,
+    PushBit<_H<N>, _1>,
 >;
 
 #[apply(lazy! plus_bit)]
@@ -33,7 +33,7 @@ pub(crate) type _CarryAdd<L, R, C = _0> = If<
     //   L + R + C
     // = 2 * (LH + RH + X / 2) + X % 2
     // = Append(LH + RH + X / 2, X % 2)
-    AppendBit<
+    PushBit<
         // LH + RH + X / 2
         _CarryAdd<
             _H<R>, // swap args to converge faster

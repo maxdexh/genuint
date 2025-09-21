@@ -5,7 +5,7 @@ use super::*;
 type _AddIf<C, L, R> = If<C, add::_CarryAdd<L, R>, L>;
 
 // Double(N) := 2 * N
-type _Double<N> = AppendBit<N, _0>;
+type _Double<N> = PushBit<N, _0>;
 
 /// Type-level multiplication.
 #[apply(opaque! pub(crate) mul_impl::_Mul)]

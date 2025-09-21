@@ -18,11 +18,11 @@
 //!
 //! Currently, there are the following nontrivial primitive operations. Their associated types
 //! are not public API.
-//! - [`Half<N>`] removes the last bit of [`N::ToUint`](ToUint).
+//! - [`PopBit<N>`] removes the last bit of [`N::ToUint`](ToUint).
 //!     - Equivalent expr: `N.to_uint() / 2`
-//! - [`Parity<N>`] gets the last bit of [`N::ToUint`](ToUint).
+//! - [`LastBit<N>`] gets the last bit of [`N::ToUint`](ToUint).
 //!     - Equivalent expr: `N.to_uint() % 2`
-//! - [`AppendBit<N, B>`] pushes [`B`](ToUint) as a bit to the end of [`N`](ToUint)
+//! - [`PushBit<N, B>`] pushes [`B`](ToUint) as a bit to the end of [`N`](ToUint)
 //!     - Equivalent expr: `2 * N.to_uint() + (B.to_uint() != 0) as _`
 //! - [`If<C, T, F>`] evaluates to [`T::ToUint`](ToUint) if `C` is nonzero, otherwise
 //!   to [`F::ToUint`](ToUint). Only the necessary [`ToUint::ToUint`] projection is evaluated.
@@ -48,15 +48,15 @@
 //!     type ToUint = uint::From<If<
 //!         L,
 //!         // take the bitand of the previous bits and append the and of the last bit
-//!         AppendBit<
-//!             MyBitAnd<Half<L>, Half<R>>,
-//!             If<Parity<L>, Parity<R>, _0>, // boolean AND
+//!         PushBit<
+//!             MyBitAnd<PopBit<L>, PopBit<R>>,
+//!             If<LastBit<L>, LastBit<R>, _0>, // boolean AND
 //!         >,
 //!         _0, // 0 & R = 0
 //!     >>;
 //! }
 //! fn check_input<L: ToUint, R: ToUint>() {
-//!     assert_eq!( // works fully generically!
+//!     assert_eq!(
 //!         uint::to_u128::<MyBitAnd<L, R>>().unwrap(),
 //!         uint::to_u128::<L>().unwrap() & uint::to_u128::<R>().unwrap(),
 //!     )
@@ -70,8 +70,8 @@
 //! safely exit when `L` becomes 0.
 //!
 //! #### Normalizing recursive arguments
-//! Because [`Half`] is itself lazy, the above definition of `BitAnd2` will
-//! result in the arguments to `BitAnd2` accumulating `Half<Half<...>>`
+//! Because [`PopBit`] is itself lazy, the above definition of `BitAnd2` will
+//! result in the arguments to `BitAnd2` accumulating `PopBit<PopBit<...>>`
 //! for every recusive step. This can be fixed by applying
 //! [`uint::From`] to the recursive arguments. See the final version below.
 //!
@@ -86,7 +86,7 @@
 //! by the compiler, it is easy to accidentally leak implementation details about
 //! them in a public API, which would make them impossible to normalize in the future,
 //! as someone could rely on them behaving a certain way in generic contexts.
-//! An example of this would be `Parity<AppendBit<N, B>> = B` where the arguments are generic.
+//! An example of this would be `LastBit<PushBit<N, B>> = B` where the arguments are generic.
 //!
 //! Furthermore, when using things like `uint::From<Min<UsizeMax, N>>` where `N` is generic,
 //! the compiler might try to normalize the entire recursive `Min` operation, which may cause
@@ -113,12 +113,12 @@
 //!     type ToUint = uint::From<If<
 //!         L,
 //!         // take the bitand of the previous bits and append the and of the last bit
-//!         AppendBit<
+//!         PushBit<
 //!             _MyBitAnd<
-//!                 uint::From<Half<L>>,
-//!                 uint::From<Half<R>>,
+//!                 uint::From<PopBit<L>>,
+//!                 uint::From<PopBit<R>>,
 //!             >,
-//!             If<Parity<L>, Parity<R>, _0>, // boolean AND
+//!             If<LastBit<L>, LastBit<R>, _0>, // boolean AND
 //!         >,
 //!         _0, // 0 & R = 0
 //!     >>;

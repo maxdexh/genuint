@@ -1,7 +1,7 @@
 use super::*;
 
 // Quad(N) := 4 * N
-type _Quad<N> = AppendBit<AppendBit<N, _0>, _0>;
+type _Quad<N> = PushBit<PushBit<N, _0>, _0>;
 
 // N = 2 * H + P, H = H(N), P = P(N)
 //

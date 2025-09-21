@@ -1,7 +1,7 @@
 use super::*;
 
 // DoubleIf(N, C) := if C { 2 * N } else { N }
-type _DoubleIf<N, C> = If<C, AppendBit<N, _0>, N>;
+type _DoubleIf<N, C> = If<C, PushBit<N, _0>, N>;
 
 /// Type-level left bitshift.
 #[doc(alias = "<<")]
@@ -40,8 +40,8 @@ pub type Shl<L, R> = If<
     L,
 >;
 
-// HalfIf(N, C) := if C { H(N) } else { N }
-type HalfIfL<N, C> = If<C, Half<N>, N>;
+// PopBitIf(N, C) := if C { H(N) } else { N }
+type _HalfIf<N, C> = If<C, PopBit<N>, N>;
 
 /// Type-level right bitshift.
 #[doc(alias = ">>")]
@@ -66,8 +66,8 @@ pub type Shr<L, R> = If<
     // = L / Pow(2, H + H + P)
     // = L / Pow(2, H) / Pow(2, H) / Pow(2, P)
     // = if P { H(Shr(Shr(L, H), H)) } else { Shr(Shr(L, H), H) }
-    // = HalfIf(Shr(Shr(L, H), H), P)
-    HalfIfL<
+    // = PopBitIf(Shr(Shr(L, H), H), P)
+    _HalfIf<
         // NOTE: From testing, this is the fastest known way to write this recursion
         _Shr<
             _Shr<

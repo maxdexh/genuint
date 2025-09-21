@@ -58,19 +58,19 @@ pub trait _Uint: _UintArrs + 'static {
 
     // Opaque in all arguments, including `Self`. Thus it's safe to return
     // _Uint directly, to save some projections.
-    // This makes errors more readable, e.g. `uint::From<Half<Half<N>>>`
+    // This makes errors more readable, e.g. `uint::From<PopBit<PopBit<N>>>`
     // (N: Uint) normalizes to
     // <<< N as UintSealed>::__Uint
-    //       as _Uint>::Half
-    //       as _Uint>::Half
+    //       as _Uint>::PopBit
+    //       as _Uint>::PopBit
     // Without having to project to _Uint for the second primitive operation.
-    type Half: _Uint;
-    type Parity: _Uint;
-    type AppendMeAsBit<N: Uint>: _Uint;
+    type PopBit: _Uint;
+    type LastBit: _Uint;
+    type PushSelfAsBit<N: Uint>: _Uint;
 
-    // AppendBit<N, P> has to project through N and P to make the operation
+    // PushBit<N, P> has to project through N and P to make the operation
     // opaque with respect to both, so simply implementing with a helper
-    // `_ToBit: _Bit` doesn't work, because `uint::From<Half<AppendBit<Const, P>>>`
+    // `_ToBit: _Bit` doesn't work, because `uint::From<PopBit<PushBit<Const, P>>>`
     // would normalize to `Const`.
     type _DirectAppend<B: _Bit>: _Uint;
 }
@@ -96,10 +96,10 @@ impl _Uint for _0 {
     type If<T: ToUint, F: ToUint> = F::ToUint;
     type Opaque<N: ToUint> = N::ToUint;
 
-    type Half = _0;
-    type Parity = _0;
+    type PopBit = _0;
+    type LastBit = _0;
 
-    type AppendMeAsBit<N: Uint> = InternalOp!(N, _DirectAppend<Self>);
+    type PushSelfAsBit<N: Uint> = InternalOp!(N, _DirectAppend<Self>);
     type _DirectAppend<B: _Bit> = B;
 }
 
@@ -114,10 +114,10 @@ impl _Uint for _1 {
     type If<T: ToUint, F: ToUint> = T::ToUint;
     type Opaque<N: ToUint> = N::ToUint;
 
-    type Half = _0;
-    type Parity = _1;
+    type PopBit = _0;
+    type LastBit = _1;
 
-    type AppendMeAsBit<N: Uint> = InternalOp!(N, _DirectAppend<Self>);
+    type PushSelfAsBit<N: Uint> = InternalOp!(N, _DirectAppend<Self>);
     type _DirectAppend<B: _Bit> = _U<Self, B>;
 }
 
@@ -132,10 +132,10 @@ impl<Pre: _Pint, Last: _Bit> _Uint for _U<Pre, Last> {
     type If<T: ToUint, F: ToUint> = T::ToUint;
     type Opaque<N: ToUint> = N::ToUint;
 
-    type Half = Pre;
-    type Parity = Last;
+    type PopBit = Pre;
+    type LastBit = Last;
 
-    type AppendMeAsBit<N: Uint> = InternalOp!(N, _DirectAppend<_1>);
+    type PushSelfAsBit<N: Uint> = InternalOp!(N, _DirectAppend<_1>);
     type _DirectAppend<B: _Bit> = _U<Self, B>;
 }
 

@@ -171,15 +171,15 @@ pub fn __lit(input: TokenStream) -> TokenStream {
                 .collect::<TokenStream>()
         });
 
-        // `crate::ops::AppendBit<`
+        // `crate::ops::PushBit<`
         let append = crate_path.extended(
             pathseg("ops", span)
                 .into_iter()
-                .chain(pathseg("AppendBit", span))
+                .chain(pathseg("PushBit", span))
                 .chain([punct('<', span)]),
         );
 
-        // `crate::ops::AppendBit<..., crate::consts::_X>`
+        // `crate::ops::PushBit<..., crate::consts::_X>`
         Ok(iter::repeat_n(append, append_depth)
             .chain([first])
             .chain(bits.map(|bit| consts_and_puncts[usize::from(bit)].clone()))

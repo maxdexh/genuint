@@ -38,7 +38,7 @@ pub type Ne<L, R> = _IsZero<Eq<L, R>>;
 // HL := H(L), PL := P(L), HR := H(R), PR := P(R)
 //
 // LtByLast(L, R) := Cond!(HL = HR and PL = 0 and PR = 1)
-type LtByLastL<L, R> = _And<
+type _LtByLast<L, R> = _And<
     If<_P<L>, _0, _P<R>>, // Cond!(not PL and PR)
     _Eq<_H<L>, _H<R>>,    // Cond!(HL = HR)
 >;
@@ -66,7 +66,7 @@ pub type Lt<L, R> = If<
             //
             _Lt<_H<L>, _H<R>>,
             _1,
-            LtByLastL<L, R>,
+            _LtByLast<L, R>,
         >,
         // 0 < R is true because R = 0 was already checked
         _1,

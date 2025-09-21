@@ -20,7 +20,7 @@ type _SubIfGe<L, R> = If<
 #[apply(lazy! naive)]
 type _NaiveRem<L, R> = If<
     L,
-    AppendBit<
+    PushBit<
         //
         _RemUnchecked<_H<L>, R>,
         _P<L>,
@@ -57,7 +57,7 @@ pub(crate) type _DivUnchecked<L, R> = If<
     //
     // Since we still have NaiveRem(L, R) <= 2 * R - 1,
     // NaiveRem(L, R) / R = Ge(NaiveRem(L, R), R) <= 1.
-    AppendBit<
+    PushBit<
         //
         _DivUnchecked<_H<L>, R>,
         // Use Lt here to match what we are doing above, since we already need to

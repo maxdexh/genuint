@@ -34,7 +34,7 @@ pub type PtrWidth = uint::From<ops::Shl<ConstUsize<{ size_of::<usize>() }>, _3>>
 pub type UsizeMax = uint::From<ops::SatSub<ops::Shl<_1, PtrWidth>, _1>>;
 
 /// [`isize::MAX`] as a [`Uint`]
-pub type IsizeMax = uint::From<ops::Half<UsizeMax>>;
+pub type IsizeMax = uint::From<ops::PopBit<UsizeMax>>;
 
 #[test]
 fn test_usize_max() {
