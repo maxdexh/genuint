@@ -157,7 +157,7 @@ impl<C: ToUint, T, E> CondResult<C, T, E> {
 
     /// Wraps the content of this result in [`ManuallyDrop`].
     ///
-    /// This may make it easier to destructure [`Self::into_result`] in `const` contexts when generics or
+    /// This may make it easier to destructure [`Self::into_builtin`] in `const` contexts when generics or
     /// [`Drop`] impls are involved.
     #[must_use = "The content of this result are wrapped in ManuallyDrop and may need to be dropped"]
     #[allow(clippy::missing_errors_doc)]

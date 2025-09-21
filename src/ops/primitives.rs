@@ -1,20 +1,5 @@
 use super::*;
 
-// Just show e.g. Half<N> = _Half<N> in the docs.
-mod real {
-    use super::*;
-    #[apply(pub_lazy)]
-    pub type _Half<N> = InternalOp!(uint::From<N>, Half);
-    #[apply(pub_lazy)]
-    pub type _Parity<N> = InternalOp!(uint::From<N>, Parity);
-    #[apply(pub_lazy)]
-    pub type _AppendBit<N, P> = InternalOp!(uint::From<P>, AppendMeAsBit<uint::From<N>>);
-    #[apply(pub_lazy)]
-    pub type _If<C, T, F> = InternalOp!(uint::From<C>, If<T, F>);
-    #[apply(pub_lazy)]
-    pub type _Opaque<P, Out> = uint::From<InternalOp!(uint::From<P>, Opaque<Out>)>;
-}
-
 /// Halves the value of a number by removing one bit from the end.
 ///
 /// Effectively a more efficient implementation of [`Div<N, _2>`] or [`Shr<N, _1>`].
@@ -23,7 +8,8 @@ mod real {
 ///
 /// See the [module level documentation](crate::ops) for details on how to combine
 /// primitive operations.
-pub type Half<N> = real::_Half<N>;
+#[apply(pub_lazy)]
+pub type Half<N> = InternalOp!(uint::From<N>, Half);
 
 /// Calculates the parity of a number (whether it is even or odd) by getting its last bit.
 ///
@@ -33,7 +19,8 @@ pub type Half<N> = real::_Half<N>;
 ///
 /// See the [module level documentation](crate::ops) for details on how to combine
 /// primitive operations.
-pub type Parity<N> = real::_Parity<N>;
+#[apply(pub_lazy)]
+pub type Parity<N> = InternalOp!(uint::From<N>, Parity);
 
 /// Adds a single bit to the end of a number.
 ///
@@ -43,7 +30,8 @@ pub type Parity<N> = real::_Parity<N>;
 ///
 /// See the [module level documentation](crate::ops) for details on how to combine
 /// primitive operations.
-pub type AppendBit<N, P> = real::_AppendBit<N, P>;
+#[apply(pub_lazy)]
+pub type AppendBit<N, P> = InternalOp!(uint::From<P>, AppendMeAsBit<uint::From<N>>);
 
 /// If-else/Ternary operation.
 ///
@@ -59,7 +47,8 @@ pub type AppendBit<N, P> = real::_AppendBit<N, P>;
 /// # Opaqueness
 /// This operation is not opaque in `Then` and `Else`. If `Cond` is known, then
 /// `uint::From<If<Cond, Then, Else>>` normalizes to `Then` or `Else`.
-pub type If<Cond, Then, Else> = real::_If<Cond, Then, Else>;
+#[apply(pub_lazy)]
+pub type If<C, T, F> = InternalOp!(uint::From<C>, If<T, F>);
 
 /// Makes `Out` opaque with respect to the value of a parameter `P`.
 ///
@@ -68,7 +57,8 @@ pub type If<Cond, Then, Else> = real::_If<Cond, Then, Else>;
 /// [`P::ToUint`](ToUint).
 ///
 /// See the [module level documentation](crate::ops) for details on opaqueness.
-pub type Opaque<P, Out> = real::_Opaque<P, Out>;
+#[apply(pub_lazy)]
+pub type Opaque<P, Out> = uint::From<InternalOp!(uint::From<P>, Opaque<Out>)>;
 
 #[test]
 fn opaqueness_tests() {

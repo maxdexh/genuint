@@ -139,19 +139,29 @@
 use crate::{ToUint, Uint};
 use crate::{internals::InternalOp, small::*, uint, utils::apply};
 
-macro_rules! impl_lazy {
+macro_rules! lazy_impl {
+    (
+        $(())?
+        type $Name:ident<$($P:ident $(= $_:ty)?),* $(,)?> = $Val:ty;
+    ) => {
+        impl<$($P: crate::ToUint),*> crate::ToUint for $Name<$($P),*> {
+            #[doc(hidden)]
+            type ToUint = crate::uint::From<$Val>;
+        }
+    };
     (
         $(())?
         $(#[$attr:meta])*
-        type $Name:ident<$($P:ident),* $(,)?> = $Val:ty;
+        type $Name:ident<$($P:ident: $Bound:path $(= $_:ty)?),* $(,)?>: $OutBound:path = $Val:ty;
     ) => {
         $(#[$attr])*
-        impl<$($P: crate::ToUint),*> crate::ToUint for $Name<$($P),*> {
+        impl<$($P: $Bound),*> $OutBound for $Name<$($P),*> {
+            #[doc(hidden)]
             type ToUint = crate::uint::From<$Val>;
         }
     };
 }
-pub(crate) use impl_lazy;
+pub(crate) use lazy_impl;
 
 /// Input format:
 /// ```compile_fail
@@ -175,7 +185,7 @@ macro_rules! pub_lazy {
     ) => {
         $(#[$attr])*
         pub struct $Name<$($P $(= $Def)?),*>($($P),*);
-        crate::ops::impl_lazy! {
+        crate::ops::lazy_impl! {
             type $Name<$($P),*> = $Val;
         }
     };
@@ -187,13 +197,13 @@ macro_rules! lazy {
     (
         ($mod:ident)
         $(#[$attr:meta])*
-        $v:vis type $Name:ident<$($P:ident $(= $Def:ty)?),* $(,)?> = $Val:ty;
+        $v:vis type $Name:ident<$($P:ident $(: $Bound:path)? $(= $Def:ty)?),* $(,)?> = $Val:ty;
     ) => {
         mod $mod {
             use super::*;
             crate::ops::pub_lazy! {
                 $(#[$attr])*
-                pub type $Name<$($P $(= $Def)?),*> = $Val;
+                pub type $Name<$($P $(: $Bound)? $(= $Def)?),*> = $Val;
             }
         }
         $v use $mod::*;
@@ -219,6 +229,27 @@ macro_rules! VarOpaque {
 }
 pub(crate) use VarOpaque;
 
+macro_rules! opaque_impl {
+    (
+        ($base_vis:vis $mod:ident::$LazyBase:ident)
+        type $Name:ident<$($P:ident $(: $Bound:path)? $(= $Def:ty)?),* $(,)?> $(: $OutBound:path)? = $Val:ty;
+    ) => {
+        mod $mod {
+            #[allow(unused_imports)]
+            use super::*;
+            crate::ops::pub_lazy! {
+                pub type $LazyBase<$($P $(: $Bound)? $(= $Def)?),*> $(: $OutBound)? = $Val;
+            }
+        }
+        $base_vis use $mod::$LazyBase;
+
+        crate::ops::lazy_impl! {
+            type $Name<$($P $(: $Bound)?),*> $(: $OutBound)? = crate::ops::VarOpaque!($LazyBase<$($P),*>);
+        }
+    };
+}
+pub(crate) use opaque_impl;
+
 /// Like [`lazy`], but wraps the result in [`VarOpaque`].
 /// For this, another [`lazy`] type `$LazyBase` is declared in the
 /// module to holds the implementation to be wrapped by [`VarOpaque`].
@@ -233,16 +264,18 @@ macro_rules! opaque {
     (
         ($base_vis:vis $mod:ident::$LazyBase:ident)
         $(#[$attr:meta])*
-        $v:vis type $Name:ident<$($P:ident $(= $Def:ty)?),* $(,)?> = $Val:ty;
+        $v:vis type $Name:ident<$($P:ident $(: $Bound:path)? $(= $Def:ty)?),* $(,)?> $(: $OutBound:path)? = $Val:ty;
     ) => {
         mod $mod {
+            #[allow(unused_imports)]
             use super::*;
-            crate::ops::pub_lazy! {
-                pub type $LazyBase<$($P $(= $Def)?),*> = $Val;
-            }
-            crate::ops::pub_lazy! {
-                $(#[$attr])*
-                pub type $Name<$($P $(= $Def)?),*> = crate::ops::VarOpaque!($LazyBase<$($P),*>);
+
+            $(#[$attr])*
+            pub struct $Name<$($P $(= $Def)?),*>($($P),*);
+
+            crate::ops::opaque_impl! {
+                (pub __opaque_impl::$LazyBase)
+                type $Name<$($P $(= $Def)?),*> $(: $OutBound)? = $Val;
             }
         }
         #[allow(unused_imports)]
