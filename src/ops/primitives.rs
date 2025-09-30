@@ -46,7 +46,7 @@ pub type PushBit<N, P> = InternalOp!(uint::From<P>, PushSelfAsBit<uint::From<N>>
 ///
 /// # Opaqueness
 /// This operation is not opaque in `Then` and `Else`. If `Cond` is known, then
-/// `uint::From<If<Cond, Then, Else>>` normalizes to `Then` or `Else`.
+/// `uint::From<If<Cond, Then, Else>>` normalizes as specified above.
 #[apply(pub_lazy)]
 pub type If<C, T, F> = InternalOp!(uint::From<C>, If<T, F>);
 

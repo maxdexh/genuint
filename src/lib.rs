@@ -7,16 +7,16 @@
     clippy::missing_panics_doc,
     clippy::missing_const_for_fn,
     clippy::missing_errors_doc,
-    missing_docs,
     clippy::undocumented_unsafe_blocks
 )]
+#![forbid(missing_docs)]
 #![allow(clippy::redundant_pub_crate, clippy::use_self)]
 // TODO: doctests
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-// Hidden implementation details
+// Uint Implementation internals
 mod internals;
 mod uimpl;
 
@@ -66,5 +66,3 @@ pub trait ToUint {
 impl<N: Uint> ToUint for N {
     type ToUint = Self;
 }
-
-pub use uint::From as UintFrom;

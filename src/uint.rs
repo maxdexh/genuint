@@ -3,8 +3,6 @@
 use crate::{ToUint, Uint, maxint::Umax, ops, small, uint};
 
 /// Alias for [`ToUint::ToUint`].
-///
-/// This alias is reexported as [`crate::UintFrom`] for readability in docs.
 pub type From<N> = <N as ToUint>::ToUint;
 
 /// Turns an integer literal into a [`Uint`].

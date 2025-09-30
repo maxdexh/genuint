@@ -61,7 +61,7 @@ pub const fn new_false<C: ToUint, T, F>(value: F) -> CondDirect<C, T, F> {
 /// Turns reference to [`CondDirect`] into [`CondDirect`] of reference.
 pub const fn as_ref<C: ToUint, T, F>(tern: &CondDirect<C, T, F>) -> CondDirect<C, &T, &F> {
     // SAFETY: Same type under type map `X -> &'a X` for some 'a
-    unsafe { utils::same_type_transmute!(&CondDirect<C, T, F>, CondDirect<C, &T, &F>, tern) }
+    unsafe { utils::same_type_transmute!(&CondDirect::<C, T, F>, CondDirect::<C, &T, &F>, tern) }
 }
 
 /// Turns mutable reference to [`CondDirect`] into [`CondDirect`] of mutable reference.
@@ -70,7 +70,11 @@ pub const fn as_mut<C: ToUint, T, F>(
 ) -> CondDirect<C, &mut T, &mut F> {
     // SAFETY: Same type under type map `X -> &'a mut X` for some 'a
     unsafe {
-        utils::same_type_transmute!(&mut CondDirect<C, T, F>, CondDirect<C, &mut T, &mut F>, tern)
+        utils::same_type_transmute!(
+            &mut CondDirect::<C, T, F>,
+            CondDirect::<C, &mut T, &mut F>,
+            tern
+        )
     }
 }
 
@@ -87,5 +91,5 @@ pub const fn unwrap_trivial<C: ToUint, T>(tern: CondDirect<C, T, T>) -> T {
 /// This function is effectively the identity function.
 pub const fn new_trivial<C: ToUint, T>(inner: T) -> CondDirect<C, T, T> {
     // SAFETY: CondDirect<C, T, T> is the same type type as T or T
-    unsafe { crate::utils::same_type_transmute!(T, CondDirect<C, T, T>, inner) }
+    unsafe { crate::utils::same_type_transmute!(T, CondDirect::<C, T, T>, inner) }
 }

@@ -56,22 +56,15 @@ pub trait _Uint: _UintArrs + 'static {
     type If<T: ToUint, F: ToUint>: Uint;
     type Opaque<N: ToUint>: Uint;
 
-    // Opaque in all arguments, including `Self`. Thus it's safe to return
-    // _Uint directly, to save some projections.
-    // This makes errors more readable, e.g. `uint::From<PopBit<PopBit<N>>>`
-    // (N: Uint) normalizes to
-    // <<< N as UintSealed>::__Uint
-    //       as _Uint>::PopBit
-    //       as _Uint>::PopBit
-    // Without having to project to _Uint for the second primitive operation.
-    type PopBit: _Uint;
-    type LastBit: _Uint;
-    type PushSelfAsBit<N: Uint>: _Uint;
+    // Opaque in all arguments, including `Self`.
+    type PopBit: Uint;
+    type LastBit: Uint;
+    type PushSelfAsBit<N: Uint>: Uint;
 
     // PushBit<N, P> has to project through N and P to make the operation
     // opaque with respect to both, so simply implementing with a helper
-    // `_ToBit: _Bit` doesn't work, because `uint::From<PopBit<PushBit<Const, P>>>`
-    // would normalize to `Const`.
+    // `_ToBit: _Bit` doesn't work, because e.g.
+    // `uint::From<PopBit<PushBit<N, _1>>>` would normalize to `w`.
     type _DirectAppend<B: _Bit>: _Uint;
 }
 
