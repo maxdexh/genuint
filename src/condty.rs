@@ -1,7 +1,6 @@
 //! Types conditional on a [`Uint`](crate::Uint)
 //!
 //! This module provides conditional types that depend on whether a `Uint` is zero.
-//! This is not "conditional typing" in the Haskell sense, but a simple type projection.
 
 macro_rules! ctx {
     (|$ctxt:pat_param| $true:expr, |$ctxf:pat_param| $false:expr $(, $($C:ty $(,)?)?)?) => {{

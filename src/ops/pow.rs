@@ -1,37 +1,53 @@
 use super::*;
 
-// Quad(N) := 4 * N
+/// Quad(N) := 4 * N
 type _Quad<N> = PushBit<PushBit<N, _0>, _0>;
 
-// N = 2 * H + P, H = H(N), P = P(N)
-//
-// Square(N) := Pow(N, 2) = N * N
-#[apply(lazy! square)]
-type _Square<N> = If<
-    N,
-    If<
-        _P<N>,
-        // P = 1
-        // Pow(N, 2) = Pow(2 * H + 1, 2) = 4 * Pow(H, 2) + 4 * H + 1
-        add::_CarryAdd<
-            //
-            _Quad<_Square<_H<N>>>,
-            _Quad<_H<N>>,
-            _1,
-        >,
-        // P = 0
-        // Pow(N, 2) = Pow(2 * H, 2) = 4 * Pow(H, 2)
+/// ```text
+/// Square(N) := Pow(N, 2) = N * N
+///
+/// N = 2 * H + P, H = H(N), P = P(N)
+///
+/// If P = 1: Pow(N, 2) = Pow(2 * H + 1, 2) = 4 * Pow(H, 2) + 4 * H + 1
+/// If P = 0: Pow(N, 2) = Pow(2 * H, 2) = 4 * Pow(H, 2)
+/// ```
+#[apply(base_case! 0 == N => _0)] // 0 * 0 = 0
+#[apply(lazy)]
+pub type _Square<N> = If<
+    _P<N>,
+    _CarryAdd<
         _Quad<_Square<_H<N>>>,
+        _Quad<_H<N>>, //
+        _1,
     >,
-    // Pow(0, 2) = 0
-    _0,
+    _Quad<_Square<_H<N>>>,
 >;
 
-// MulIf(N, F, C) := if C { N * F } else { N }
+/// MulIf(N, F, C) := if C { N * F } else { N }
 type _MulIf<N, F, C> = If<C, _Mul<F, N>, N>;
 
-/// Type-level exponentiation
-#[apply(opaque! pow_impl::_Pow)]
+/// Fast Pow
+///
+/// ```text
+/// H := H(E), P := P(E), E = 2 * H + P
+///
+///   Pow(B, E)
+/// = Pow(B, 2 * H + P)
+/// = Pow(Pow(B, H), 2) * Pow(B, P)
+/// = Square(Pow(B, H)) * if P { B } else { 1 }
+/// = if P { Square(Pow(B, H)) * B } else { Square(Pow(B, H)) }
+/// = MulIf(Square(Pow(B, H)), B, P)
+/// ```
+#[apply(base_case! 0 == E => _1)] // Pow(B, 0) = 1 (including if B = 0)
+#[apply(lazy)]
+pub type _Pow<B, E> = _MulIf<
+    _Square<_Pow<B, _H<E>>>, //
+    B,
+    _P<E>,
+>;
+
+/// Type-level [`pow`](usize::pow)
+#[apply(opaque)]
 #[apply(test_op!
     test_pow,
     B.pow(E.try_into().unwrap()),
@@ -39,21 +55,4 @@ type _MulIf<N, F, C> = If<C, _Mul<F, N>, N>;
     // Cap the exponent at 10 for tests
     ..=10,
 )]
-// E = 2 * H + P, H = H(E), P = P(E)
-pub type Pow<B, E> = If<
-    E,
-    //   Pow(B, E)
-    // = Pow(B, 2 * H + P)
-    // = Pow(Pow(B, H), 2) * Pow(B, P)
-    // = Square(Pow(B, H)) * if P { B } else { 1 }
-    // = if P { Square(Pow(B, H)) * B } else { Square(Pow(B, H)) }
-    // = MulIf(Square(Pow(B, H)), B, P)
-    _MulIf<
-        //
-        _Square<_Pow<B, _H<E>>>,
-        B,
-        _P<E>,
-    >,
-    // Pow(B, 0) = 1 (including if B = 0)
-    _1,
->;
+pub type Pow<B, E> = _Pow;

@@ -1,85 +1,75 @@
 use super::*;
 
-// DoubleIf(N, C) := if C { 2 * N } else { N }
+/// DoubleIf(N, C) := if C { 2 * N } else { N }
 type _DoubleIf<N, C> = If<C, PushBit<N, _0>, N>;
 
-/// Type-level left bitshift.
+/// `Shl(L, R) := L << R := L * Pow(2, R)`
+///
+/// Let `H := H(R), P := P(R)`. Then `R = 2 * H + P = H + H + P`.
+///
+/// ```text
+///   Shl(L, X + Y)
+/// = L * Pow(2, X + Y)
+/// = L * Pow(2, X) + Pow(2, Y)
+/// = Shl(Shl(L, X), Y)
+/// ```
+///
+/// ```text
+/// B <= 1.
+///
+///   Shl(L, B)
+/// = L * Pow(2, B)
+/// = if B { L * Pow(2, 1) } else { L * Pow(2, 0) }
+/// = if B { 2 * L } else { L }
+/// = DoubleIf(L, B)
+/// ```
+///
+/// ```text
+///   Shl(L, R)
+/// = Shl(L, H + H + P)
+/// = Shl(Shl(Shl(L, H), H), P)
+/// = DoubleIf(Shl(Shl(L, H), H), P)
+/// ```
+#[apply(base_case! 0 == R => L)] // L << 0 = L
+#[apply(lazy)]
+pub type _Shl<L, R> = _DoubleIf<
+    // NOTE: From testing, this is the fastest known way to write this recursion
+    // The inner Shl is normalized only on the next iteration by uint::From<L>
+    _Shl<_Shl<uint::From<L>, _H<R>>, _H<R>>,
+    _P<R>,
+>;
+
+/// Type-level [`<<`](core::ops::Shl)
 #[doc(alias = "<<")]
-#[apply(opaque! shl::_Shl)]
+#[apply(opaque)]
 #[apply(test_op!
     test_shl,
     L << R,
     ..,
     ..=15,
 )]
-// Shl(L, R) := L << R = L * Pow(2, R)
-//
-// R = 2 * H + P, H = H(R), P = P(R)
-pub type Shl<L, R> = If<
-    R,
-    //   Shl(L, R)
-    // = Shl(L, 2 * H + P)
-    // = Shl(L, H + H + P)
-    // = L * Pow(2, H + H + P)
-    // = L * Pow(2, H) * Pow(2, H) * Pow(2, P)
-    // = if P { 2 * Shl(Shl(L, H), H) } else { Shl(Shl(L, H), H) }
-    // = DoubleIf(Shl(Shl(L, H), H), P)
-    _DoubleIf<
-        // NOTE: From testing, this is the fastest known way to write this recursion
-        _Shl<
-            _Shl<
-                //
-                uint::From<L>,
-                _H<R>,
-            >,
-            _H<R>,
-        >,
-        _P<R>,
-    >,
-    // L << 0 = L
-    L,
->;
+pub type Shl<L, R> = _Shl;
 
-// PopBitIf(N, C) := if C { H(N) } else { N }
+// HalfIf(N, C) := if C { H(N) } else { N }
 type _HalfIf<N, C> = If<C, PopBit<N>, N>;
 
-/// Type-level right bitshift.
+/// This implementation works the same as that of [`_Shl`], except whenever
+/// we double there, we halve here
+#[apply(base_case! 0 == _And<L, R> => L)] // L << 0 = L; 0 << R = 0 (= L if L = 0)
+#[apply(lazy)]
+pub type _Shr<L, R> = _HalfIf<
+    // NOTE: See note on _Shl
+    _Shr<_Shr<uint::From<L>, _H<R>>, _H<R>>,
+    _P<R>,
+>;
+
+/// Type-level [`>>`](core::ops::Shr)
 #[doc(alias = ">>")]
-#[apply(opaque! shr::_Shr)]
+#[apply(opaque)]
 #[apply(test_op!
     test_shr,
     L >> R,
     ..,
     ..=15,
 )]
-// Shr(L, R) := L >> R = L / Pow(2, R)
-//
-// R = 2 * H + P, H = H(R), P = P(R)
-pub type Shr<L, R> = If<
-    // Also exit for L = 0, since we will reach that way more often than for Shl.
-    // This also makes it much less likely for this to hit the recursion limit,
-    // because that requires a large R, which might just make the result 0.
-    _And<L, R>,
-    //   Shr(L, R)
-    // = Shr(L, 2 * H + P)
-    // = Shr(L, H + H + P)
-    // = L / Pow(2, H + H + P)
-    // = L / Pow(2, H) / Pow(2, H) / Pow(2, P)
-    // = if P { H(Shr(Shr(L, H), H)) } else { Shr(Shr(L, H), H) }
-    // = PopBitIf(Shr(Shr(L, H), H), P)
-    _HalfIf<
-        // NOTE: From testing, this is the fastest known way to write this recursion
-        _Shr<
-            _Shr<
-                //
-                uint::From<L>,
-                _H<R>,
-            >,
-            _H<R>,
-        >,
-        _P<R>,
-    >,
-    // R = 0: L >> 0 = L
-    // L = 0: L >> R = 0 >> R = 0 = L
-    L,
->;
+pub type Shr<L, R> = _Shr;

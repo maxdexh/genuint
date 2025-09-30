@@ -2,12 +2,12 @@
 //!
 //! # Laziness
 //! Operations implemented as a struct implementing [`ToUint`] are called lazy. They are lazy
-//! in the sense that they will only be evaluted once the compiler "evaluates" the associated
+//! in the sense that they will only be evaluated once the compiler "evaluates" the associated
 //! type projection [`<Op<...> as ToUint>::ToUint`](ToUint::ToUint), generally through use of
 //! [`uint::From`].
 //!
 //! All operations in this module are lazy. In order to get a [`Uint`] from them, e.g. for use
-//! with [arrays](crate::array), one has to use [`uint::From`] to evalute them.
+//! with [arrays](crate::array), one has to use [`uint::From`] to evaluate them.
 //!
 //! Lazy operations are in contrast to type aliases, e.g. `type Inc<N> = uint::From<Add<N, _1>>`,
 //! which directly expand at the usage site, though they can still be lazy if they expand to
@@ -43,6 +43,7 @@
 //! implementation of [`BitAnd`]:
 //! ```
 //! use genuint::{ToUint, small::*, ops::*, uint};
+//! // MyBitAnd is a struct implementing ToUint, i.e. a lazy
 //! pub struct MyBitAnd<L, R>(L, R);
 //! impl<L: ToUint, R: ToUint> ToUint for MyBitAnd<L, R> {
 //!     type ToUint = uint::From<If<
@@ -65,23 +66,27 @@
 //! check_input::<_59, _122>();
 //! check_input::<uint::lit!(0b10101000110111111), uint::lit!(0b11110111011111)>()
 //! ```
-//! Because `BitAnd2` is [`ToUint`] here and [`If`] works by only evaluating
+//! Because `MyBitAnd` is [`ToUint`] here and [`If`] works by only evaluating
 //! [`ToUint::ToUint`] for the branch that is needed for the output, this will
 //! safely exit when `L` becomes 0.
 //!
-//! #### Normalizing recursive arguments
-//! Because [`PopBit`] is itself lazy, the above definition of `BitAnd2` will
-//! result in the arguments to `BitAnd2` accumulating `PopBit<PopBit<...>>`
-//! for every recusive step. This can be fixed by applying
-//! [`uint::From`] to the recursive arguments. See the final version below.
+//! #### Evaluating recursive arguments
+//! Because [`PopBit`] is itself lazy, the above definition of `MyBitAnd` will
+//! result in the arguments to `MyBitAnd` accumulating `PopBit<PopBit<...>>`
+//! for every recusive step. This can be fixed by applying [`uint::From`] to
+//! the recursive arguments; e.g. in the example above, it is preferrable to
+//! use `MyBitAnd<uint::From<PopBit<L>>, uint::From<PopBit<R>>>`.
 //!
-//! Normalizing recursive arguments is almost always beneficial for compile times.
-//! If the recursive arguments are nontrivial to calculate or might themselves result
-//! in infinite loops when normalized, they can be refactored out into a seperate
-//! lazy type alias. For an example of this, see the implementation of [`ILog`],
-//! which uses division in its recursive arguments.
+//! Evaluating recursive arguments is almost always  beneficial for compile times.
+//! Note that if the recursive arguments are nontrivial to calculate or might themselves
+//! result in infinite loops when normalized, they can be refactored out into a seperate
+//! lazy operation. As an example of this, [`ILog`] uses division in its recursive argument
+//! and therefore
 //!
 //! # Opaqueness
+//! Note: This section is only relevant if the operation in question is public API or when
+//! experiencing weird recursion limit errors from normalization of large inputs.
+//!
 //! The reason this is useful is that because types are heavily normalized
 //! by the compiler, it is easy to accidentally leak implementation details about
 //! them in a public API, which would make them impossible to normalize in the future,
@@ -94,16 +99,16 @@
 //!
 //! These things can be guarded against using [`Opaque`]. `Opaque<P, Out>` always evaluates
 //! to `Out`, but only after projecting through an internal associated type of `P`, like
-//!`<P as Uint>::_Eval<Out>`.
+//!`<P as Uint>::_Opaque<Out>`.
 //!
 //! This means that the compiler can only determine the value of [`Opaque<P, Out>`]
 //! after it has determined the value of `P`, and it cannot do any normalization
 //! specific to the implementation of `Out::ToUint` before that.
 //!
-//! The way to use this is, given an operation `Op<A, B>` that evaluates to
-//! `OpImpl<A, B, ...>`, where `OpImpl` is some lazy type alias (a struct
-//! implementing [`ToUint`]), to implement it as
-//! `Op<A, B> = Opaque<A, Opaque<B, OpImpl<A, B>>>`.
+//! The way to use this when implementing a public operation `Op<A, B>` is as follows:
+//! - The actual implementation is moved to a seperate lazy operation `OpImpl<A, B>`. Recursive
+//!   evaluations use `OpImpl` rather than `Op`.
+//! - `Op` should be a lazy operation that evaluates to `uint::From<Opaque<A, Opaque<B, OpImpl<A, B>>>>`
 //!
 //! # Complete example implementation of [`BitAnd`]
 //! ```
@@ -165,20 +170,20 @@ pub(crate) use lazy_impl;
 
 /// Input format:
 /// ```compile_fail
-/// #[apply(pub_lazy)]
+/// #[apply(lazy)]
 /// pub type A<P1, P2, ...> = $Val;
 /// ```
 ///
 /// Output format:
 /// ```compile_fail
-/// #[apply(pub_lazy)]
+/// #[apply(lazy)]
 /// pub struct A<P1, P2, ...>(P1, P2, ...);
 /// impl<P1: ToUint, P2: ToUint, ...> ToUint for A<P1, P2, ...> {
 ///     type ToUint = uint::From<$Val>;
 /// }
 /// ```
-macro_rules! pub_lazy {
-    (
+macro_rules! lazy {
+    ( // TODO: Forbid vis, mod
         $(())?
         $(#[$attr:meta])*
         pub type $Name:ident<$($P:ident $(= $Def:ty)?),* $(,)?> = $Val:ty;
@@ -190,65 +195,24 @@ macro_rules! pub_lazy {
         }
     };
 }
-pub(crate) use pub_lazy;
-
-/// Like [`pub_lazy`], but creates the item in a private module and reexports it at the declared visibility.
-macro_rules! lazy {
-    (
-        ($mod:ident)
-        $(#[$attr:meta])*
-        $v:vis type $Name:ident<$($P:ident $(: $Bound:path)? $(= $Def:ty)?),* $(,)?> = $Val:ty;
-    ) => {
-        mod $mod {
-            use super::*;
-            crate::ops::pub_lazy! {
-                $(#[$attr])*
-                pub type $Name<$($P $(: $Bound)? $(= $Def)?),*> = $Val;
-            }
-        }
-        $v use $mod::*;
-    };
-}
 pub(crate) use lazy;
 
 /// Variadic [`Opaque`]
 macro_rules! VarOpaque {
-    ($LazyBase:ident<$($P:ident),* $(,)?>) => {
+    ($($LazyBase:ident)::+<$($P:ident),* $(,)?>) => {
         crate::ops::VarOpaque!(
             @$($P)*,
-            $LazyBase<$(crate::uint::From<$P>),*>
+            $($LazyBase)::+<$($P),*>
         )
     };
     (@$P:ident $($Ps:ident)*, $Out:ty) => {
         crate::ops::Opaque<$P, crate::ops::VarOpaque!(@$($Ps)*, $Out)>
-        // crate::ops::Opaque<crate::ops::VarOpaque!(@$($Ps)*, $P), $Out>
     };
     (@, $Out:ty) => {
         $Out
     };
 }
 pub(crate) use VarOpaque;
-
-macro_rules! opaque_impl {
-    (
-        ($base_vis:vis $mod:ident::$LazyBase:ident)
-        type $Name:ident<$($P:ident $(: $Bound:path)? $(= $Def:ty)?),* $(,)?> $(: $OutBound:path)? = $Val:ty;
-    ) => {
-        mod $mod {
-            #[allow(unused_imports)]
-            use super::*;
-            crate::ops::pub_lazy! {
-                pub type $LazyBase<$($P $(: $Bound)? $(= $Def)?),*> $(: $OutBound)? = $Val;
-            }
-        }
-        $base_vis use $mod::$LazyBase;
-
-        crate::ops::lazy_impl! {
-            type $Name<$($P $(: $Bound)?),*> $(: $OutBound)? = crate::ops::VarOpaque!($LazyBase<$($P),*>);
-        }
-    };
-}
-pub(crate) use opaque_impl;
 
 /// Like [`lazy`], but wraps the result in [`VarOpaque`].
 /// For this, another [`lazy`] type `$LazyBase` is declared in the
@@ -262,25 +226,17 @@ pub(crate) use opaque_impl;
 /// visibility, for internal use elsewhere.
 macro_rules! opaque {
     (
-        ($base_vis:vis $mod:ident::$LazyBase:ident)
+        ()
         $(#[$attr:meta])*
-        $v:vis type $Name:ident<$($P:ident $(: $Bound:path)? $(= $Def:ty)?),* $(,)?> $(: $OutBound:path)? = $Val:ty;
+        pub type $Name:ident<$($P:ident $(: $Bound:path)? $(= $Def:ty)?),* $(,)?> $(: $OutBound:path)? = $LazyBase:ident;
     ) => {
-        mod $mod {
-            #[allow(unused_imports)]
-            use super::*;
-
+        #[cfg(test)]
+        #[allow(unused)] // Ensure that LazyBase is spanned for LSP
+        const _: () = { use $LazyBase; };
+        crate::ops::lazy! {
             $(#[$attr])*
-            pub struct $Name<$($P $(= $Def)?),*>($($P),*);
-
-            crate::ops::opaque_impl! {
-                (pub __opaque_impl::$LazyBase)
-                type $Name<$($P $(= $Def)?),*> $(: $OutBound)? = $Val;
-            }
+            pub type $Name<$($P $(: $Bound)? $(= $Def)?),*> $(: $OutBound)? = crate::ops::VarOpaque!($LazyBase<$($P),*>);
         }
-        #[allow(unused_imports)]
-        $base_vis use $mod::$LazyBase;
-        $v use $mod::$Name;
     };
 }
 pub(crate) use opaque;
@@ -300,40 +256,60 @@ macro_rules! test_op {
 }
 pub(crate) use test_op;
 
+macro_rules! base_case {
+    (
+        (0 == $CheckZero:ty => $IfZero:ty)
+        $(#[$attr:meta])*
+        $v:vis type $Name:ident<$($P:ident $(: $Bound:path)? $(= $Def:ty)?),* $(,)?> $(: $OutBound:path)? = $Val:ty;
+    ) => {
+        $(#[$attr])*
+        $v type $Name<$($P $(: $Bound)? $(= $Def)?),*> $(: $OutBound)? = crate::ops::If<
+            $CheckZero,
+            $Val,
+            $IfZero,
+        >;
+    };
+}
+
 mod primitives;
-pub use primitives::*;
+pub use primitives::{If, LastBit, Opaque, PopBit, PushBit};
 
 mod helper;
 pub(crate) use helper::*;
 
 mod trivial;
-pub use trivial::*;
+pub use trivial::{IsFalsy, IsTruthy};
 
 mod testing;
 
 mod bitmath;
-pub use bitmath::*;
+pub use bitmath::{BitAnd, BitOr, BitXor, CountOnes};
 
 mod log;
-pub use log::*;
+pub use log::{BaseLen, ILog};
 
 mod add;
-pub use add::*;
+pub use add::Add;
+pub(crate) use add::*;
 
 mod mul;
-pub use mul::*;
+pub use mul::Mul;
+pub(crate) use mul::*;
 
 mod cmp;
-pub use cmp::*;
+pub(crate) use cmp::*;
+pub use cmp::{Eq, Ge, Gt, Le, Lt, Max, Min, Ne};
 
 mod sub;
-pub use sub::*;
+pub(crate) use sub::*;
+pub use sub::{AbsDiff, SatSub};
 
 mod divrem;
-pub use divrem::*;
+pub(crate) use divrem::*;
+pub use divrem::{Div, Rem};
 
 mod shift;
-pub use shift::*;
+pub use shift::{Shl, Shr};
 
 mod pow;
-pub use pow::*;
+pub use pow::Pow;

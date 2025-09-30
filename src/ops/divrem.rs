@@ -1,74 +1,78 @@
 use super::*;
 
-// SubIfGe(L, R) := if L >= R { L - R } else { L }
-#[apply(lazy! sub_if_ge)]
+/// `SubIfGe(L, R) := if L >= R { L - R } else { L }`
 type _SubIfGe<L, R> = If<
     _Lt<L, R>, // Ge is implemented on top of Lt, use Lt directly
     L,
     _SubUnchecked<L, R>,
 >;
 
-// H := H(L), P := P(L), R > 0
-//
-// NaiveRem(L, R) := 2 * (H % R) + P
-//
-// L % R = (2 * H + P) % R
-//       = (H + H + P) % R
-//       = ((H % R) + (H % R) + P) % R
-//       = (2 * (H % R) + P) % R
-//       = NaiveRem(L, R) % R
-#[apply(lazy! naive)]
-type _NaiveRem<L, R> = If<
-    L,
-    PushBit<
-        //
-        _RemUnchecked<_H<L>, R>,
-        _P<L>,
-    >,
-    // If L = 0, then NaiveRem(L, R) = 2 * (0 % R) + 0 = 0
-    _0,
+/// ```text
+/// NaiveRem(L, R) := 2 * (H % R) + P, where R > 0
+///
+/// H := H(L), P := P(L)
+/// ```
+///
+/// # Motivation
+/// ```text
+/// L % R = (2 * H + P) % R
+///       = (H + H + P) % R
+///       = ((H % R) + (H % R) + P) % R
+///       = (2 * (H % R) + P) % R
+///       = NaiveRem(L, R) % R
+/// ```
+#[apply(base_case! 0 == L => _0)] // NaiveRem(0, R) = 2 * (0 % R) + 0 = 0
+#[apply(lazy)]
+pub type _NaiveRem<L, R> = PushBit<
+    _RemUnchecked<_H<L>, R>, //
+    _P<L>,
 >;
 
-// H := H(L), P := P(L), R > 0
-//
-// H % R <= R - 1
-// thus NaiveRem(L, R) = 2 * (H % R) + P <= 2 * (H % R) + 1 <= 2 * R - 1
-// thus normalizing NaiveRem is just a matter of subtracting R
-//
-// RemUnchecked(L, R) := L % R = NaiveRem(L, R) % R = SubIfGe(NaiveRem(L, R), R)
+/// ```text
+/// RemUnchecked(L, R) := L % R, where R > 0
+///
+/// H := H(L), P := P(L), R > 0
+///
+/// - H % R <= R - 1
+/// - NaiveRem(L, R) = 2 * (H % R) + P <= 2 * (H % R) + 1 <= 2 * R - 1
+/// => RemUnchecked(L, R) = L % R = NaiveRem(L, R) % R = SubIfGe(NaiveRem(L, R), R)
+/// ```
 pub(crate) type _RemUnchecked<L, R> = _SubIfGe<_NaiveRem<L, R>, R>;
 
-// H := H(L), P := P(L), R > 0
-//
-// DivUnchecked(L, R) := L / R
-#[apply(lazy! unchecked_div)]
-pub(crate) type _DivUnchecked<L, R> = If<
-    //
-    L,
-    // Note that H = (H / R) * R + H % R, and
-    // for any X, Y: (X * R + Y) / R = X + Y / R
-    //
-    // L / R = (2 * H + P) / R
-    //       = (2 * ((H / R) * R + H % R) + P) / R
-    //       = (2 * (H / R) * R + 2 * (H % R) + P) / R
-    //       = (2 * (H / R) * R + 2 * (H % R) + P) / R
-    //       = 2 * (H / R) + (2 * (H % R) + P) / R
-    //       = 2 * (H / R) + NaiveRem(L, R) / R
-    //
-    // Since we still have NaiveRem(L, R) <= 2 * R - 1,
-    // NaiveRem(L, R) / R = Ge(NaiveRem(L, R), R) <= 1.
-    PushBit<
-        //
-        _DivUnchecked<_H<L>, R>,
-        // Use Lt here to match what we are doing above, since we already need to
-        // go through this projection
-        _IsZero<_Lt<_NaiveRem<L, R>, R>>,
-    >,
-    // 0 / R = 0
-    _0,
+/// DivUnchecked(L, R) := L / R, where R > 0
+///
+/// H := H(L), P := P(L)
+///
+/// Note that `H = (H / R) * R + H % R`, and
+/// For any `X`, `Y`: `(X * R + Y) / R = X + Y / R`
+///
+/// ```text
+/// L / R = (2 * H + P) / R
+///       = (2 * ((H / R) * R + H % R) + P) / R
+///       = (2 * (H / R) * R + 2 * (H % R) + P) / R
+///       = (2 * (H / R) * R + 2 * (H % R) + P) / R
+///       = 2 * (H / R) + (2 * (H % R) + P) / R
+///       = 2 * (H / R) + NaiveRem(L, R) / R
+/// ```
+///
+/// Since we still have NaiveRem(L, R) <= 2 * R - 1 (See [`_RemUnchecked`]),
+/// `NaiveRem(L, R) / R = if NaiveRem(L, R) >= R { 1 } else { 0 }`
+#[apply(base_case! 0 == L => _0)] // 0 / R = 0
+#[apply(lazy)]
+pub type _DivUnchecked<L, R> = PushBit<
+    _DivUnchecked<_H<L>, R>,
+    IsFalsy<_Lt<_NaiveRem<L, R>, R>>, //
 >;
 
-/// Type-level remainder operation.
+#[apply(lazy)]
+pub type _Rem<L, R> = If<
+    R,
+    _RemUnchecked<L, R>,
+    // Recurse infinitely on div by 0
+    _Rem<L, R>,
+>;
+
+/// Type-level [`%`](usize::div_euclid) (fallible)
 ///
 /// # Errors
 /// Dividing by zero gives a "overflow while evaluating" error.
@@ -79,21 +83,24 @@ pub(crate) type _DivUnchecked<L, R> = If<
 /// ```
 #[doc(alias = "%")]
 #[doc(alias = "modulo")]
-#[apply(opaque! rem_impl::_Rem)]
+#[apply(opaque)]
 #[apply(test_op!
     test_rem,
     L % R,
     ..,
     1..
 )]
-pub type Rem<L, R> = If<
+pub type Rem<L, R> = _Rem;
+
+#[apply(lazy)]
+pub type _Div<L, R> = If<
     R,
-    _RemUnchecked<L, R>,
+    _DivUnchecked<L, R>,
     // Recurse infinitely on div by 0
-    _Rem<L, R>,
+    _Div<L, R>,
 >;
 
-/// Type-level division.
+/// Type-level [`/`](usize::div_euclid) (fallible)
 ///
 /// # Errors
 /// Dividing by zero gives a "overflow while evaluating" error.
@@ -103,16 +110,11 @@ pub type Rem<L, R> = If<
 /// const _: fn(uint::From<Div<_1, _0>>) = |_| {};
 /// ```
 #[doc(alias = "/")]
-#[apply(opaque! div_impl::_Div)]
+#[apply(opaque)]
 #[apply(test_op!
     test_div,
     L / R,
     ..,
     1..,
 )]
-pub type Div<L, R> = If<
-    R,
-    _DivUnchecked<L, R>,
-    // Recurse infinitely on div by 0
-    _Div<L, R>,
->;
+pub type Div<L, R> = _Div;

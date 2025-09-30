@@ -7,9 +7,9 @@
     clippy::missing_panics_doc,
     clippy::missing_const_for_fn,
     clippy::missing_errors_doc,
-    clippy::undocumented_unsafe_blocks
+    clippy::undocumented_unsafe_blocks,
+    missing_docs
 )]
-#![forbid(missing_docs)]
 #![allow(clippy::redundant_pub_crate, clippy::use_self)]
 // TODO: doctests
 
@@ -42,7 +42,7 @@ pub mod uint;
 /// See the [crate level documentation](crate).
 ///
 /// It is guaranteed (including to unsafe code) that there is a one-to-one correspondence between
-/// the non-negative integers and the set of types that implement this trait.
+/// the non-negative integers and the set of types that can be observed to implement this trait.
 #[diagnostic::on_unimplemented(
     message = "`{Self}` is not a `Uint`",
     label = "`{Self}` was expected to implement `Uint` directly",

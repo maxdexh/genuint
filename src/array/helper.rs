@@ -46,7 +46,7 @@ pub(crate) const fn init_fill<T: Copy>(mut buf: &mut [MaybeUninit<T>], item: T) 
 /// If `A::Length > usize::MAX`
 ///
 /// # Safety
-/// This operation is strictly the same as [`ptr::slice_from_raw_parts_mut`] with `ptr.cast()` as
+/// This operation is strictly the same as [`core::ptr::slice_from_raw_parts_mut`] with `ptr.cast()` as
 /// the first argument and [`ArrApi::<A>::length()`] as the second.
 ///
 /// Due to the guarantees made by [`Array`], this should generally mean that the returned pointer
