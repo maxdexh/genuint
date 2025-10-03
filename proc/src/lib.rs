@@ -140,7 +140,7 @@ pub fn __lit(input: TokenStream) -> TokenStream {
     };
 
     let span = lit.span();
-    let lit = lit.to_string();
+    let lit = lit.to_string().replace("_", "");
     let lit = lit.as_str();
 
     let crate_path = TokenStream::from_iter(input);

@@ -57,10 +57,46 @@ pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item> {
 #[derive(Clone, Copy)]
 pub struct Concat<A, B>(pub A, pub B);
 
+impl<A, B> Concat<A, B> {
+    /// Wraps the fields in [`ManuallyDrop`](core::mem::ManuallyDrop).
+    ///
+    /// This may make it easier to destructure the result in `const` contexts.
+    ///
+    /// Note that the result of this method has the same layout as `self`, but it is not an [`Array`].
+    #[must_use = "The values returned by this function are wrapped in ManuallyDrop and may need to be dropped"]
+    pub const fn manually_drop_parts(
+        self,
+    ) -> Concat<core::mem::ManuallyDrop<A>, core::mem::ManuallyDrop<B>> {
+        use core::mem::ManuallyDrop;
+        // SAFETY: Concat<A, B> ~ repr(C) (A, B) ~ repr(C) (ManuallyDrop<A>, ManuallyDrop<B>) ~ Concat<...>
+        unsafe {
+            crate::utils::union_transmute!(
+                Concat::<A, B>,
+                Concat::<ManuallyDrop<A>, ManuallyDrop<B>>,
+                self,
+            )
+        }
+    }
+}
+
 /// Adapter that turns an array of arrays into one long array of items.
 #[repr(transparent)]
 #[derive(Clone, Copy)]
 pub struct Flatten<A>(pub A);
+
+impl<A> Flatten<A> {
+    /// Returns the field of this struct.
+    pub const fn into_inner(self) -> A {
+        // SAFETY: repr(transparent)
+        unsafe {
+            crate::utils::union_transmute!(
+                Flatten::<A>, //
+                A,
+                self,
+            )
+        }
+    }
+}
 
 /// A wrapper for a [`MaybeUninit`](core::mem::MaybeUninit) array that acts as a [`Vec`]
 /// (with limited capacity), as well as a drop guard for the initialized items.
@@ -119,13 +155,28 @@ pub type ArrDeq<T, N> = ArrDeqApi<Arr<T, N>>;
 ///
 /// Once `const Destruct` bounds become stabilized, this macro can be rewritten
 /// to drop the items in place.
+///
+/// # Examples
+/// ```
+/// use genuint::array::*;
+/// const fn double_each<A: Array<Item = i32>>(vec: ArrVecApi<A>) -> ArrVecApi<A> {
+///     let mut out = ArrVecApi::new();
+///     let mut input = vec.as_slice();
+///     while let [next, rest @ ..] = input {
+///         out.push(*next * 2);
+///         input = rest;
+///     }
+///     drop_items!(vec);
+///     out
+/// }
+/// ```
 #[macro_export]
 #[doc(hidden)]
 macro_rules! __drop_items {
     [ $arr:expr ] => {{
         let mut __guard = $crate::__mac::arr::ArrDrop($arr).enter();
-        while __guard.has_next() {
-            let _ = __guard.pop_next();
+        if __guard.needs_drop() {
+            while let Some(_) = __guard.pop_next() {}
         }
         __guard.discard();
     }};

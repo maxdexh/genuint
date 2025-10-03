@@ -2,7 +2,7 @@
 //!
 //! This module provides conditional types that depend on whether a `Uint` is zero.
 
-macro_rules! ctx {
+macro_rules! condty_ctx {
     (|$ctxt:pat_param| $true:expr, |$ctxf:pat_param| $false:expr $(, $($C:ty $(,)?)?)?) => {{
         match $crate::__mac::cond::hold::<$($($C)?)?>() {
             Ok($ctxt) => $true,
@@ -10,6 +10,7 @@ macro_rules! ctx {
         }
     }};
 }
+pub(crate) use condty_ctx;
 
 pub mod direct;
 
@@ -54,15 +55,30 @@ pub struct CondResult<Cond: ToUint, T, E> {
     pub direct: CondDirect<Cond, T, E>,
 }
 impl<C: ToUint, T, E> CondResult<C, T, E> {
+    /// Turns this result into its wrapped [`CondDirect`] by moving out of
+    /// [`self.direct`](Self::direct).
+    ///
+    /// Also works in const contexts, even when generics or drop impls are involved.
+    pub const fn into_direct(self) -> CondDirect<C, T, E> {
+        // SAFETY: repr(transparent)
+        unsafe {
+            crate::utils::union_transmute!(
+                CondResult::<C, T, E>, //
+                CondDirect::<C, T, E>,
+                self,
+            )
+        }
+    }
+
     /// Whether instances of this type are `Ok`
-    pub const IS_OK: bool = uint::to_bool::<C>();
+    pub const IS_OK: bool = uint::is_truthy::<C>();
 
     /// Whether instances of this type are `Err`
     pub const IS_ERR: bool = !Self::IS_OK;
 
     /// Whether this result is `Ok`
     pub const fn is_ok(&self) -> bool {
-        uint::to_bool::<C>()
+        uint::is_truthy::<C>()
     }
 
     /// Whether this result is `Err`
@@ -73,15 +89,6 @@ impl<C: ToUint, T, E> CondResult<C, T, E> {
     /// Shorthand for `Self { direct }`.
     pub const fn from_direct(direct: CondDirect<C, T, E>) -> Self {
         Self { direct }
-    }
-
-    /// Does the same thing as moving out of `self.direct`, but also works in `const` contexts.
-    pub const fn into_direct(self) -> CondDirect<C, T, E> {
-        // SAFETY: `self` is by value and this struct is ok to unwrap by read
-        unsafe {
-            crate::utils::destruct_read!(Self, { direct: direct }, self);
-            direct
-        }
     }
 
     /// Equivalent of [`Result::as_ref`].
@@ -97,10 +104,10 @@ impl<C: ToUint, T, E> CondResult<C, T, E> {
     /// Turns this result into a regular builtin [`Result`].
     #[expect(clippy::missing_errors_doc)]
     pub const fn into_builtin(self) -> Result<T, E> {
-        ctx!(
+        condty_ctx!(
             //
-            |t| Ok(t.unwrap_ok(self)),
-            |f| Err(f.unwrap_err(self))
+            |c| Ok(c.unwrap_ok(self)),
+            |c| Err(c.unwrap_err(self))
         )
     }
 
@@ -110,9 +117,9 @@ impl<C: ToUint, T, E> CondResult<C, T, E> {
     /// If [`Self::IS_ERR`]
     #[track_caller]
     pub const fn new_ok(ok: T) -> Self {
-        ctx!(
+        condty_ctx!(
             //
-            |t| t.new_ok(ok),
+            |c| c.new_ok(ok),
             |_| panic!("Call to `new_ok` on Err type")
         )
     }
@@ -122,9 +129,9 @@ impl<C: ToUint, T, E> CondResult<C, T, E> {
     /// # Panics
     /// If [`Self::IS_ERR`]
     pub const fn unwrap(self) -> T {
-        ctx!(
+        condty_ctx!(
             //
-            |t| t.unwrap_ok(self),
+            |c| c.unwrap_ok(self),
             |_| panic!("Call to `unwrap` on Err type")
         )
     }
@@ -135,10 +142,10 @@ impl<C: ToUint, T, E> CondResult<C, T, E> {
     /// If [`Self::IS_OK`]
     #[track_caller]
     pub const fn new_err(err: E) -> Self {
-        ctx!(
+        condty_ctx!(
             //
             |_| panic!("Call to `new_err` on Ok type"),
-            |f| f.new_err(err),
+            |c| c.new_err(err),
         )
     }
 
@@ -147,10 +154,10 @@ impl<C: ToUint, T, E> CondResult<C, T, E> {
     /// # Panics
     /// If [`Self::IS_OK`]
     pub const fn unwrap_err(self) -> E {
-        ctx!(
+        condty_ctx!(
             //
             |_| panic!("Call to `unwrap_err` on Ok type"),
-            |f| f.unwrap_err(self),
+            |c| c.unwrap_err(self),
         )
     }
 
@@ -161,10 +168,10 @@ impl<C: ToUint, T, E> CondResult<C, T, E> {
     #[must_use = "The content of this result are wrapped in ManuallyDrop and may need to be dropped"]
     #[allow(clippy::missing_errors_doc)]
     pub const fn into_manual_drop(self) -> CondResult<C, ManuallyDrop<T>, ManuallyDrop<E>> {
-        ctx!(
+        condty_ctx!(
             //
-            |t| t.new_ok(ManuallyDrop::new(t.unwrap_ok(self))),
-            |f| f.new_err(ManuallyDrop::new(f.unwrap_err(self))),
+            |c| c.new_ok(ManuallyDrop::new(c.unwrap_ok(self))),
+            |c| c.new_err(ManuallyDrop::new(c.unwrap_err(self))),
         )
     }
 }
@@ -194,8 +201,23 @@ pub struct CondOption<Cond: ToUint, T> {
 }
 
 impl<C: ToUint, T> CondOption<C, T> {
+    /// Turns this option into its wrapped [`CondDirect`] by moving out of
+    /// [`self.direct`](Self::direct).
+    ///
+    /// Also works in const contexts, even when generics or drop impls are involved.
+    pub const fn into_direct(self) -> CondDirect<C, T, ()> {
+        // SAFETY: repr(transparent)
+        unsafe {
+            crate::utils::union_transmute!(
+                CondOption::<C, T>, //
+                CondDirect::<C, T, ()>,
+                self,
+            )
+        }
+    }
+
     /// Whether instances of this type are `Some`
-    pub const IS_SOME: bool = uint::to_bool::<C>();
+    pub const IS_SOME: bool = uint::is_truthy::<C>();
 
     /// Whether instances of this type are `None`
     pub const IS_NONE: bool = !Self::IS_SOME;
@@ -207,7 +229,7 @@ impl<C: ToUint, T> CondOption<C, T> {
 
     /// Whether this result is `None`
     pub const fn is_none(&self) -> bool {
-        uint::to_bool::<C>()
+        uint::is_truthy::<C>()
     }
 
     /// Shorthand for `Self { direct }`.
@@ -215,22 +237,13 @@ impl<C: ToUint, T> CondOption<C, T> {
         Self { direct }
     }
 
-    /// Does the same thing as moving out of `self.direct`, but also works in `const` contexts.
-    pub const fn into_direct(self) -> CondDirect<C, T, ()> {
-        // SAFETY: `self` is by value and this struct is ok to unwrap by read
-        unsafe {
-            crate::utils::destruct_read!(Self, { direct: direct }, self);
-            direct
-        }
-    }
-
     /// Turns this option into a regular builtin [`Option`].
     pub const fn into_builtin(self) -> Option<T> {
-        ctx!(
+        condty_ctx!(
             //
-            |t| Some(t.unwrap_some(self)),
-            |f| {
-                f.drop_none(self);
+            |c| Some(c.unwrap_some(self)),
+            |c| {
+                c.drop_none(self);
                 None
             },
         )
@@ -240,30 +253,30 @@ impl<C: ToUint, T> CondOption<C, T> {
     ///
     /// This may make it easier to do pattern matching after converting via [`Self::into_builtin`].
     pub const fn into_manual_drop(self) -> CondOption<C, ManuallyDrop<T>> {
-        ctx!(
-            |t| t.new_some(ManuallyDrop::new(t.unwrap_some(self))),
-            |f| {
-                f.drop_none(self);
-                f.new_none()
+        condty_ctx!(
+            |c| c.new_some(ManuallyDrop::new(c.unwrap_some(self))),
+            |c| {
+                c.drop_none(self);
+                c.new_none()
             }
         )
     }
 
     /// Equivalent of [`Option::as_ref`]
     pub const fn as_ref(&self) -> CondOption<C, &T> {
-        ctx!(
+        condty_ctx!(
             //
-            |t| t.new_some(t.unwrap_true(direct::as_ref::<C, _, _>(&self.direct))),
-            |f| f.new_none(),
+            |c| c.new_some(c.unwrap_true(direct::as_ref::<C, _, _>(&self.direct))),
+            |c| c.new_none(),
         )
     }
 
     /// Equivalent of [`Option::as_mut`]
     pub const fn as_mut(&mut self) -> CondOption<C, &mut T> {
-        ctx!(
+        condty_ctx!(
             //
-            |t| t.new_some(t.unwrap_true(direct::as_mut::<C, _, _>(&mut self.direct))),
-            |f| f.new_none(),
+            |c| c.new_some(c.unwrap_true(direct::as_mut::<C, _, _>(&mut self.direct))),
+            |c| c.new_none(),
         )
     }
 
@@ -272,9 +285,9 @@ impl<C: ToUint, T> CondOption<C, T> {
     /// # Panics
     /// If [`Self::IS_NONE`]
     pub const fn unwrap(self) -> T {
-        ctx!(
+        condty_ctx!(
             //
-            |t| t.unwrap_some(self),
+            |c| c.unwrap_some(self),
             |_| panic!("Call to `unwrap` on None instance"),
         )
     }
@@ -285,10 +298,10 @@ impl<C: ToUint, T> CondOption<C, T> {
     /// If [`Self::IS_SOME`]
     #[track_caller]
     pub const fn assert_none(self) {
-        ctx!(
+        condty_ctx!(
             //
             |_| panic!("Call to `assert_none` on Some instance"),
-            |f| f.drop_none(self),
+            |c| c.drop_none(self),
         )
     }
 }

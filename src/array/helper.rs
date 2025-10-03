@@ -1,4 +1,4 @@
-use core::{marker::PhantomData, mem::MaybeUninit};
+use core::marker::PhantomData;
 
 use crate::{Uint, array::*, const_fmt, uint};
 
@@ -35,10 +35,32 @@ pub(crate) const fn len_is<A: Array>(len: usize) -> bool {
     uint_is::<A::Length>(len)
 }
 
-pub(crate) const fn init_fill<T: Copy>(mut buf: &mut [MaybeUninit<T>], item: T) {
-    while let [first, rest @ ..] = buf {
-        *first = MaybeUninit::new(item);
-        buf = rest;
+/// Checks some invariants of an array type.
+///
+/// Note that the array's [`size_of`] is used by this function. If the array type in question
+/// exceeds the maximum size for the architecture, this will by itself cause a
+/// post-monomorphization error.
+pub(crate) const fn arr_impl_ubcheck<A: Array>() {
+    #[cfg(debug_assertions)]
+    const {
+        assert!(
+            align_of::<A>() == align_of::<A::Item>(),
+            "UB: Array alignment must be the same as that of item"
+        );
+        let item_size = size_of::<A::Item>();
+        let arr_size = size_of::<A>();
+        if let Some(arr_len) = uint::to_usize::<A::Length>() {
+            let calc_size = arr_len.checked_mul(item_size);
+            assert!(
+                calc_size.is_some() && arr_size == calc_size.unwrap(),
+                "UB: Array size must be equal to item size multiplied by length"
+            )
+        } else {
+            assert!(
+                item_size == 0 && arr_size == 0,
+                "UB: Array with length exceeding usize::MAX must be ZST"
+            )
+        }
     }
 }
 

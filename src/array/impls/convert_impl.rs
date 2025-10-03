@@ -53,7 +53,7 @@ where
 {
     type Error = TryFromSliceError;
     fn try_from(value: &'a [T]) -> Result<Self, Self::Error> {
-        convert::try_from_slice(value).ok_or_else(try_from_slice_error)
+        convert::try_from_ref_slice(value).ok_or_else(try_from_slice_error)
     }
 }
 impl<'a, T, A> TryFrom<&'a mut [T]> for &'a mut ArrApi<A>

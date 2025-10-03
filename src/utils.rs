@@ -1,4 +1,7 @@
-use core::{mem::MaybeUninit, ptr::NonNull};
+use core::{
+    mem::{ManuallyDrop, MaybeUninit},
+    ptr::NonNull,
+};
 pub(crate) use genuint_proc::__apply as apply;
 
 /// Performs the operation of moving the argument into a `repr(C)` union
@@ -15,63 +18,46 @@ pub(crate) use genuint_proc::__apply as apply;
 ///
 /// # Safety
 /// The described operation must be safe.
-pub(crate) const unsafe fn __union_transmute<Src, Dst>(src: Src) -> Dst {
-    use core::mem::ManuallyDrop;
+pub(crate) const unsafe fn _union_transmute<Src, Dst>(src: Src) -> Dst {
     #[repr(C)]
     union Helper<Src, Dst> {
         src: ManuallyDrop<Src>,
         dst: ManuallyDrop<Dst>,
     }
     // SAFETY: By definition
-    ManuallyDrop::into_inner(unsafe {
-        Helper {
-            src: ManuallyDrop::new(src),
-        }
-        .dst
-    })
+    unsafe {
+        ManuallyDrop::into_inner(
+            Helper {
+                src: ManuallyDrop::new(src),
+            }
+            .dst,
+        )
+    }
 }
+/// Wrapper for [`_union_transmute`] that forces explicit type args.
 macro_rules! union_transmute {
     ($Src:ty, $Dst:ty, $src:expr $(,)?) => {
-        crate::utils::__union_transmute::<$Src, $Dst>($src)
+        crate::utils::_union_transmute::<$Src, $Dst>($src)
     };
 }
 pub(crate) use union_transmute;
 
-/// Transmutes types of the same size.
+/// Transmutes a type to itself.
 ///
 /// # Safety
-/// `Src` and `Dst` must be the same size and be valid for transmutes
-pub(crate) const unsafe fn __same_size_transmute<Src, Dst>(src: Src) -> Dst {
-    if size_of::<Src>() != size_of::<Dst>() {
-        // SAFETY: By safety requirement
+/// `Src` and `Dst` must be exactly the same type.
+pub(crate) const unsafe fn _same_type_transmute<Src, Dst>(src: Src) -> Dst {
+    if size_of::<Src>() != size_of::<Dst>() || align_of::<Src>() != align_of::<Dst>() {
+        // SAFETY: `Src` and `Dst` are the same type, so they have the same size and alignment
         unsafe { core::hint::unreachable_unchecked() }
     }
-    // SAFETY: `Src` and `Dst` are valid for transmutes
-    unsafe { __union_transmute::<Src, Dst>(src) }
+    // SAFETY: Trivial transmute, since Src and Dst are the same
+    unsafe { _union_transmute::<Src, Dst>(src) }
 }
-macro_rules! same_size_transmute {
-    ($Src:ty, $Dst:ty, $src:expr $(,)?) => {
-        crate::utils::__same_size_transmute::<$Src, $Dst>($src)
-    };
-}
-pub(crate) use same_size_transmute;
-
-/// Transmutes a type to itself
-///
-/// # Safety
-/// `Src` and `Dst` must be the same type. More checks that rely on this fact may be added in the
-/// future.
-pub(crate) const unsafe fn __same_type_transmute<Src, Dst>(src: Src) -> Dst {
-    if align_of::<Src>() != align_of::<Dst>() {
-        // SAFETY: `Src` and `Dst` are the same, so they have the same alignment
-        unsafe { core::hint::unreachable_unchecked() }
-    }
-    // SAFETY: `Src` and `Dst` are the same, so they have the same size
-    unsafe { __same_size_transmute(src) }
-}
+/// Wrapper for [`_same_type_transmute`] that forces explicit type args.
 macro_rules! same_type_transmute {
     ($Src:ty, $Dst:ty, $src:expr $(,)?) => {
-        crate::utils::__same_type_transmute::<$Src, $Dst>($src)
+        crate::utils::_same_type_transmute::<$Src, $Dst>($src)
     };
 }
 pub(crate) use same_type_transmute;
@@ -116,41 +102,6 @@ macro_rules! subslice {
     };
 }
 pub(crate) use subslice;
-
-/// Puts `$val` behind ManuallyDrop and `core::ptr::read`s its fields from behind a reference.
-/// This is safe if the type doesn't rely on it being impossible to move out its fields and if
-/// `$val` was passed by value (in the 2024 edition, this should not work otherwise)
-macro_rules! destruct_read {
-    ($path:path, $block:tt, $val:expr, |$any:pat_param| $else:expr) => {
-        let __val = core::mem::ManuallyDrop::new($val);
-        let crate::utils::destruct_read!(@safe_pat $path, $block) = *const_util::mem::man_drop_ref(&__val) else {
-            let $any = __val;
-            $else
-        };
-        crate::utils::destructure! { @read_fields $block }
-    };
-    ($path:path, $block:tt, $val:expr) => {
-        let __val = core::mem::ManuallyDrop::new($val);
-        let crate::utils::destruct_read!(@safe_pat $path, $block) = *const_util::mem::man_drop_ref(&__val);
-        crate::utils::destruct_read! { @read_fields $block }
-    };
-    (@safe_pat $path:path, ($($name:ident),*)) => {
-        // using a pattern like this guards against accidentally passing a reference as `$val` in
-        // the 2024 edition
-        $path( $(ref $name,)* )
-    };
-    (@safe_pat $path:path, {$($field:tt: $name:ident),* $(,)?}) => {
-        // same thing as above
-        $path{ $($field: ref $name,)* }
-    };
-    (@read_fields { $($_:tt: $name:ident),* $(,)? }) => {
-        $(let $name = core::ptr::read($name);)*
-    };
-    (@read_fields ( $($name:ident),* $(,)? )) => {
-        $(let $name = core::ptr::read($name);)*
-    };
-}
-pub(crate) use destruct_read;
 
 macro_rules! docexpr {
     [ $(#[doc = $doc:expr])* ] => {

@@ -76,9 +76,8 @@ pub type _Rem<L, R> = If<
 ///
 /// # Errors
 /// Dividing by zero gives a "overflow while evaluating" error.
-///
-/// ```compile_fail
-/// use genuint::{ops::Rem, uint, consts::*};
+/// ```compile_fail,E0275
+/// use genuint::{ops::Rem, uint, small::*};
 /// const _: fn(uint::From<Rem<_1, _0>>) = |_| {};
 /// ```
 #[doc(alias = "%")]
@@ -104,9 +103,8 @@ pub type _Div<L, R> = If<
 ///
 /// # Errors
 /// Dividing by zero gives a "overflow while evaluating" error.
-///
-/// ```compile_fail
-/// use genuint::{ops::Div, uint, consts::*};
+/// ```compile_fail,E0275
+/// use genuint::{ops::Div, uint, small::*};
 /// const _: fn(uint::From<Div<_1, _0>>) = |_| {};
 /// ```
 #[doc(alias = "/")]

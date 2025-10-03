@@ -12,10 +12,7 @@ pub(crate) struct ArrDeqDrop<A: Array<Item = T>, T = <A as Array>::Item>(
 );
 impl<A: Array<Item = T>, T> Drop for ArrDeqDrop<A, T> {
     fn drop(&mut self) {
-        let Self(repr, ..) = self;
-
-        // SAFETY: Safe to call on this by definition.
-        let (lhs, rhs) = unsafe { repr.as_mut_slices() };
+        let (lhs, rhs) = self.as_mut_slices();
 
         // SAFETY:
         // `as_mut_slices` returns `lhs` and `rhs` from the safety invariants.
@@ -29,15 +26,14 @@ impl<A: Array<Item = T>, T> Drop for ArrDeqDrop<A, T> {
         }
     }
 }
-impl<T, A: Array<Item = T>> ArrDeqRepr<A> {
-    /// # Safety
-    /// Requires and upholds ArrDeqApi/ArrDeqDrop invariants.
-    const unsafe fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        let &mut Self {
+impl<T, A: Array<Item = T>> ArrDeqDrop<A> {
+    const fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
+        let Self(repr, ..) = self;
+        let &mut ArrDeqRepr {
             head,
             len,
             ref mut arr,
-        } = self;
+        } = repr;
 
         let buf = NonNull::from_mut(arr.as_mut_slice());
 
@@ -51,19 +47,23 @@ impl<T, A: Array<Item = T>> ArrDeqRepr<A> {
     }
 }
 
-// SAFETY INVARIANT:
-// Let `cap := A::Length`. When accessed through ArrDeqDrop/ArrDeqApi, the following must hold:
-// - `len <= cap`
-// - `head < cap`
-// - Let (lhs, rhs) be defined as the following places:
-//   - If `len <= cap - head`, then `lhs = arr[head .. head + len]`, `rhs = arr[0..0]`
-//   - If `len > cap - head`, then `lhs = arr[head .. cap]`, `rhs = arr[0 .. len - (cap - head)]`
-//   - Alternatively, `lhs = arr[head .. min(len, cap - head) + head]`, `rhs = arr[0 .. len.saturating_sub(cap - head)]`
-// - `lhs` and `rhs` must be initialized with valid instances of `A::Item`. The deque is considered to
-//   have ownership over these.
 struct ArrDeqRepr<A: Array> {
+    /// # Safety
+    /// See below
     head: usize,
+    /// # Safety
+    /// See below
     len: usize,
+    /// # Safety
+    /// Let `cap := A::Length`. When this struct is wrapped in ArrDeqDrop/ArrDeqApi, the following must hold:
+    /// - `len <= cap`
+    /// - `head < cap`
+    /// - Let (lhs, rhs) be defined as the following places:
+    ///   - If `len <= cap - head`, then `lhs = arr[head .. head + len]`, `rhs = arr[0..0]`
+    ///   - If `len > cap - head`, then `lhs = arr[head .. cap]`, `rhs = arr[0 .. len - (cap - head)]`
+    ///   - Alternatively, `lhs = arr[head .. min(len, cap - head) + head]`, `rhs = arr[0 .. len.saturating_sub(cap - head)]`
+    /// - `lhs` and `rhs` must be initialized with valid instances of `A::Item`. The deque is considered to
+    ///   have ownership over these.
     arr: ArrApi<MaybeUninit<A>>,
 }
 mod deque_utils;
@@ -97,6 +97,31 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
         let repr = const_util::mem::man_drop_ref(&this).as_repr();
         // SAFETY: Known safe way of destructuring
         unsafe { core::ptr::read(repr) }
+    }
+
+    /// Returns a mutable reference to the elements as a pair of slices.
+    ///
+    /// If this deque is contiguous, then the right slice will be empty.
+    /// The left slice is empty only when the entire deque is empty.
+    ///
+    /// Note that the exact distribution between left and right are not guaranteed
+    /// unless the length of this deque is 1 or less, or this deque is contiguous
+    /// according to an API.
+    ///
+    /// # Examples
+    /// ```
+    /// use genuint::array::*;
+    ///
+    /// let mut deq = ArrDeqApi::<[_; 20]>::new();
+    /// deq.push_front(1);
+    /// deq.push_back(2);
+    /// let (lhs, rhs) = deq.as_mut_slices();
+    /// assert_eq!(lhs.iter_mut().chain(&mut *rhs).next(), Some(&mut 1));
+    /// assert_eq!(lhs.iter_mut().chain(rhs).next_back(), Some(&mut 2));
+    /// ```
+    pub const fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
+        let Self(drop, ..) = self;
+        drop.as_mut_slices()
     }
 }
 
@@ -415,31 +440,6 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
             );
             (lhs.as_ref(), rhs.as_ref())
         }
-    }
-
-    /// Returns a mutable reference to the elements as a pair of slices.
-    ///
-    /// If this deque is contiguous, then the right slice will be empty.
-    /// The left slice is empty only when the entire deque is empty.
-    ///
-    /// Note that the exact distribution between left and right are not guaranteed
-    /// unless the length of this deque is 1 or less, or this deque is contiguous
-    /// according to an API.
-    ///
-    /// # Examples
-    /// ```
-    /// use genuint::array::*;
-    ///
-    /// let mut deq = ArrDeqApi::<[_; 20]>::new();
-    /// deq.push_front(1);
-    /// deq.push_back(2);
-    /// let (lhs, rhs) = deq.as_mut_slices();
-    /// assert_eq!(lhs.iter_mut().chain(&mut *rhs).next(), Some(&mut 1));
-    /// assert_eq!(lhs.iter_mut().chain(rhs).next_back(), Some(&mut 2));
-    /// ```
-    pub const fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        // SAFETY: as_mut_slices is safe to call on this by definition and upholds invariants.
-        unsafe { self.as_mut_repr().as_mut_slices() }
     }
 
     /// Rotates the underlying array to make the initialized part contiguous.

@@ -43,7 +43,7 @@
 //! implementation of [`BitAnd`]:
 //! ```
 //! use genuint::{ToUint, small::*, ops::*, uint};
-//! // MyBitAnd is a struct implementing ToUint, i.e. a lazy
+//! // MyBitAnd is a struct implementing ToUint, i.e. a lazy operation
 //! pub struct MyBitAnd<L, R>(L, R);
 //! impl<L: ToUint, R: ToUint> ToUint for MyBitAnd<L, R> {
 //!     type ToUint = uint::From<If<
@@ -183,7 +183,7 @@ pub(crate) use lazy_impl;
 /// }
 /// ```
 macro_rules! lazy {
-    ( // TODO: Forbid vis, mod
+    (
         $(())?
         $(#[$attr:meta])*
         pub type $Name:ident<$($P:ident $(= $Def:ty)?),* $(,)?> = $Val:ty;

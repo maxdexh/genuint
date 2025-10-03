@@ -33,10 +33,10 @@ const fn to_umax_overflowing<N: Uint>() -> (Umax, bool) {
     // NOTE: This does unnecessary work. We only need to look at the last UMaxInt::BITS.
     // It might be worth it to perform a BitAnd on the `Uint` before plugging it in here.
     const {
-        if to_bool::<N>() {
+        if is_truthy::<N>() {
             let (h, o1) = to_umax_overflowing::<uint::From<ops::PopBit<N>>>();
             let (t, o2) = h.overflowing_mul(2);
-            let (n, o3) = t.overflowing_add(to_bool::<ops::LastBit<N>>() as _);
+            let (n, o3) = t.overflowing_add(is_truthy::<ops::LastBit<N>>() as _);
             (n, o1 || o2 || o3)
         } else {
             (0, false)
@@ -45,7 +45,7 @@ const fn to_umax_overflowing<N: Uint>() -> (Umax, bool) {
 }
 
 /// Returns whether `N::ToUint` is nonzero.
-pub const fn to_bool<N: ToUint>() -> bool {
+pub const fn is_truthy<N: ToUint>() -> bool {
     crate::internals::InternalOp!(N::ToUint, IS_NONZERO)
 }
 /// Returns the decimal representation of `N::ToUint` for arbitrarily large `N`.
@@ -67,7 +67,7 @@ pub const fn to_str<N: ToUint>() -> &'static str {
         }
         const fn doit<N: Uint>() -> &'static [u8] {
             const {
-                if to_bool::<N>() {
+                if is_truthy::<N>() {
                     const_util::concat::concat_bytes::<ConcatBytes<N>>()
                 } else {
                     b""
@@ -147,8 +147,8 @@ pub const fn cmp<L: ToUint, R: ToUint>() -> core::cmp::Ordering {
     use core::cmp::Ordering;
     const fn doit<L: Uint, R: Uint>() -> Ordering {
         const {
-            if !to_bool::<L>() {
-                match to_bool::<R>() {
+            if !is_truthy::<L>() {
+                match is_truthy::<R>() {
                     true => Ordering::Less,
                     false => Ordering::Equal,
                 }
@@ -156,7 +156,7 @@ pub const fn cmp<L: ToUint, R: ToUint>() -> core::cmp::Ordering {
                 match doit::<From<ops::PopBit<L>>, From<ops::PopBit<R>>>() {
                     it @ (Ordering::Less | Ordering::Greater) => it,
                     Ordering::Equal => {
-                        match (to_bool::<ops::LastBit<L>>(), to_bool::<ops::LastBit<R>>()) {
+                        match (is_truthy::<ops::LastBit<L>>(), is_truthy::<ops::LastBit<R>>()) {
                             (true, true) | (false, false) => Ordering::Equal,
                             (true, false) => Ordering::Greater,
                             (false, true) => Ordering::Less,

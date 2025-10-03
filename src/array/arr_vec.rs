@@ -15,17 +15,12 @@ use crate::{
 
 /// Wraps the drop impl so it isn't exposed as a trait bound
 pub(crate) struct ArrVecDrop<A: Array<Item = T>, T = <A as Array>::Item>(
-    // SAFETY INVARIANT: See ArrVecRepr
     ArrVecRepr<A>,
     PhantomData<T>,
 );
 impl<A: Array<Item = T>, T> Drop for ArrVecDrop<A, T> {
     fn drop(&mut self) {
-        let Self(repr, ..) = self;
-
-        // SAFETY:
-        // split_at_spare_mut is safe to call on this by definition.
-        let (owned, ..) = unsafe { repr.split_at_spare_mut() };
+        let (owned, ..) = self.split_at_spare_mut();
 
         // SAFETY:
         // The vector has ownership over the first `len` items, so they are considered to stop
@@ -36,21 +31,21 @@ impl<A: Array<Item = T>, T> Drop for ArrVecDrop<A, T> {
     }
 }
 
-// SAFETY INVARIANT: When accessed through ArrVecDrop/ArrVecApi, the first `len < A::Length`
-// elements of `arr` must be valid instances of `A::Item` (as long as this is observable),
-// and they are considered to be owned by the vec.
 pub(crate) struct ArrVecRepr<A: Array> {
+    /// # Safety
+    /// See below
     len: usize,
+    /// # Safety
+    /// When this struct is wrapped in ArrVecApi/ArrVecDrop, the first `len` items of `arr` must be initialized
     arr: ArrApi<MaybeUninit<A>>,
 }
 
 // Defer the impl of ArrVecApi here because we need it for the Drop impl
-impl<A: Array<Item = T>, T> ArrVecRepr<A> {
-    /// # Safety
-    /// Requires and upholds ArrVecApi/ArrVecDrop invariants.
-    const unsafe fn split_at_spare_mut(&mut self) -> (&mut [T], &mut [MaybeUninit<T>]) {
+impl<A: Array<Item = T>, T> ArrVecDrop<A> {
+    const fn split_at_spare_mut(&mut self) -> (&mut [T], &mut [MaybeUninit<T>]) {
+        let Self(repr, ..) = self;
         // SAFETY: Invariants are upheld, see below
-        let &mut Self { ref mut arr, len } = self;
+        let &mut ArrVecRepr { ref mut arr, len } = repr;
         let (init, spare) = arr.as_mut_slice().split_at_mut(len);
         // SAFETY: The first `len` items are valid by invariant. It is not safely
         // possible to write invalid values into them since they are behind `&mut [T]`.
@@ -102,6 +97,34 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
         // SAFETY: Known safe way of destructuring
         unsafe { core::ptr::read(repr) }
     }
+
+    /// Returns the vector's elements as mutable slices.
+    ///
+    /// The tuple is divided into the valid and potentially invalid elements of the vector.
+    ///
+    /// # Examples
+    /// ```
+    /// use genuint::array::*;
+    /// use core::mem::MaybeUninit;
+    ///
+    /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
+    /// arr[1].write(3);
+    /// let mut vec = ArrVecApi::from_uninit_array(arr);
+    /// vec.push(0);
+    ///
+    /// let (init, spare) = vec.split_at_spare_mut() else { unreachable!() };
+    /// assert_eq!((init.len(), spare.len()), (1, 2));
+    /// init[0] = 1;
+    /// spare[1].write(2);
+    /// spare.reverse();
+    ///
+    /// unsafe { vec.set_len(3) }
+    /// assert_eq!(vec, [1, 2, 3]);
+    /// ```
+    pub const fn split_at_spare_mut(&mut self) -> (&mut [T], &mut [MaybeUninit<T>]) {
+        let Self(drop, ..) = self;
+        drop.split_at_spare_mut()
+    }
 }
 
 impl<A, T, N: Uint> ArrVecApi<A>
@@ -110,8 +133,9 @@ where
 {
     /// Creates a vector from a backing array.
     ///
-    /// The initial length of the vector will be zero. This method has the same effect as
-    /// [`from_uninit_parts`](Self::from_uninit_parts) when combined with [`set_len`](Self::set_len).
+    /// The initial length of the vector will be zero.
+    /// When combined with [`set_len`](Self::set_len), this method has the same effect as
+    /// [`from_uninit_parts`](Self::from_uninit_parts).
     ///
     /// # Examples
     /// ```
@@ -149,6 +173,7 @@ where
     /// assert_eq!(ArrVecApi::<A>::new(), []);
     /// ```
     pub const fn new() -> Self {
+        arr_impl_ubcheck::<A>();
         Self::from_uninit_array(ArrApi::new(MaybeUninit::uninit()))
     }
 
@@ -209,34 +234,6 @@ where
     /// See [`Self::split_at_spare`].
     pub const fn spare_capacity(&self) -> &[MaybeUninit<T>] {
         self.split_at_spare().1
-    }
-
-    /// Returns the vector's elements as mutable slices.
-    ///
-    /// The tuple is divided into the valid and potentially invalid elements of the vector.
-    ///
-    /// # Examples
-    /// ```
-    /// use genuint::array::*;
-    /// use core::mem::MaybeUninit;
-    ///
-    /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
-    /// arr[1].write(3);
-    /// let mut vec = ArrVecApi::from_uninit_array(arr);
-    /// vec.push(0);
-    ///
-    /// let (init, spare) = vec.split_at_spare_mut() else { unreachable!() };
-    /// assert_eq!((init.len(), spare.len()), (1, 2));
-    /// init[0] = 1;
-    /// spare[1].write(2);
-    /// spare.reverse();
-    ///
-    /// unsafe { vec.set_len(3) }
-    /// assert_eq!(vec, [1, 2, 3]);
-    /// ```
-    pub const fn split_at_spare_mut(&mut self) -> (&mut [T], &mut [MaybeUninit<T>]) {
-        // SAFETY: split_at_spare_mut upholds invariants and is safe to call on this by definition.
-        unsafe { self.as_mut_repr().split_at_spare_mut() }
     }
 
     /// Returns the vector potentially invalid elements as a mutable slice.

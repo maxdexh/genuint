@@ -8,9 +8,9 @@ use crate::{ToUint, condty::CondDirect, utils};
 /// If `C` is zero (even if `T` and `F` are the same type).
 #[track_caller]
 pub const fn unwrap_true<C: ToUint, T, F>(tern: CondDirect<C, T, F>) -> T {
-    ctx!(
+    condty_ctx!(
         //
-        |t| t.unwrap_true(tern),
+        |c| c.unwrap_true(tern),
         |_| panic!("Call to `unwrap_true` with false condition"),
         C,
     )
@@ -22,9 +22,9 @@ pub const fn unwrap_true<C: ToUint, T, F>(tern: CondDirect<C, T, F>) -> T {
 /// If `C` is zero (even if `T` and `F` are the same type).
 #[track_caller]
 pub const fn new_true<C: ToUint, T, F>(value: T) -> CondDirect<C, T, F> {
-    ctx!(
+    condty_ctx!(
         //
-        |t| t.new_true(value),
+        |c| c.new_true(value),
         |_| panic!("Call to `new_true` with false condition"),
         C,
     )
@@ -36,10 +36,10 @@ pub const fn new_true<C: ToUint, T, F>(value: T) -> CondDirect<C, T, F> {
 /// If `C` is nonzero (even if `T` and `F` are the same type).
 #[track_caller]
 pub const fn unwrap_false<C: ToUint, T, F>(tern: CondDirect<C, T, F>) -> F {
-    ctx!(
+    condty_ctx!(
         //
         |_| panic!("Call to `unwrap_false` with true condition"),
-        |f| f.unwrap_false(tern),
+        |c| c.unwrap_false(tern),
         C,
     )
 }
@@ -50,10 +50,10 @@ pub const fn unwrap_false<C: ToUint, T, F>(tern: CondDirect<C, T, F>) -> F {
 /// If `C` is nonzero (even if `T` and `F` are the same type).
 #[track_caller]
 pub const fn new_false<C: ToUint, T, F>(value: F) -> CondDirect<C, T, F> {
-    ctx!(
+    condty_ctx!(
         //
         |_| panic!("Call to `new_false` with true condition"),
-        |f| f.new_false(value),
+        |c| c.new_false(value),
         C,
     )
 }

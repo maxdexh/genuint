@@ -4,14 +4,14 @@ use crate::{ToUint, condty::*, uint, utils};
 
 pub use Result;
 
-// SAFETY INVARIANT: `COND = uint::to_bool::<C>()`
+// SAFETY INVARIANT: `COND = uint::is_truthy::<C>()`
 // Conversely, the existence of an instance of this type proves the above statement!
 pub struct CtxCond<C, const COND: bool> {
     _p: PhantomData<C>,
 }
 
 pub const fn hold<C: crate::ToUint>() -> Result<CtxCond<C, true>, CtxCond<C, false>> {
-    if uint::to_bool::<C>() {
+    if uint::is_truthy::<C>() {
         Ok(CtxCond::<C, true> { _p: PhantomData })
     } else {
         Err(CtxCond::<C, false> { _p: PhantomData })

@@ -48,7 +48,7 @@ pub mod uint;
     label = "`{Self}` was expected to implement `Uint` directly",
     note = "Consider using `uint::From<{Self}>` if `{Self}: ToUint`"
 )]
-pub trait Uint: 'static + internals::UintSealed {}
+pub trait Uint: 'static + internals::UintSealed + ToUint<ToUint = Self> {}
 
 /// A type that can be turned into a [`Uint`]
 ///
@@ -61,8 +61,4 @@ pub trait Uint: 'static + internals::UintSealed {}
 pub trait ToUint {
     /// Performs the conversion to [`Uint`].
     type ToUint: Uint;
-}
-#[diagnostic::do_not_recommend]
-impl<N: Uint> ToUint for N {
-    type ToUint = Self;
 }

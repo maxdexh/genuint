@@ -1,65 +1,38 @@
-macro_rules! tuple_impl {
-    (
-        $helpers:tt
-        $($T:ident)*
-    ) => {
-        const _: () = {
-            const COUNT_MAX: usize = 0 $(+ { _ = stringify!($T); 1 })*;
-            tuple_impl! {
-                $helpers
-                $($T)*,
-                COUNT_MAX
-            }
-        };
-    };
-    (
-        $helpers:tt,
-        $count:expr
-    ) => {};
-    (
-        {
-            $Alias:ident
-            $item:item
-            $item2:item
-        }
-        $F:ident $($T:ident)*,
-        $count:expr
-    ) => {
-        tuple_impl! {
-            { $Alias $item $item2 }
-            $($T)*,
-            $count - 1
-        }
+use crate::array::*;
+
+macro_rules! tuple_gen_impl {
+    ($count:expr, $P:ident $($T:ident)*) => {
         const _: () = {
             const COUNT: usize = $count;
-            type $Alias<$F> = ($F, $($T),*);
-            $item
-            $item2
+            type Tuple<$P> = ($P, $($T),*);
+            impl<A, T> From<crate::array::ArrApi<A>> for Tuple<T>
+            where
+                A: Array<Item = T, Length = crate::uint::From<crate::consts::ConstUsize<COUNT>>>,
+            {
+                fn from(value: crate::array::ArrApi<A>) -> Self {
+                    crate::array::convert::retype::<_, [_; COUNT]>(value).into()
+                }
+            }
+            impl<A, T> From<Tuple<T>> for ArrApi<A>
+            where
+                A: Array<Item = T, Length = crate::uint::From<crate::consts::ConstUsize<COUNT>>>,
+            {
+                fn from(value: Tuple<T>) -> Self {
+                    crate::array::convert::retype::<[_; COUNT], _>(value.into())
+                }
+            }
+
+            const _: () = {
+                #[allow(unused)]
+                const COUNT_COPY: usize = COUNT;
+                tuple_gen_impl! { COUNT_COPY.checked_sub(1).unwrap(), $($T)* }
+            };
         };
     };
+    ($_:expr,) => {};
 }
-
-use crate::array::*;
-tuple_impl! {
-    {
-        Tuple
-        impl<A, T> From<ArrApi<A>> for Tuple<T>
-        where
-            A: Array<Item = T, Length = crate::uint::From<crate::consts::ConstUsize<COUNT>>>,
-        {
-            fn from(value: ArrApi<A>) -> Self {
-                crate::array::ArrApi::retype::<[_; COUNT]>(value).into()
-            }
-        }
-        impl<A, T> From<Tuple<T>> for ArrApi<A>
-        where
-            A: Array<Item = T, Length = crate::uint::From<crate::consts::ConstUsize<COUNT>>>,
-        {
-            fn from(value: Tuple<T>) -> Self {
-                crate::array::ArrApi::retype_from(<[_; COUNT]>::from(value))
-            }
-        }
-    }
+tuple_gen_impl! {
+    12,
     T T T T
     T T T T
     T T T T

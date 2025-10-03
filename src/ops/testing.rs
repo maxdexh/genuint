@@ -22,7 +22,18 @@ fn test_satdec() {
 }
 
 const MORE_TESTS: bool = option_env!("more_uint_tests").is_some();
-pub(crate) type DefaultHi = uint::From<ops::If<crate::consts::ConstBool<MORE_TESTS>, _50, _10>>;
+const SKIP_TESTS: bool = option_env!("skip_uint_tests").is_some();
+pub(crate) type DefaultHi = uint::From<
+    ops::If<
+        crate::consts::ConstBool<SKIP_TESTS>,
+        _0,
+        ops::If<
+            crate::consts::ConstBool<MORE_TESTS>, //
+            _50,
+            _10,
+        >,
+    >,
+>;
 pub(crate) type DefaultLo = crate::small::_0;
 
 /// A type-level linked list of `Uint`s
@@ -66,7 +77,19 @@ impl<N: Uint, L: UintList> UintList for (N, L) {
 
 /// Recursively apply `ReduceTest` until we have no parameters left.
 pub(crate) fn run_tests<T: Tests>() {
-    <T::RangesLo as UintList>::ReduceTestsArgs::<T>::run_tests_on::<()>()
+    const fn get_dispatch<T: Tests>() -> fn() {
+        <T::RangesLo as UintList>::ReduceTestsArgs::<T>::run_tests_on::<()>
+    }
+    let dispatch = const {
+        if SKIP_TESTS {
+            None
+        } else {
+            Some(get_dispatch::<T>())
+        }
+    };
+    if let Some(dispatch) = dispatch {
+        dispatch()
+    }
 }
 pub(crate) struct FirstArgTestsTraverser<T>(T);
 impl<T, Lo, LoTail> Tests for FirstArgTestsTraverser<T>

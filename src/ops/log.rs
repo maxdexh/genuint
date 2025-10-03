@@ -26,9 +26,8 @@ pub type _ILog<B, N> = If<
 ///
 /// # Errors
 /// Using `B <= 1` or `N == 0` gives an "overflow while evaluating" error.
-///
-/// ```compile_fail
-/// use genuint::{ops::ILog, uint, consts::*};
+/// ```compile_fail,E0275
+/// use genuint::{ops::ILog, uint, small::*};
 /// const _: fn(uint::From<ILog<_1, _0>>) = |_| {};
 /// ```
 #[apply(opaque)]
@@ -58,9 +57,8 @@ pub type _BaseLen<B, N> = If<
 ///
 /// # Errors
 /// Using `B <= 1` gives an "overflow while evaluating" error.
-///
-/// ```compile_fail
-/// use genuint::{ops::BaseLen, uint, consts::*};
+/// ```compile_fail,E0275
+/// use genuint::{ops::BaseLen, uint, small::*};
 /// const _: fn(uint::From<BaseLen<_1, _0>>) = |_| {};
 /// ```
 #[apply(opaque)]

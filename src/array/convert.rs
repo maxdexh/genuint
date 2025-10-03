@@ -1,6 +1,6 @@
 //! Conversion functions for [`Array`] types.
 //!
-//! # `try_from_{, mut, ...}_slice`
+//! # `try_from_{ref, mut, ...}_slice`
 //! Functions that try to convert slices into [`Array`] types.
 //!
 //! This is equivalent to the [`TryFrom`] impls for builtin arrays from borrow and smart pointer slices.
@@ -18,36 +18,36 @@
 //! [`CondResult`], even for references, since [`CondResult`] does not need extra space for a
 //! discriminant, so there is no niche optimization benifit from using an option (or ZST error
 //! type).
-//!
-//! # `unsize_{ref, mut, ...}`
-//! Functions that convert [`Array`] types into slices.
-//!
-//! This is equivalent to implicit unsize coercion for builtin arrays.
-//!
-//! #### Panics
-//! If the length of the input array exceeds `usize::MAX` (only possible for ZSTs)
 
-use crate::{array::Array, condty::CondResult, ops, uint};
+use crate::{array::Array, condty::CondResult, ops};
 
+macro_rules! cast_by_raw {
+    ($name:ident, $param:expr) => {
+        $name!(from_raw, $name!(into_raw, $param).cast())
+    };
+}
+
+// TODO: Add more type safety to the unsafe conversions
 macro_rules! decl_ptr {
     (
-        $name:ident
+        $name:ident,
         $($input:tt)*
     ) => {
         decl_ptr! {
             @[$]
-            $name
+            $name,
             $($input)*
         }
     };
     (
         @[$dollar:tt]
         $name:ident,
-        typ! { $tparam:ident => $($typ:tt)* },
-        doc = $docname:expr,
-        into_raw = |$into_raw_par:pat_param| $into_raw:expr,
-        from_raw = |$from_raw_par:pat_param| $from_raw:expr,
         modifiers! $modifiers:tt,
+        typ! { $tparam:ident => $($typ:tt)* },
+        doc = ($docname_lhs:expr, $docname_rhs:expr),
+        $(into_raw = |$into_raw_par:pat_param| $into_raw:expr,)?
+        $(from_raw = |$from_raw_par:pat_param| $from_raw:expr,)?
+        cast = |$cast_par:pat_param| $cast:expr,
         fns {
             $($fn:ident: $impl:tt),* $(,)?
         }
@@ -55,96 +55,105 @@ macro_rules! decl_ptr {
     ) => {
         macro_rules! $name {
             (typ, $dollar$tparam:ty) => { $($typ)* };
-            (docname) => { $docname };
-            (into_raw, $ptr:expr) => {{ let $into_raw_par = $ptr; $into_raw }};
-            (from_raw, $ptr:expr) => {{ let $from_raw_par = $ptr; $from_raw }};
-            $((fn $fn, $cb:ident) => { $cb! { $name $modifiers $impl } };)*
+            (docname, $inner_name:expr) => { core::concat!($docname_lhs, $inner_name, $docname_rhs) };
+            $( (into_raw, $ptr:expr) => {{ let $into_raw_par = $ptr; $into_raw }}; )?
+            $( (from_raw, $ptr:expr) => {{ let $from_raw_par = $ptr; $from_raw }}; )?
+            (cast, $src:expr) => {{ let $cast_par = $src; $cast }};
+            $( (fn $fn, $cb:ident) => { $cb! { $name $modifiers $impl } }; )*
+            (fn $unknown:ident, $cb:ident) => {};
         }
-        pub(crate) use $name;
     };
 }
 decl_ptr![
     Ref,
+    modifiers! { pub const },
     typ! { inner => &$inner },
-    doc = "`&A`",
+    doc = ("`&", "`"),
     into_raw = |r| core::ptr::from_ref(r).cast_mut(),
     from_raw = |r| &*r,
-    modifiers! { pub const },
+    cast = |r| cast_by_raw!(Ref, r),
     fns {
-        retype: retype_ref,
-        try_retype: try_retype_ref,
+        retype: (retype_ref, try_retype_ref),
         unsize: unsize_ref,
-        try_from_slice: (try_from_slice, Option),
+        try_from_slice: (try_from_ref_slice, FromSliceOption),
     },
 ];
 decl_ptr![
     RefMut,
+    modifiers! { pub const },
     typ! { inner => &mut $inner },
-    doc = "`&mut A`",
+    doc = ("`&mut ", "`"),
     into_raw = |r| core::ptr::from_mut(r),
     from_raw = |r| &mut *r,
-    modifiers! {
-        pub const
-    },
+    cast = |r| cast_by_raw!(RefMut, r),
     fns {
-        retype: retype_mut,
-        try_retype: try_retype_mut,
+        retype: (retype_mut, try_retype_mut),
         unsize: unsize_mut,
-        try_from_slice: (try_from_mut_slice, Option),
+        try_from_slice: (try_from_mut_slice, FromSliceOption),
+    },
+];
+decl_ptr![
+    Owned,
+    modifiers! { pub const },
+    typ! { inner => $inner },
+    doc = ("`", "`"),
+    cast = |r| crate::utils::_union_transmute(r),
+    fns {
+        retype: (retype, try_retype),
     },
 ];
 decl_ptr![
     Box,
-    typ! { inner => alloc::boxed::Box<$inner> },
-    doc = "[`Box<A>`](std::boxed::Box)",
-    into_raw = |r| alloc::boxed::Box::into_raw(r),
-    from_raw = |r| alloc::boxed::Box::from_raw(r),
     modifiers! {
         #[cfg(feature = "alloc")]
         #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
         pub
     },
+    typ! { inner => alloc::boxed::Box<$inner> },
+    doc = ("[`Box<", ">`](std::boxed::Box)"),
+    into_raw = |r| alloc::boxed::Box::into_raw(r),
+    from_raw = |r| alloc::boxed::Box::from_raw(r),
+    cast = |r| cast_by_raw!(Box, r),
     fns {
-        retype: retype_box,
-        try_retype: try_retype_box,
+        retype: (retype_box, try_retype_box),
         unsize: unsize_box,
-        try_from_slice: (try_from_boxed_slice, Result),
+        try_from_slice: (try_from_boxed_slice, FromSliceResult),
     },
 ];
 decl_ptr![
     Rc,
-    typ! { inner => alloc::rc::Rc<$inner> },
-    doc = "[`Rc<A>`](std::rc::Rc)",
-    into_raw = |r| alloc::rc::Rc::into_raw(r).cast_mut(),
-    from_raw = |r| alloc::rc::Rc::from_raw(r),
     modifiers! {
         #[cfg(feature = "alloc")]
         #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
         pub
     },
+    typ! { inner => alloc::rc::Rc<$inner> },
+    doc = ("[`Rc<", ">`](std::boxed::Box)"),
+    into_raw = |r| alloc::rc::Rc::into_raw(r).cast_mut(),
+    from_raw = |r| alloc::rc::Rc::from_raw(r),
+    cast = |r| cast_by_raw!(Rc, r),
     fns {
-        retype: retype_rc,
-        try_retype: try_retype_rc,
+        retype: (retype_rc, try_retype_rc),
         unsize: unsize_rc,
-        try_from_slice: (try_from_rc_slice, Result),
+        try_from_slice: (try_from_rc_slice, FromSliceResult),
     },
 ];
 decl_ptr![
     Arc,
-    typ! { inner => alloc::sync::Arc<$inner> },
-    doc = "[`Arc<A>`](std::sync::Arc)",
-    into_raw = |r| alloc::sync::Arc::into_raw(r).cast_mut(),
-    from_raw = |r| alloc::sync::Arc::from_raw(r),
     modifiers! {
         #[cfg(feature = "alloc")]
         #[cfg_attr(docsrs, doc(cfg(feature = "alloc")))]
         pub
     },
+    typ! { inner => alloc::sync::Arc<$inner> },
+    doc = ("[`Rc<", ">`](std::boxed::Box)"),
+    into_raw = |r| alloc::sync::Arc::into_raw(r).cast_mut(),
+    from_raw = |r| alloc::sync::Arc::from_raw(r),
+    cast = |r| cast_by_raw!(Arc, r),
     fns {
-        retype: retype_arc,
-        try_retype: try_retype_arc,
+        retype: (retype_arc, try_retype_arc),
         unsize: unsize_arc,
-        try_from_slice: (try_from_arc_slice, Result),
+        try_from_slice: (try_from_arc_slice, FromSliceResult),
     },
 ];
 
@@ -155,105 +164,77 @@ macro_rules! for_each_ptr {
         Box! { fn $fn, $cb }
         Rc! { fn $fn, $cb }
         Arc! { fn $fn, $cb }
+        Owned! { fn $fn, $cb }
     };
 }
 pub(crate) use for_each_ptr;
 
-macro_rules! decl_from_slice {
-    ($ty:ident { $($mods:tt)* } ($name:ident, Result)) => {
-        #[doc = core::concat!("Converts from a slice for ", $ty!(docname), ".")]
-        ///
-        /// See the [module level documentation](self).
-        ///
-        /// # Errors
-        /// If the lengths do not match, the input is returned.
-        $($mods)* fn $name<A: Array>(slice: $ty!(typ, [A::Item])) -> Result<$ty!(typ, A), $ty!(typ, [A::Item])> {
-            match crate::uint::to_usize::<A::Length>() {
-                Some(arr_len) if arr_len == slice.len() => Ok(
-                    // SAFETY:
-                    // - Pointer cast with same item and length.
-                    // - Ownership is transferred through into_raw followed by from_raw.
-                    // - This is the same as the `$ptr<[T; N]> as TryFrom<$ptr<[T]>>` impl
-                    unsafe { $ty!(from_raw, $ty!(into_raw, slice).cast()) }
-                ),
-                _ => Err(slice),
-            }
-        }
-    };
-    ($ty:ident { $($mods:tt)* } ($name:ident, Option)) => {
-        #[doc = core::concat!("Converts from a slice for ", $ty!(docname), ".")]
-        ///
-        /// See the [module level documentation](self).
-        ///
-        /// # Errors
-        /// If the lengths do not match, `None` is returned.
-        $($mods)* fn $name<A: Array>(slice: $ty!(typ, [A::Item])) -> Option<$ty!(typ, A)> {
-            match crate::uint::to_usize::<A::Length>() {
-                // SAFETY:
-                // - Pointer cast with same item and length.
-                // - Ownership is transferred through into_raw followed by from_raw.
-                // - This is the same as the `$ptr<[T; N]> as TryFrom<$ptr<[T]>>` impl
-                Some(arr_len) if arr_len == slice.len() => Some(
-                    // SAFETY:
-                    // - Pointer cast with same item and length.
-                    // - Ownership is transferred through into_raw followed by from_raw.
-                    // - This is the same as the `$ptr<[T; N]> as TryFrom<$ptr<[T]>>` impl
-                    unsafe { $ty!(from_raw, $ty!(into_raw, slice).cast()) }
-                ),
-                _ => None,
-            }
-        }
-    };
-}
-for_each_ptr!(try_from_slice, decl_from_slice);
-
 macro_rules! decl_retype {
-    ($ty:ident { $($mods:tt)* } $name:ident) => {
-        #[doc = core::concat!("Retypes [`Array`]s for ", $ty!(docname), ".")]
+    ($ty:ident { $($mods:tt)* } ($retype:ident, $try_retype:ident)) => {
+        #[doc = core::concat!(
+            "Converts between ",
+            $ty!(docname, "impl Array"),
+            ".",
+        )]
         ///
-        /// See the [module level documentation](self).
-        $($mods)* fn $name<Src, Dst>(src: $ty!(typ, Src)) -> $ty!(typ, Dst)
+        /// The operation always succeeds because the source and destination array types are required
+        /// to have the same item and length type.
+        $($mods)* fn $retype<Src, Dst>(src: $ty!(typ, Src)) -> $ty!(typ, Dst)
         where
             Src: Array,
             Dst: Array<Item = Src::Item, Length = Src::Length>,
         {
             // SAFETY: N == Dst::Length, `Array` invariant
-            unsafe { $ty!(from_raw, $ty!(into_raw, src).cast()) }
+            unsafe { $ty!(cast, src) }
         }
-    };
-}
-for_each_ptr!(retype, decl_retype);
 
-macro_rules! decl_try_retype {
-    ($ty:ident { $($mods:tt)* } $name:ident) => {
-        #[doc = core::concat!("Attempts to retype [`Array`]s for ", $ty!(docname), ".")]
+        #[doc = core::concat!(
+            "Converts between ",
+            $ty!(docname, "impl Array"),
+            ".",
+        )]
         ///
-        /// See the [module level documentation](self).
+        /// The operation does not require the source and destination array types to have the same
+        /// length.
         ///
         /// # Errors
-        /// If the lengths do not match, the input is returned.
-        $($mods)* fn $name<Src, Dst>(src: $ty!(typ, Src)) -> CondResult<ops::Eq<Src::Length, Dst::Length>, $ty!(typ, Dst), $ty!(typ, Src)>
+        /// The conversion succeeds if the length is the same. Otherwise, the input is returned in a
+        /// [`CondResult`], even for references, since [`CondResult`] does not need extra space for a
+        /// discriminant, so there is no niche optimization benifit from using an option (or ZST error
+        /// type).
+        $($mods)* fn $try_retype<Src, Dst>(src: $ty!(typ, Src)) -> CondResult<ops::Eq<Src::Length, Dst::Length>, $ty!(typ, Dst), $ty!(typ, Src)>
         where
             Src: Array,
             Dst: Array<Item = Src::Item>,
         {
-            match uint::to_bool::<ops::Eq<Src::Length, Dst::Length>>() {
-                true => CondResult::new_ok(
+            crate::condty::condty_ctx!(
+                |c| c.new_ok(
                     // SAFETY: Src::Length == Dst::Length
-                    unsafe { $ty!(from_raw, $ty!(into_raw, src).cast()) },
+                    unsafe { $ty!(cast, src) },
                 ),
-                false => CondResult::new_err(src),
-            }
+                |c| c.new_err(src),
+            )
         }
+
+        // TODO: Use option.
     };
 }
-for_each_ptr!(try_retype, decl_try_retype);
+for_each_ptr!(retype, decl_retype);
 
 macro_rules! decl_unsize {
     ($ty:ident { $($mods:tt)* } $name:ident) => {
-        #[doc = core::concat!("Performs unsizing for ", $ty!(docname), ".")]
+        #[doc = core::concat!(
+            "Converts ",
+            $ty!(docname, "impl Array<Item = T>"),
+            " to ",
+            $ty!(docname, "[T]"),
+            ".",
+        )]
         ///
-        /// See the [module level documentation](self).
+        /// This is equivalent to the implicit unsize coercion of builtin arrays.
+        ///
+        /// # Panics
+        /// If the length of the input array exceeds `usize::MAX` (only possible for ZSTs)
         #[track_caller]
         $($mods)* fn $name<A: Array>(arr: $ty!(typ, A)) -> $ty!(typ, [A::Item]) {
             // SAFETY: `Array` to slice cast
@@ -262,3 +243,46 @@ macro_rules! decl_unsize {
     };
 }
 for_each_ptr!(unsize, decl_unsize);
+
+#[cfg(feature = "alloc")]
+macro_rules! FromSliceResult {
+    (type, $T:ty, $E:ty) => { Result<$T, $E> };
+    (Ok, $expr:expr) => { Ok($expr) };
+    (Err, $expr:expr) => { Err($expr) };
+}
+macro_rules! FromSliceOption {
+    (type, $T:ty, $E:ty) => { Option<$T> };
+    (Ok, $expr:expr) => { Some($expr) };
+    (Err, $expr:expr) => { None };
+}
+macro_rules! decl_from_slice {
+    ($ty:ident { $($mods:tt)* } ($name:ident, $Res:ident)) => {
+        #[doc = core::concat!(
+            "Converts ",
+            $ty!(docname, "[T]"),
+            " to ",
+            $ty!(docname, "impl Array<Item = T>"),
+            ".",
+        )]
+        ///
+        /// This is equivalent to the [`TryFrom`] impls for builtin arrays from borrow and smart pointer slices.
+        ///
+        /// # Errors
+        $($mods)* fn $name<A: Array>(slice: $ty!(typ, [A::Item])) -> $Res!(type, $ty!(typ, A), $ty!(typ, [A::Item])) {
+            match crate::uint::to_usize::<A::Length>() {
+                Some(arr_len) if arr_len == slice.len() => {
+                    // SAFETY:
+                    // - Pointer cast with same item and length.
+                    // - Ownership is transferred through into_raw followed by from_raw.
+                    // - This is the same as the `$ptr<[T; N]> as TryFrom<$ptr<[T]>>` impl
+                    let slice: $ty!(typ, A) = unsafe { $ty!(from_raw, $ty!(into_raw, slice).cast()) };
+                    $Res!(Ok, slice)
+                },
+                _ => $Res!(Err, slice),
+            }
+        }
+    };
+}
+for_each_ptr!(try_from_slice, decl_from_slice);
+
+// TODO: Tests

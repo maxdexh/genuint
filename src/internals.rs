@@ -77,6 +77,10 @@ impl<N: _Uint> UintSealed for N {
     type __Uint = N;
 }
 #[diagnostic::do_not_recommend]
+impl<N: _Uint> ToUint for N {
+    type ToUint = N;
+}
+#[diagnostic::do_not_recommend]
 impl<N: _Uint> Uint for N {}
 
 // 0
@@ -134,9 +138,11 @@ impl<Pre: _Pint, Last: _Bit> _Uint for _U<Pre, Last> {
 
 // Array internals. Expressed through a supertrait of _Uint so that it can be generated more
 // easily, and extended by future special traits like `Freeze`.
-#[repr(C)]
 #[derive(Clone, Copy)]
-pub struct ArrBisect<A, P>(A, A, P);
+// NOTE: Using (A, A, P) is equivalent, but MUCH slower under miri because there will be O(Length)
+// rather than O(log(Length)) fields in total (arrays and repr(C) tuples are handled differently)
+#[repr(C)]
+pub struct ArrBisect<A, P>([A; 2], P);
 
 macro_rules! gen_arr_internals {
     [

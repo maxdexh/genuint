@@ -39,6 +39,7 @@ name = "genuint"
 version = "0.1.0"
 dependencies = [
  "const-util",
+ "generic-upper-bound",
  "genuint-proc",
  "type-const",
 ]
