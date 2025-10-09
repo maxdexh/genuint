@@ -173,7 +173,6 @@ where
     /// assert_eq!(ArrVecApi::<A>::new(), []);
     /// ```
     pub const fn new() -> Self {
-        arr_impl_ubcheck::<A>();
         Self::from_uninit_array(ArrApi::new(MaybeUninit::uninit()))
     }
 

@@ -19,7 +19,11 @@
 //! discriminant, so there is no niche optimization benifit from using an option (or ZST error
 //! type).
 
-use crate::{array::Array, condty::CondResult, ops};
+use crate::{
+    array::{Array, helper::*},
+    condty::CondResult,
+    ops,
+};
 
 macro_rules! cast_by_raw {
     ($name:ident, $param:expr) => {
@@ -184,6 +188,9 @@ macro_rules! decl_retype {
             Src: Array,
             Dst: Array<Item = Src::Item, Length = Src::Length>,
         {
+            arr_impl_ubcheck::<Src>();
+            arr_impl_ubcheck::<Dst>();
+
             // SAFETY: N == Dst::Length, `Array` invariant
             unsafe { $ty!(cast, src) }
         }
@@ -207,6 +214,9 @@ macro_rules! decl_retype {
             Src: Array,
             Dst: Array<Item = Src::Item>,
         {
+            arr_impl_ubcheck::<Src>();
+            arr_impl_ubcheck::<Dst>();
+
             crate::condty::condty_ctx!(
                 |c| c.new_ok(
                     // SAFETY: Src::Length == Dst::Length
@@ -237,6 +247,8 @@ macro_rules! decl_unsize {
         /// If the length of the input array exceeds `usize::MAX` (only possible for ZSTs)
         #[track_caller]
         $($mods)* fn $name<A: Array>(arr: $ty!(typ, A)) -> $ty!(typ, [A::Item]) {
+            arr_impl_ubcheck::<A>();
+
             // SAFETY: `Array` to slice cast
             unsafe { $ty!(from_raw, crate::array::helper::unsize_raw_mut($ty!(into_raw, arr))) }
         }
@@ -269,6 +281,8 @@ macro_rules! decl_from_slice {
         ///
         /// # Errors
         $($mods)* fn $name<A: Array>(slice: $ty!(typ, [A::Item])) -> $Res!(type, $ty!(typ, A), $ty!(typ, [A::Item])) {
+            arr_impl_ubcheck::<A>();
+
             match crate::uint::to_usize::<A::Length>() {
                 Some(arr_len) if arr_len == slice.len() => {
                     // SAFETY:

@@ -39,8 +39,9 @@ pub use crate::internals::array_types::*;
 /// [`Self::each_ref`] and the [`Index`](core::ops::Index) impl would not compile
 /// the way they are written without it.
 ///
-/// Once const traits become stabilized, the inherent methods may also be duplicated
-/// as default methods in [`Array`].
+/// Note that using [`ArrApi`] methods with an array whose length exceeds [`usize::MAX`] (which
+/// is only possible if the item is a ZST) often causes panics. It will, however, never cause
+/// unsoundness.
 #[repr(transparent)]
 pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item> {
     /// The array being wrapped.
@@ -101,9 +102,6 @@ impl<A> Flatten<A> {
 /// A wrapper for a [`MaybeUninit`](core::mem::MaybeUninit) array that acts as a [`Vec`]
 /// (with limited capacity), as well as a drop guard for the initialized items.
 ///
-/// Note that unlike [`ArrApi`], all methods on this type may panic if the array length
-/// exceeds [`usize::MAX`], without explicitly mentioning this in their docs.
-///
 /// # Drop implementation
 /// This type currently has drop glue that does nothing except drop its elements, regardless
 /// of whether the item type needs to be dropped.
@@ -118,6 +116,9 @@ impl<A> Flatten<A> {
 ///   accessed in `const` using [`const_util::mem::man_drop_mut`].
 /// - Using [`Arr`]/[`CopyArr`] instead if the item type has a default value, or a layout niche
 ///   with [`Option`].
+///
+/// # Errors
+/// [`ArrVecApi`] has the same limitations around lengths exceeding [`usize::MAX`] as [`ArrApi`].
 pub struct ArrVecApi<A: Array<Item = T>, T = <A as Array>::Item>(
     // SAFETY INVARIANT: See ArrVecRepr
     arr_vec::ArrVecDrop<A>,
@@ -136,6 +137,9 @@ pub type ArrVec<T, N> = ArrVecApi<Arr<T, N>>;
 ///
 /// # Drop implementation
 /// See [`ArrVecApi#drop-implementation`]
+///
+/// # Errors
+/// [`ArrVecApi`] has the same limitations around lengths exceeding [`usize::MAX`] as [`ArrApi`].
 pub struct ArrDeqApi<A: Array<Item = T>, T = <A as Array>::Item>(
     // SAFETY INVARIANT: See ArrDeqRepr
     arr_deq::ArrDeqDrop<A>,
