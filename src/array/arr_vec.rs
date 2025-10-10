@@ -340,12 +340,13 @@ where
             // SAFETY: The vec is full, hence all elements of the backing array are valid
             // and owned, so we may move `A` out of them.
             true => unsafe { self.into_uninit_parts().0.inner.assume_init() },
-            false => const_fmt::panic_fmt![
+            false => const_fmt::fmt![
                 "Call to `assert_full` on `ArrVecApi` with length ",
                 self.len(),
                 " out of ",
                 self.capacity()
-            ],
+            ]
+            .panic(),
         }
     }
 
@@ -376,10 +377,11 @@ where
             // No items, so drop is a noop
             core::mem::forget(self)
         } else {
-            const_fmt::panic_fmt![
+            const_fmt::fmt![
                 "Call to `assert_empty` on `ArrVecApi` with length ",
                 self.len()
             ]
+            .panic()
         }
     }
 

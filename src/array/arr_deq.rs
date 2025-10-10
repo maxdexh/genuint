@@ -554,12 +554,13 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
             // SAFETY: The deque is full, hence all elements of the backing array are initialized
             unsafe { self.into_repr().arr.inner.assume_init() }
         } else {
-            const_fmt::panic_fmt![
+            const_fmt::fmt![
                 "Call to `assert_full` on `ArrDeqApi` with length ",
                 self.len(),
                 " out of ",
                 self.capacity()
             ]
+            .panic()
         }
     }
 
@@ -583,10 +584,11 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     #[track_caller]
     pub const fn assert_empty(self) {
         if !self.is_empty() {
-            const_fmt::panic_fmt![
+            const_fmt::fmt![
                 "Call to `assert_empty` on `ArrDeqApi` with length ",
                 self.len()
             ]
+            .panic()
         }
         core::mem::forget(self);
     }
