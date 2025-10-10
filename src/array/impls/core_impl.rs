@@ -10,7 +10,7 @@ where
     /// Equivalent to [`<[T; N]>::as_slice`](primitive.slice.method.as_slice).
     ///
     /// # Panics
-    /// If `N > usize::MAX`.
+    /// If `Length > usize::MAX`. This is guaranteed behavior.
     pub const fn as_slice(&self) -> &[T] {
         convert::unsize_ref(self)
     }
@@ -20,12 +20,15 @@ where
     /// Equivalent to [`<[T; N]>::as_mut_slice`](primitive.slice.method.as_mut_slice).
     ///
     /// # Panics
-    /// If `N > usize::MAX`.
+    /// If `Length > usize::MAX`. This is guaranteed behavior.
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
         convert::unsize_mut(self)
     }
 
     /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).
+    ///
+    /// # Errors
+    /// Note that this cannot possibly compile if `Length > usize::MAX`
     pub const fn each_ref(&self) -> ArrApi<impl Array<Item = &T, Length = N> + Copy> {
         let mut out = ArrVecApi::<super::CopyArr<_, _>>::new();
         let mut this = self.as_slice();
@@ -112,5 +115,23 @@ where
 {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.as_mut_slice()[index]
+    }
+}
+
+impl<T, A> core::ops::Deref for ArrApi<A>
+where
+    A: Array<Item = T>,
+{
+    type Target = [T];
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+impl<T, A> core::ops::DerefMut for ArrApi<A>
+where
+    A: Array<Item = T>,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut_slice()
     }
 }

@@ -28,7 +28,6 @@ where
 }
 impl<T, N: Uint, A> ExactSizeIterator for IntoIter<A> where A: Array<Item = T, Length = N> {}
 
-/// Panics for `A::Length > usize::MAX`.
 impl<A: Array> IntoIterator for ArrApi<A> {
     type Item = A::Item;
     type IntoIter = IntoIter<Self>;
@@ -39,7 +38,6 @@ impl<A: Array> IntoIterator for ArrApi<A> {
         }
     }
 }
-/// Panics for `A::Length > usize::MAX`.
 impl<'a, A: Array> IntoIterator for &'a ArrApi<A> {
     type Item = &'a A::Item;
     type IntoIter = <&'a [A::Item] as IntoIterator>::IntoIter;
@@ -48,7 +46,6 @@ impl<'a, A: Array> IntoIterator for &'a ArrApi<A> {
         self.as_slice().iter()
     }
 }
-/// Panics for `A::Length > usize::MAX`.
 impl<'a, A: Array> IntoIterator for &'a mut ArrApi<A> {
     type Item = &'a mut A::Item;
     type IntoIter = <&'a mut [A::Item] as IntoIterator>::IntoIter;

@@ -1,7 +1,4 @@
-use core::{
-    marker::PhantomData,
-    mem::{ManuallyDrop, MaybeUninit},
-};
+use core::{marker::PhantomData, mem::MaybeUninit};
 
 mod core_impl;
 
@@ -10,10 +7,11 @@ use const_util::result::expect_ok;
 use crate::{
     Uint,
     array::{helper::*, *},
-    const_fmt, uint,
+    const_fmt, uint, utils,
 };
 
 /// Wraps the drop impl so it isn't exposed as a trait bound
+#[repr(transparent)]
 pub(crate) struct ArrVecDrop<A: Array<Item = T>, T = <A as Array>::Item>(
     ArrVecRepr<A>,
     PhantomData<T>,
@@ -92,10 +90,14 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     }
 
     const fn into_repr(self) -> ArrVecRepr<A> {
-        let this = ManuallyDrop::new(self);
-        let repr = const_util::mem::man_drop_ref(&this).as_repr();
-        // SAFETY: Known safe way of destructuring
-        unsafe { core::ptr::read(repr) }
+        // SAFETY: repr(transparent)
+        unsafe {
+            utils::union_transmute!(
+                ArrVecApi<A>,
+                ArrVecRepr<A>,
+                self, //
+            )
+        }
     }
 
     /// Returns the vector's elements as mutable slices.
@@ -161,6 +163,18 @@ where
     pub const fn into_uninit_parts(self) -> (ArrApi<MaybeUninit<A>>, usize) {
         let ArrVecRepr { len, arr } = self.into_repr();
         (arr, len)
+    }
+
+    /// Moves the backing array out of the vector.
+    ///
+    /// The first [`self.len()`] elements of the array are guaranteed to be initialized to valid values of `T`.
+    ///
+    /// Together with [`self.len()`], this is the same as [`Self::into_uninit_parts`],
+    ///
+    /// [`self.len()`]: Self::len
+    #[must_use = "The returned array may contain valid items previously owned by the vec that may need to be dropped"]
+    pub const fn into_backing_array(self) -> ArrApi<MaybeUninit<A>> {
+        self.into_repr().arr
     }
 
     /// Creates an empty vector.
@@ -481,23 +495,22 @@ where
         ArrDeqApi::from_vec_impl(self)
     }
 
-    /// Resizes a vector into `Self`.
+    /// Changes the backing array type of the vector.
+    ///
+    /// Only the item type is required to stay the same.
     ///
     /// # Errors
     /// If `A::Length > usize::MAX` or `A::Length < vec.len()`, the original vector is returned.
-    pub const fn try_resize_from<B>(vec: ArrVecApi<B>) -> Result<Self, ArrVecApi<B>>
+    pub const fn try_retype<Dst>(self) -> Result<ArrVecApi<Dst>, Self>
     where
-        B: Array<Item = T>,
+        Dst: Array<Item = T>,
     {
-        if let Some(n) = uint::to_usize::<N>()
-            && n >= vec.len()
-        {
-            // TODO: How many memcpys does this compile to in debug mode?
-            let (arr, len) = vec.into_uninit_parts();
+        if uint::cmp_usize::<Dst::Length>(self.len()).is_ge() {
+            let (arr, len) = self.into_uninit_parts();
             // SAFETY: new cap >= len, so we must still have `len` valid elements.
             Ok(unsafe { ArrVecApi::from_uninit_parts(ArrApi::resize_uninit_from(arr), len) })
         } else {
-            Err(vec)
+            Err(self)
         }
     }
 }

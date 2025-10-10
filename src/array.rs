@@ -39,9 +39,11 @@ pub use crate::internals::array_types::*;
 /// [`Self::each_ref`] and the [`Index`](core::ops::Index) impl would not compile
 /// the way they are written without it.
 ///
-/// Note that using [`ArrApi`] methods with an array whose length exceeds [`usize::MAX`] (which
-/// is only possible if the item is a ZST) often causes panics. It will, however, never cause
-/// unsoundness.
+/// # Oversized arrays
+/// Most [`ArrApi`] methods panic at runtime when interacting with arrays whose length exceeds
+/// [`usize::MAX`] (which is only possible if the item type is a ZST), even for `impl`s that
+/// are normally infallible, such as [`Deref`](core::ops::Deref).
+/// This behavior is not always documented.
 #[repr(transparent)]
 pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item> {
     /// The array being wrapped.
@@ -56,9 +58,9 @@ pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item> {
 /// This is just a `repr(C)` pair.
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct Concat<A, B>(pub A, pub B);
+pub struct ArrConcat<A, B>(pub A, pub B);
 
-impl<A, B> Concat<A, B> {
+impl<A, B> ArrConcat<A, B> {
     /// Wraps the fields in [`ManuallyDrop`](core::mem::ManuallyDrop).
     ///
     /// This may make it easier to destructure the result in `const` contexts.
@@ -67,13 +69,13 @@ impl<A, B> Concat<A, B> {
     #[must_use = "The values returned by this function are wrapped in ManuallyDrop and may need to be dropped"]
     pub const fn manually_drop_parts(
         self,
-    ) -> Concat<core::mem::ManuallyDrop<A>, core::mem::ManuallyDrop<B>> {
+    ) -> ArrConcat<core::mem::ManuallyDrop<A>, core::mem::ManuallyDrop<B>> {
         use core::mem::ManuallyDrop;
-        // SAFETY: Concat<A, B> ~ repr(C) (A, B) ~ repr(C) (ManuallyDrop<A>, ManuallyDrop<B>) ~ Concat<...>
+        // SAFETY: ArrConcat<A, B> ~ repr(C) (A, B) ~ repr(C) (ManuallyDrop<A>, ManuallyDrop<B>) ~ Concat<...>
         unsafe {
             crate::utils::union_transmute!(
-                Concat::<A, B>,
-                Concat::<ManuallyDrop<A>, ManuallyDrop<B>>,
+                ArrConcat::<A, B>,
+                ArrConcat::<ManuallyDrop<A>, ManuallyDrop<B>>,
                 self,
             )
         }
@@ -83,15 +85,15 @@ impl<A, B> Concat<A, B> {
 /// Adapter that turns an array of arrays into one long array of items.
 #[repr(transparent)]
 #[derive(Clone, Copy)]
-pub struct Flatten<A>(pub A);
+pub struct ArrFlatten<A>(pub A);
 
-impl<A> Flatten<A> {
+impl<A> ArrFlatten<A> {
     /// Returns the field of this struct.
     pub const fn into_inner(self) -> A {
         // SAFETY: repr(transparent)
         unsafe {
             crate::utils::union_transmute!(
-                Flatten::<A>, //
+                ArrFlatten::<A>, //
                 A,
                 self,
             )
@@ -117,8 +119,9 @@ impl<A> Flatten<A> {
 /// - Using [`Arr`]/[`CopyArr`] instead if the item type has a default value, or a layout niche
 ///   with [`Option`].
 ///
-/// # Errors
+/// # Oversized arrays
 /// [`ArrVecApi`] has the same limitations around lengths exceeding [`usize::MAX`] as [`ArrApi`].
+#[cfg_attr(not(doc), repr(transparent))]
 pub struct ArrVecApi<A: Array<Item = T>, T = <A as Array>::Item>(
     // SAFETY INVARIANT: See ArrVecRepr
     arr_vec::ArrVecDrop<A>,
@@ -138,8 +141,9 @@ pub type ArrVec<T, N> = ArrVecApi<Arr<T, N>>;
 /// # Drop implementation
 /// See [`ArrVecApi#drop-implementation`]
 ///
-/// # Errors
+/// # Oversized arrays
 /// [`ArrVecApi`] has the same limitations around lengths exceeding [`usize::MAX`] as [`ArrApi`].
+#[cfg_attr(not(doc), repr(transparent))]
 pub struct ArrDeqApi<A: Array<Item = T>, T = <A as Array>::Item>(
     // SAFETY INVARIANT: See ArrDeqRepr
     arr_deq::ArrDeqDrop<A>,

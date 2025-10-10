@@ -3,12 +3,14 @@
 //! As these methods make heavy use of transmutes, they need to be tested the most.
 //! Also see [`convert`].
 
+// TODO: arr_api
+
 use core::mem::MaybeUninit;
 
 use crate::{
     Uint,
     array::{helper::*, *},
-    utils,
+    uint, utils,
 };
 
 impl<T, N: Uint, A> ArrApi<A>
@@ -34,7 +36,7 @@ where
     /// assert_eq!(builtin, core::array::from_fn::<_, 20_000, _>(|i| i));
     /// ```
     pub const fn try_into_builtin<const M: usize>(self) -> Result<[T; M], Self> {
-        if const { len_is::<Self>(M) } {
+        if const { uint::cmp_usize::<N>(M).is_eq() } {
             Ok(
                 // SAFETY: `Array` invariant
                 unsafe { utils::union_transmute!(Self, [T; M], self) },
@@ -98,7 +100,7 @@ where
     /// type LargeSize = uint::From<ops::Shl<_1, PtrWidth>>;
     /// assert!(uint::to_usize::<LargeSize>().is_none());
     /// let arr = Arr::<_, LargeSize>::of(());
-    /// let Concat(most, [()]): Concat<CopyArr<_, UsizeMax>, _> = arr.retype();
+    /// let ArrConcat(most, [()]): ArrConcat<CopyArr<_, UsizeMax>, _> = arr.retype();
     /// assert_eq!(most.as_slice().len(), usize::MAX);
     /// ```
     pub const fn of(item: T) -> Self

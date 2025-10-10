@@ -1,5 +1,3 @@
-use core::mem::MaybeUninit;
-
 use crate::{
     Uint,
     array::{helper::*, *},
@@ -34,18 +32,18 @@ impl<A: Array> ArraySealed for ArrApi<A> {}
 
 // SAFETY: `repr(C)` results in the arrays being placed next to each other in memory
 // in accordance with array layout
-unsafe impl<T, A: Array<Item = T>, B: Array<Item = T>> Array for Concat<A, B> {
+unsafe impl<T, A: Array<Item = T>, B: Array<Item = T>> Array for ArrConcat<A, B> {
     type Item = T;
     type Length = crate::uint::From<crate::ops::Add<A::Length, B::Length>>;
 }
-impl<T, A: Array<Item = T>, B: Array<Item = T>> ArraySealed for Concat<A, B> {}
+impl<T, A: Array<Item = T>, B: Array<Item = T>> ArraySealed for ArrConcat<A, B> {}
 
 // SAFETY: repr(transparent), `[[T; M]; N]` is equivalent to `[T; M * N]`
-unsafe impl<A: Array<Item = B>, B: Array> Array for Flatten<A> {
+unsafe impl<A: Array<Item = B>, B: Array> Array for ArrFlatten<A> {
     type Item = B::Item;
     type Length = crate::uint::From<crate::ops::Mul<A::Length, B::Length>>;
 }
-impl<A: Array<Item = B>, B: Array> ArraySealed for Flatten<A> {}
+impl<A: Array<Item = B>, B: Array> ArraySealed for ArrFlatten<A> {}
 
 mod base;
 mod cmp;
@@ -85,7 +83,7 @@ where
     /// [`core::array::from_fn`], but as a method.
     ///
     /// # Panics
-    /// If `N > usize::MAX`. The generating function is not called in this case.
+    /// If `Length > usize::MAX`. The generating function is not called in this case.
     ///
     /// # Examples
     /// ```
@@ -95,6 +93,8 @@ where
     /// ```
     #[track_caller]
     pub fn from_fn<F: FnMut(usize) -> T>(mut f: F) -> Self {
+        let _ = Self::length();
+
         let mut out = ArrVecApi::new();
         while !out.is_full() {
             out.push(f(out.len()));
@@ -103,6 +103,8 @@ where
     }
 
     /// Converts into an array with the same item and length.
+    ///
+    /// This method supports arrays with lengths exceeding [`usize::MAX`].
     ///
     /// # Examples
     /// Retyping [`Arr`] to [`CopyArr`]:
@@ -135,6 +137,8 @@ where
     ///
     /// If you are having trouble destructuring the returned [`Result`] in a const fn, consider using
     /// functions from [`const_util::result`].
+    ///
+    /// This method supports arrays with lengths exceeding [`usize::MAX`].
     pub const fn try_retype<Dst: Array<Item = T>>(
         self,
     ) -> CondResult<ops::Eq<N, Dst::Length>, Dst, Self> {
@@ -142,27 +146,22 @@ where
     }
 
     /// Concatenates the inner array with `rhs` via [`Concat`].
-    pub const fn concat<Rhs>(self, rhs: Rhs) -> ArrApi<Concat<A, Rhs>>
+    ///
+    /// This method supports arrays with lengths exceeding [`usize::MAX`].
+    pub const fn concat<Rhs>(self, rhs: Rhs) -> ArrApi<ArrConcat<A, Rhs>>
     where
         Rhs: Array<Item = T>,
     {
-        ArrApi::new(Concat(self.into_inner(), rhs))
+        ArrApi::new(ArrConcat(self.into_inner(), rhs))
     }
 
     /// Flattens the inner array via [`Flatten`].
-    pub const fn flatten(self) -> ArrApi<Flatten<A>>
+    ///
+    /// This method supports arrays with lengths exceeding [`usize::MAX`].
+    pub const fn flatten(self) -> ArrApi<ArrFlatten<A>>
     where
         T: Array,
     {
-        ArrApi::new(Flatten(self.into_inner()))
-    }
-
-    /// Creates an array of uninit.
-    ///
-    /// This method is defined on `ArrApi<A>` and creates `ArrApi<MaybeUninit<A>>`.
-    /// This is so that [`Arr::uninit()`] infers the return type to
-    /// `ArrApi<MaybeUninit<ArrInner<_, _>>>`.
-    pub const fn uninit() -> ArrApi<MaybeUninit<A>> {
-        ArrApi::new(MaybeUninit::uninit())
+        ArrApi::new(ArrFlatten(self.into_inner()))
     }
 }

@@ -1,5 +1,7 @@
 //! Utilities related to [`ToUint`] implementors.
 
+use core::cmp::Ordering;
+
 use crate::{ToUint, Uint, maxint::Umax, ops, small, uint};
 
 /// Alias for [`ToUint::ToUint`].
@@ -30,8 +32,6 @@ macro_rules! __lit {
 pub use __lit as lit;
 
 const fn to_umax_overflowing<N: Uint>() -> (Umax, bool) {
-    // NOTE: This does unnecessary work. We only need to look at the last UMaxInt::BITS.
-    // It might be worth it to perform a BitAnd on the `Uint` before plugging it in here.
     const {
         if is_truthy::<N>() {
             let (h, o1) = to_umax_overflowing::<uint::From<ops::PopBit<N>>>();
@@ -41,6 +41,12 @@ const fn to_umax_overflowing<N: Uint>() -> (Umax, bool) {
         } else {
             (0, false)
         }
+    }
+}
+const fn to_umax<N: Uint>() -> Option<Umax> {
+    match to_umax_overflowing::<N>() {
+        (n, false) => Some(n),
+        (_, true) => None,
     }
 }
 
@@ -86,7 +92,7 @@ pub const fn to_str<N: ToUint>() -> &'static str {
             let fast_eval = const {
                 const MAXLEN: usize = crate::maxint::umax_strlen(Umax::MAX);
 
-                if let (n, false) = to_umax_overflowing::<N>() {
+                if let Some(n) = to_umax::<N>() {
                     let len = crate::maxint::umax_strlen(n);
                     let mut out = [0; MAXLEN];
                     crate::maxint::umax_write(n, &mut out);
@@ -143,8 +149,7 @@ pub const fn to_u128<N: ToUint>() -> Option<u128> {
 ///
 /// If this function returns [`Equal`](core::cmp::Ordering::Equal), it is guaranteed that
 /// `L::ToUint` and `R::ToUint` are exactly the same type.
-pub const fn cmp<L: ToUint, R: ToUint>() -> core::cmp::Ordering {
-    use core::cmp::Ordering;
+pub const fn cmp<L: ToUint, R: ToUint>() -> Ordering {
     const fn doit<L: Uint, R: Uint>() -> Ordering {
         const {
             if !is_truthy::<L>() {
@@ -156,7 +161,10 @@ pub const fn cmp<L: ToUint, R: ToUint>() -> core::cmp::Ordering {
                 match doit::<From<ops::PopBit<L>>, From<ops::PopBit<R>>>() {
                     it @ (Ordering::Less | Ordering::Greater) => it,
                     Ordering::Equal => {
-                        match (is_truthy::<ops::LastBit<L>>(), is_truthy::<ops::LastBit<R>>()) {
+                        match (
+                            is_truthy::<ops::LastBit<L>>(),
+                            is_truthy::<ops::LastBit<R>>(),
+                        ) {
                             (true, true) | (false, false) => Ordering::Equal,
                             (true, false) => Ordering::Greater,
                             (false, true) => Ordering::Less,
@@ -167,4 +175,28 @@ pub const fn cmp<L: ToUint, R: ToUint>() -> core::cmp::Ordering {
         }
     }
     doit::<L::ToUint, R::ToUint>()
+}
+
+const fn cmp_umax<Lhs: Uint>(rhs: Umax) -> Ordering {
+    if let Some(lhs) = to_umax::<Lhs>() {
+        if lhs < rhs {
+            Ordering::Less
+        } else if lhs == rhs {
+            Ordering::Equal
+        } else {
+            Ordering::Greater
+        }
+    } else {
+        Ordering::Greater
+    }
+}
+
+/// Compares a [`Uint`] (lhs) to a [`u128`] (rhs).
+pub const fn cmp_u128<Lhs: ToUint>(rhs: u128) -> Ordering {
+    cmp_umax::<Lhs::ToUint>(rhs as _)
+}
+
+/// Compares a [`Uint`] (lhs) to a [`usize`] (rhs).
+pub const fn cmp_usize<Lhs: ToUint>(rhs: usize) -> Ordering {
+    cmp_umax::<Lhs::ToUint>(rhs as _)
 }

@@ -1,10 +1,11 @@
 use core::{marker::PhantomData, mem::MaybeUninit, ptr::NonNull};
 
-use crate::const_fmt;
+use crate::{const_fmt, utils};
 
 use super::{ArrApi, ArrDeqApi, Array, helper::*};
 
 /// Wraps the drop impl so it isn't exposed as a trait bound
+#[repr(transparent)]
 pub(crate) struct ArrDeqDrop<A: Array<Item = T>, T = <A as Array>::Item>(
     // SAFETY INVARIANT: See ArrVecRepr
     ArrDeqRepr<A>,
@@ -93,10 +94,14 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     }
 
     const fn into_repr(self) -> ArrDeqRepr<A> {
-        let this = core::mem::ManuallyDrop::new(self);
-        let repr = const_util::mem::man_drop_ref(&this).as_repr();
-        // SAFETY: Known safe way of destructuring
-        unsafe { core::ptr::read(repr) }
+        // SAFETY: repr(transparent)
+        unsafe {
+            utils::union_transmute!(
+                ArrDeqApi<A>,
+                ArrDeqRepr<A>,
+                self, //
+            )
+        }
     }
 
     /// Returns a mutable reference to the elements as a pair of slices.

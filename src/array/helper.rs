@@ -18,21 +18,10 @@ pub(crate) const fn arr_len<A: Array>() -> usize {
         };
         match precalc {
             Ok(n) => n,
-            Err(fmt) => fmt.panic(),
+            Err(err) => err.panic(),
         }
     }
     doit::<A::Length>()
-}
-
-pub(crate) const fn uint_is<N: crate::ToUint>(n: usize) -> bool {
-    if let Some(value) = uint::to_usize::<N>() {
-        n == value
-    } else {
-        false
-    }
-}
-pub(crate) const fn len_is<A: Array>(len: usize) -> bool {
-    uint_is::<A::Length>(len)
 }
 
 /// Checks some invariants of an array type.
