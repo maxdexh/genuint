@@ -51,38 +51,6 @@ impl<T, N: Uint, A> ArrApi<A>
 where
     A: Array<Item = T, Length = N>,
 {
-    /// Moves the items from another array of [`MaybeUninit<T>`] items with minimal loss.
-    ///
-    /// If `B::Length > Self::Length`, the extra items will be forgotten.
-    /// If `B::Length < Self::Length`, the missing items will be left uninitialized.
-    /// Otherwise, the output is as if by [`try_retype`](Self::try_retype).
-    ///
-    /// This method is defined on `ArrApi<A>` and creates `ArrApi<MaybeUninit<A>>`.
-    /// This is so that [`Arr::resize_uninit_from`] infers the return type to
-    /// `ArrApi<MaybeUninit<ArrInner<T, N>>>`.
-    pub const fn resize_uninit_from<B>(arr: B) -> ArrApi<MaybeUninit<A>>
-    where
-        B: Array<Item = MaybeUninit<T>>,
-    {
-        // SAFETY: M := B::Length
-        // - if M >= N, then transmuting through a union forgets `M - N` elements,
-        //   which is safe.
-        // - if M <= N, then transmuting through a union fills the rest of the array with
-        //   uninitialized memory, which is valid in this context.
-        unsafe {
-            utils::union_transmute!(
-                B, //
-                ArrApi::<MaybeUninit<A>>,
-                arr,
-            )
-        }
-    }
-}
-
-impl<T, N: Uint, A> ArrApi<A>
-where
-    A: Array<Item = T, Length = N>,
-{
     /// Equivalent to `[x; N]` with `x` of a copyable type.
     ///
     /// # Examples
@@ -132,6 +100,29 @@ impl<T, N: Uint, A> ArrApi<A>
 where
     A: Array<Item = MaybeUninit<T>, Length = N>,
 {
+    /// Moves the items from another array of [`MaybeUninit<T>`] items with minimal loss.
+    ///
+    /// If `B::Length < Self::Length`, the extra items will be forgotten.
+    /// If `B::Length > Self::Length`, the missing items will be left uninitialized.
+    /// Otherwise, the output is as if by [`try_retype`](Self::try_retype).
+    pub const fn resize_uninit<B>(self) -> B
+    where
+        B: Array<Item = MaybeUninit<T>>,
+    {
+        // SAFETY: M := B::Length
+        // - if M <= N, then transmuting through a union forgets `M - N` elements,
+        //   which is safe.
+        // - if M >= N, then transmuting through a union fills the rest of the array with
+        //   uninitialized memory, which is valid in this context.
+        unsafe {
+            utils::union_transmute!(
+                ArrApi<A>,
+                B, //
+                self,
+            )
+        }
+    }
+
     /// Moves the items into `[MaybeUninit<T>; M]` with minimal loss.
     ///
     /// If `M > Self::Length`, the extra items will be forgotten.

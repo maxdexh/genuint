@@ -132,7 +132,6 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
 
 impl<A: Array<Item = T>, T> ArrDeqApi<A> {}
 
-// TODO: Capacity panics
 impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     pub(super) const fn from_vec_impl(vec: crate::array::ArrVecApi<A>) -> Self {
         let (arr, len) = vec.into_uninit_parts();

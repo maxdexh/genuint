@@ -136,14 +136,17 @@ impl<Pre: _Pint, Last: _Bit> _Uint for _U<Pre, Last> {
     type _DirectAppend<B: _Bit> = _U<Self, B>;
 }
 
-// Array internals. Expressed through a supertrait of _Uint so that it can be generated more
-// easily, and extended by future special traits like `Freeze`.
 #[derive(Clone, Copy)]
-// NOTE: Using (A, A, P) is equivalent, but MUCH slower under miri because there will be O(Length)
-// rather than O(log(Length)) fields in total (arrays and repr(C) tuples are handled differently)
 #[repr(C)]
-pub struct ArrBisect<A, P>([A; 2], P);
+// NOTE: repr(C) (H, H, P) is equivalent but slows down miri. https://github.com/fizyk20/generic-array/issues/157
+pub struct ArrBisect<H, P> {
+    halves: [H; 2],
+    parity: P,
+}
 
+// Ideally, every useful combination of traits that cannot be implemented properly on `ArrApi`
+// should have an array type. For now, the only such trait is `Copy`, until `Freeze`/`NoCell`
+// might become stable.
 macro_rules! gen_arr_internals {
     [
         $ArrsTrait:ident,

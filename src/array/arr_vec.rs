@@ -502,7 +502,7 @@ where
     /// Only the item type is required to stay the same.
     ///
     /// # Errors
-    /// If `A::Length > usize::MAX` or `A::Length < vec.len()`, the original vector is returned.
+    /// If `A::Length < vec.len()` or `A::Length > usize::MAX`, the original vector is returned.
     pub const fn try_retype<Dst>(self) -> Result<ArrVecApi<Dst>, Self>
     where
         Dst: Array<Item = T>,
@@ -510,7 +510,7 @@ where
         if uint::cmp_usize::<Dst::Length>(self.len()).is_ge() {
             let (arr, len) = self.into_uninit_parts();
             // SAFETY: new cap >= len, so we must still have `len` valid elements.
-            Ok(unsafe { ArrVecApi::from_uninit_parts(ArrApi::resize_uninit_from(arr), len) })
+            Ok(unsafe { ArrVecApi::from_uninit_parts(arr.resize_uninit(), len) })
         } else {
             Err(self)
         }
