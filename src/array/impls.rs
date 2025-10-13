@@ -127,7 +127,7 @@ where
     where
         Dst: Array<Item = T, Length = N>,
     {
-        convert::retype(self)
+        arr_api::retype(self)
     }
 
     /// Tries to convert into an array with the same item and length.
@@ -142,7 +142,7 @@ where
     pub const fn try_retype<Dst: Array<Item = T>>(
         self,
     ) -> CondResult<uops::Eq<N, Dst::Length>, Dst, Self> {
-        convert::try_retype(self)
+        arr_api::try_retype(self)
     }
 
     /// Concatenates the inner array with `rhs` via [`Concat`].

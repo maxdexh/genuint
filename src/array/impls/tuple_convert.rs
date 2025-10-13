@@ -10,7 +10,7 @@ macro_rules! tuple_gen_impl {
                 A: Array<Item = T, Length = crate::uint::From<crate::consts::ConstUsize<COUNT>>>,
             {
                 fn from(value: crate::array::ArrApi<A>) -> Self {
-                    crate::array::convert::retype::<_, [_; COUNT]>(value).into()
+                    crate::array::arr_api::retype::<_, [_; COUNT]>(value).into()
                 }
             }
             impl<A, T> From<Tuple<T>> for ArrApi<A>
@@ -18,7 +18,7 @@ macro_rules! tuple_gen_impl {
                 A: Array<Item = T, Length = crate::uint::From<crate::consts::ConstUsize<COUNT>>>,
             {
                 fn from(value: Tuple<T>) -> Self {
-                    crate::array::convert::retype::<[_; COUNT], _>(value.into())
+                    crate::array::arr_api::retype::<[_; COUNT], _>(value.into())
                 }
             }
 

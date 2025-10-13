@@ -12,15 +12,14 @@
 //! oversized arrays are unsupported.
 //!
 //! Note that this includes methods/impls that are usually considered infallible, such as
-//! [`Deref::deref`](core::ops::Deref), since it is not possible to create a slice that
-//! includes all items of an oversized array.
+//! [`Deref::deref`](core::ops::Deref).
 //!
 //! [`Uint`]: crate::Uint
 //! [`Length`]: Array::Length
 
 macro_rules! doc_no_oversized {
     () => {
-        "This method/impl does not support [oversized arrays](crate::array#oversized-arrays) and will panic when interacting with them."
+        "Does not support [oversized arrays](crate::array#oversized-arrays) and panics when interacting with them. Note that this may be relaxed in the future."
     };
 }
 
@@ -75,7 +74,7 @@ pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item> {
 ///
 /// This is just a `repr(C)` pair.
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct ArrConcat<A, B>(pub A, pub B);
 
 impl<A, B> ArrConcat<A, B> {
@@ -136,6 +135,11 @@ impl<A> ArrFlatten<A> {
 ///   accessed in `const` using [`const_util::mem::man_drop_mut`].
 /// - Using [`Arr`]/[`CopyArr`] instead if the item type has a default value, or a layout niche
 ///   with [`Option`].
+///
+/// # Oversized arrays
+/// [Oversized arrays](crate::array#oversized-arrays) are never supported. Attempting to create
+/// such an [`ArrVecApi`] results in a panic at runtime. Note that this is not guaranteed and
+/// may be relaxed in the future.
 #[cfg_attr(not(doc), repr(transparent))]
 pub struct ArrVecApi<A: Array<Item = T>, T = <A as Array>::Item>(
     /// Encapsulates the drop impl to allow future changes
@@ -207,4 +211,4 @@ mod arr_deq;
 mod arr_vec;
 mod impls;
 
-pub mod convert;
+pub mod arr_api;

@@ -32,7 +32,7 @@ pub(crate) const fn wrapping_idx(logical: usize, cap: usize) -> usize {
 }
 
 pub(crate) const fn phys_idx_of(idx: usize, head: usize, cap: usize) -> usize {
-    // TODO: Overflow explain
+    // FIXME: This needs explanation for its correctness, especially for ZSTs
     wrapping_idx(head.wrapping_add(idx), cap)
 }
 

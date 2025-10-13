@@ -3,13 +3,10 @@ use crate::{
     array::{ArrApi, Array},
 };
 
-// TODO: Add missing impls
-// TODO: Consider not restricting to same size
-
-impl<N: Uint, A, B> PartialEq<ArrApi<B>> for ArrApi<A>
+impl<A, B> PartialEq<ArrApi<B>> for ArrApi<A>
 where
-    A: Array<Length = N>,
-    B: Array<Length = N>,
+    A: Array,
+    B: Array,
     A::Item: PartialEq<B::Item>,
 {
     fn eq(&self, other: &ArrApi<B>) -> bool {

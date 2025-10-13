@@ -1,6 +1,6 @@
 use crate::{Uint, array::*};
 
-// TODO: There are some APIs missing here
+// TODO: Implement as a double ended buffer, implement APIs like as_slice, override default impls
 pub struct IntoIter<A: Array> {
     pub(crate) deq: ArrDeqApi<A>,
 }
@@ -28,6 +28,7 @@ where
 }
 impl<T, N: Uint, A> ExactSizeIterator for IntoIter<A> where A: Array<Item = T, Length = N> {}
 
+#[doc = doc_no_oversized!()]
 impl<A: Array> IntoIterator for ArrApi<A> {
     type Item = A::Item;
     type IntoIter = IntoIter<Self>;
@@ -38,22 +39,6 @@ impl<A: Array> IntoIterator for ArrApi<A> {
         }
     }
 }
-impl<'a, A: Array> IntoIterator for &'a ArrApi<A> {
-    type Item = &'a A::Item;
-    type IntoIter = <&'a [A::Item] as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.as_slice().iter()
-    }
-}
-impl<'a, A: Array> IntoIterator for &'a mut ArrApi<A> {
-    type Item = &'a mut A::Item;
-    type IntoIter = <&'a mut [A::Item] as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.as_mut_slice().iter_mut()
-    }
-}
 impl<A: Array> IntoIterator for ArrVecApi<A> {
     type Item = A::Item;
     type IntoIter = IntoIter<A>;
@@ -62,22 +47,6 @@ impl<A: Array> IntoIterator for ArrVecApi<A> {
         Self::IntoIter {
             deq: self.into_deque(),
         }
-    }
-}
-impl<'a, A: Array> IntoIterator for &'a ArrVecApi<A> {
-    type Item = &'a A::Item;
-    type IntoIter = <&'a [A::Item] as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.as_slice().iter()
-    }
-}
-impl<'a, A: Array> IntoIterator for &'a mut ArrVecApi<A> {
-    type Item = &'a mut A::Item;
-    type IntoIter = <&'a mut [A::Item] as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.as_mut_slice().iter_mut()
     }
 }
 

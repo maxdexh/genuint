@@ -91,6 +91,8 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// `head, len < A::Length`, `len` items are initialized, starting at `head` and wrapping
     /// around the end of the array.
     const unsafe fn from_repr(repr: ArrDeqRepr<A>) -> Self {
+        let _ = arr_len::<A>(); // Ensure array non-oversized.
+
         Self(ArrDeqDrop {
             repr,
             _p: PhantomData,

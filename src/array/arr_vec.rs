@@ -81,12 +81,14 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// use core::mem::MaybeUninit;
     ///
     /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
-    /// arr[0].write(1);
+    /// arr.as_mut_slice()[0].write(1);
     /// // SAFETY: The first element of `arr` is initialized to a valid i32
     /// let vec = unsafe { ArrVecApi::from_uninit_parts(arr, 1) };
     /// assert_eq!(vec, [1]);
     /// ```
     pub const unsafe fn from_uninit_parts(arr: ArrApi<MaybeUninit<A>>, len: usize) -> Self {
+        let _ = arr_len::<A>(); // Ensure array non-oversized.
+
         let repr = ArrVecRepr { arr, len };
         Self(ArrVecDrop {
             repr,
@@ -115,7 +117,7 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// use core::mem::MaybeUninit;
     ///
     /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
-    /// arr[1].write(3);
+    /// arr.as_mut_slice()[1].write(3);
     /// let mut vec = ArrVecApi::from_uninit_array(arr);
     /// vec.push(0);
     ///
@@ -150,7 +152,7 @@ where
     /// use core::mem::MaybeUninit;
     ///
     /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
-    /// arr[0].write(1);
+    /// arr.as_mut_slice()[0].write(1);
     /// let vec = ArrVecApi::from_uninit_array(arr);
     /// assert_eq!(vec, []); // length is always 0
     /// ```
@@ -219,7 +221,7 @@ where
     /// use core::mem::MaybeUninit;
     ///
     /// let mut arr = ArrApi::new(MaybeUninit::<[_; 3]>::uninit());
-    /// arr[1].write(2);
+    /// arr.as_mut_slice()[1].write(2);
     /// let mut vec = ArrVecApi::from_uninit_array(arr);
     /// vec.push(1);
     /// let (init, spare) = vec.split_at_spare();
@@ -515,7 +517,7 @@ where
         if uint::cmp_usize::<Dst::Length>(self.len()).is_ge() {
             let (arr, len) = self.into_uninit_parts();
             // SAFETY: new cap >= len, so we must still have `len` valid elements.
-            Ok(unsafe { ArrVecApi::from_uninit_parts(arr.resize_uninit(), len) })
+            Ok(unsafe { ArrVecApi::from_uninit_parts(arr.retype_uninit(), len) })
         } else {
             Err(self)
         }

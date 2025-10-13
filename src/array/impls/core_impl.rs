@@ -15,7 +15,7 @@ where
     /// # Panics
     /// If `Length > usize::MAX`. This is guaranteed behavior.
     pub const fn as_slice(&self) -> &[T] {
-        convert::unsize_ref(self)
+        arr_api::unsize_ref(self)
     }
 
     /// Converts the array to a mutable slice.
@@ -25,7 +25,7 @@ where
     /// # Panics
     /// If `Length > usize::MAX`. This is guaranteed behavior.
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
-        convert::unsize_mut(self)
+        arr_api::unsize_mut(self)
     }
 
     /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).

@@ -53,7 +53,7 @@ where
 {
     type Error = TryFromSliceError;
     fn try_from(value: &'a [T]) -> Result<Self, Self::Error> {
-        convert::try_from_ref_slice(value).ok_or_else(try_from_slice_error)
+        arr_api::try_from_ref_slice(value).ok_or_else(try_from_slice_error)
     }
 }
 impl<'a, T, A> TryFrom<&'a mut [T]> for &'a mut ArrApi<A>
@@ -62,7 +62,7 @@ where
 {
     type Error = TryFromSliceError;
     fn try_from(value: &'a mut [T]) -> Result<Self, Self::Error> {
-        convert::try_from_mut_slice(value).ok_or_else(try_from_slice_error)
+        arr_api::try_from_mut_slice(value).ok_or_else(try_from_slice_error)
     }
 }
 impl<T, A> TryFrom<&[T]> for ArrApi<A>
@@ -129,7 +129,7 @@ where
     A: Array<Item = T>,
 {
     fn from(value: ArrApi<A>) -> Self {
-        convert::unsize_arc(alloc::sync::Arc::new(value))
+        arr_api::unsize_arc(alloc::sync::Arc::new(value))
     }
 }
 #[cfg(feature = "alloc")]
@@ -139,7 +139,7 @@ where
     A: Array<Item = T>,
 {
     fn from(value: ArrApi<A>) -> Self {
-        convert::unsize_rc(alloc::rc::Rc::new(value))
+        arr_api::unsize_rc(alloc::rc::Rc::new(value))
     }
 }
 #[cfg(feature = "alloc")]
@@ -149,7 +149,7 @@ where
     A: Array<Item = T>,
 {
     fn from(value: ArrApi<A>) -> Self {
-        convert::unsize_box(alloc::boxed::Box::new(value))
+        arr_api::unsize_box(alloc::boxed::Box::new(value))
     }
 }
 #[cfg(feature = "alloc")]
@@ -246,7 +246,7 @@ where
 {
     type Error = alloc::boxed::Box<[T]>;
     fn try_from(value: alloc::boxed::Box<[T]>) -> Result<Self, Self::Error> {
-        convert::try_from_boxed_slice(value)
+        arr_api::try_from_boxed_slice(value)
     }
 }
 #[cfg(feature = "alloc")]

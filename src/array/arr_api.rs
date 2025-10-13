@@ -30,7 +30,6 @@ macro_rules! cast_by_raw {
     };
 }
 
-// TODO: Add more type safety to the unsafe conversions
 macro_rules! decl_ptr {
     (
         $name:ident,
@@ -232,8 +231,6 @@ macro_rules! decl_retype {
                 |c| c.new_err(src),
             )
         }
-
-        // TODO: Use option.
     };
 }
 for_each_ptr!(retype, decl_retype);
@@ -305,5 +302,3 @@ macro_rules! decl_from_slice {
     };
 }
 for_each_ptr!(try_from_slice, decl_from_slice);
-
-// TODO: Tests

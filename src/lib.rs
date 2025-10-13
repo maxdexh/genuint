@@ -11,7 +11,6 @@
     missing_docs
 )]
 #![allow(clippy::redundant_pub_crate, clippy::use_self)]
-// TODO: doctests
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

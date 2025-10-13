@@ -1,9 +1,7 @@
 //! Method impls using array invariants.
 //!
 //! As these methods make heavy use of transmutes, they need to be tested the most.
-//! Also see [`convert`].
-
-// TODO: arr_api
+//! Also see [`arr_api`].
 
 use core::mem::MaybeUninit;
 
@@ -105,7 +103,7 @@ where
     /// If `B::Length < Self::Length`, the extra items will be forgotten.
     /// If `B::Length > Self::Length`, the missing items will be left uninitialized.
     /// Otherwise, the output is as if by [`try_retype`](Self::try_retype).
-    pub const fn resize_uninit<B>(self) -> B
+    pub const fn retype_uninit<B>(self) -> B
     where
         B: Array<Item = MaybeUninit<T>>,
     {
@@ -192,6 +190,12 @@ where
         //   which is safe.
         // - if M <= N, then transmuting through a union fills the rest of the array with
         //   uninitialized memory, which is valid in this context.
-        unsafe { utils::union_transmute!(Self, [MaybeUninit<T>; M], self) }
+        unsafe {
+            utils::union_transmute!(
+                ArrApi::<A>, //
+                [MaybeUninit::<T>; M],
+                self
+            )
+        }
     }
 }
