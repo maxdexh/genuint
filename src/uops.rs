@@ -140,9 +140,9 @@
 //! check_input::<uint::lit!(0b10101000110111111), uint::lit!(0b11110111011111)>()
 //! ```
 
+use crate::{internals::InternalOp, small::*, uint, utils::apply};
 #[expect(unused_imports)] // for docs
 use crate::{ToUint, Uint};
-use crate::{internals::InternalOp, small::*, uint, utils::apply};
 
 macro_rules! lazy_impl {
     (
@@ -278,7 +278,7 @@ mod helper;
 pub(crate) use helper::*;
 
 mod trivial;
-pub use trivial::{IsFalsy, IsTruthy};
+pub use trivial::{IsNonzero, IsZero};
 
 mod testing;
 

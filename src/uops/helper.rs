@@ -2,8 +2,8 @@ use super::*;
 
 pub type _And<L, R> = If<L, R, _0>;
 pub type _Or<L, R> = If<L, _1, R>;
-pub type _Xor<L, R> = uint::From<If<L, IsFalsy<R>, R>>;
-pub type _Xnor<L, R> = uint::From<If<L, R, IsFalsy<R>>>;
+pub type _Xor<L, R> = uint::From<If<L, IsZero<R>, R>>;
+pub type _Xnor<L, R> = uint::From<If<L, R, IsZero<R>>>;
 pub type _Xor3<A, B, C> = uint::From<If<A, _Xnor<B, C>, _Xor<B, C>>>;
 
 /// Eager version of `PopBit`.

@@ -30,8 +30,8 @@ pub type LastBit<N> = InternalOp!(uint::From<N>, LastBit);
 ///
 /// This is a primitive operation.
 ///
-/// Effectively a more efficient implementation of `Add<Mul<N, _2>, IsTruthy<P>>`,
-/// or `BitOr<Shl<N, _1>, IsTruthy<P>>`. It is meant to be used for building the
+/// Effectively a more efficient implementation of `Add<Mul<N, _2>, IsNonzero<P>>`,
+/// or `BitOr<Shl<N, _1>, IsNonzero<P>>`. It is meant to be used for building the
 /// output of an operation recursively bit-by-bit.
 ///
 /// See the [module level documentation](crate::uops) for details on how to combine

@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::{Uint, uops, small::*, uint};
+use crate::{small::*, uint, uops, Uint};
 
 pub(crate) type SatDec<N> = uint::From<uops::If<N, uops::_DecUnchecked<N>, _0>>;
 

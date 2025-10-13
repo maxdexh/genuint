@@ -71,14 +71,14 @@ impl<C: ToUint, T, E> CondResult<C, T, E> {
     }
 
     /// Whether instances of this type are `Ok`
-    pub const IS_OK: bool = uint::is_truthy::<C>();
+    pub const IS_OK: bool = uint::is_nonzero::<C>();
 
     /// Whether instances of this type are `Err`
     pub const IS_ERR: bool = !Self::IS_OK;
 
     /// Whether this result is `Ok`
     pub const fn is_ok(&self) -> bool {
-        uint::is_truthy::<C>()
+        uint::is_nonzero::<C>()
     }
 
     /// Whether this result is `Err`
@@ -217,7 +217,7 @@ impl<C: ToUint, T> CondOption<C, T> {
     }
 
     /// Whether instances of this type are `Some`
-    pub const IS_SOME: bool = uint::is_truthy::<C>();
+    pub const IS_SOME: bool = uint::is_nonzero::<C>();
 
     /// Whether instances of this type are `None`
     pub const IS_NONE: bool = !Self::IS_SOME;
@@ -229,7 +229,7 @@ impl<C: ToUint, T> CondOption<C, T> {
 
     /// Whether this result is `None`
     pub const fn is_none(&self) -> bool {
-        uint::is_truthy::<C>()
+        uint::is_nonzero::<C>()
     }
 
     /// Shorthand for `Self { direct }`.

@@ -11,7 +11,7 @@ use super::*;
 /// iff 1 = Xnor(PL, PR)  and  1 = Eq(HL, HR)
 /// iff 1 = if Xnor(PL, PR) == 1 { Eq(HL, HR) } else { 0 }
 /// ```
-#[apply(base_case! 0 == L => IsFalsy<R>)] // L = R  iff  R == 0
+#[apply(base_case! 0 == L => IsZero<R>)] // L = R  iff  R == 0
 #[apply(lazy)]
 pub type _Eq<L, R> = If<
     _Xnor<_P<L>, _P<R>>,
@@ -28,7 +28,7 @@ pub type _Eq<L, R> = If<
 pub type Eq<L, R> = _Eq;
 
 #[apply(lazy)]
-pub type _Ne<L, R> = IsFalsy<Eq<L, R>>;
+pub type _Ne<L, R> = IsZero<Eq<L, R>>;
 
 /// Type-level [`!=`](core::cmp::PartialEq)
 ///
@@ -91,7 +91,7 @@ pub type Gt<L, R> = Lt<R, L>;
 pub type Ge<L, R> = Le<R, L>;
 
 #[apply(lazy)]
-pub type _Le<L, R> = IsFalsy<_Lt<R, L>>;
+pub type _Le<L, R> = IsZero<_Lt<R, L>>;
 
 /// Type-level [`<=`](core::cmp::PartialOrd)
 ///

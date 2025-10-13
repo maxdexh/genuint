@@ -141,9 +141,9 @@ where
     /// type BinaryLen<N> = uint::From<uops::BaseLen<uint::lit!(2), N>>;
     /// const fn to_binary_arr<N: Uint>() -> Arr<u8, BinaryLen<N>> {
     ///     let last_bit = [
-    ///         b'0' + uint::is_truthy::<uops::LastBit::<N>>() as u8
+    ///         b'0' + uint::is_nonzero::<uops::LastBit::<N>>() as u8
     ///     ];
-    ///     if uint::is_truthy::<uops::PopBit<N>>() {
+    ///     if uint::is_nonzero::<uops::PopBit<N>>() {
     ///         to_binary_arr::<uint::From<uops::PopBit<N>>>()
     ///             .concat(last_bit)
     ///             .try_retype()

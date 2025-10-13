@@ -137,7 +137,7 @@ pub(crate) mod oversize {
         pub const fn max() -> Self {
             Self {
                 digits: const {
-                    if uint::is_truthy::<N>() {
+                    if uint::is_nonzero::<N>() {
                         BigCounter::<PopDigit<N>>::max()
                             .digits
                             .concat([uint::to_usize_overflowing::<N>().0])

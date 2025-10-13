@@ -38,10 +38,10 @@ pub use __lit as lit;
 
 const fn to_umax_overflowing<N: Uint>() -> (Umax, bool) {
     const {
-        if is_truthy::<N>() {
+        if is_nonzero::<N>() {
             let (h, o1) = to_umax_overflowing::<uint::From<uops::PopBit<N>>>();
             let (t, o2) = h.overflowing_mul(2);
-            let (n, o3) = t.overflowing_add(is_truthy::<uops::LastBit<N>>() as _);
+            let (n, o3) = t.overflowing_add(is_nonzero::<uops::LastBit<N>>() as _);
             (n, o1 || o2 || o3)
         } else {
             (0, false)
@@ -55,11 +55,16 @@ const fn to_umax<N: Uint>() -> Option<Umax> {
     }
 }
 
-/// Returns whether `N::ToUint` is nonzero.
-pub const fn is_truthy<N: ToUint>() -> bool {
+/// Returns whether a [`Uint`] is nonzero.
+pub const fn is_nonzero<N: ToUint>() -> bool {
     crate::internals::InternalOp!(N::ToUint, IS_NONZERO)
 }
-/// Returns the decimal representation of `N::ToUint` for arbitrarily large `N`.
+/// Returns whether a [`Uint`] is zero.
+pub const fn is_zero<N: ToUint>() -> bool {
+    !is_nonzero::<N>()
+}
+
+/// Returns the decimal representation of a [`Uint`] for arbitrarily large `N`.
 pub const fn to_str<N: ToUint>() -> &'static str {
     const fn to_byte_str_naive<N: Uint>() -> &'static [u8] {
         struct ConcatBytes<N>(N);
@@ -78,7 +83,7 @@ pub const fn to_str<N: ToUint>() -> &'static str {
         }
         const fn doit<N: Uint>() -> &'static [u8] {
             const {
-                if is_truthy::<N>() {
+                if is_nonzero::<N>() {
                     const_util::concat::concat_bytes::<ConcatBytes<N>>()
                 } else {
                     b""
@@ -157,8 +162,8 @@ pub const fn to_u128<N: ToUint>() -> Option<u128> {
 pub const fn cmp<L: ToUint, R: ToUint>() -> Ordering {
     const fn doit<L: Uint, R: Uint>() -> Ordering {
         const {
-            if !is_truthy::<L>() {
-                match is_truthy::<R>() {
+            if !is_nonzero::<L>() {
+                match is_nonzero::<R>() {
                     true => Ordering::Less,
                     false => Ordering::Equal,
                 }
@@ -167,8 +172,8 @@ pub const fn cmp<L: ToUint, R: ToUint>() -> Ordering {
                     it @ (Ordering::Less | Ordering::Greater) => it,
                     Ordering::Equal => {
                         match (
-                            is_truthy::<uops::LastBit<L>>(),
-                            is_truthy::<uops::LastBit<R>>(),
+                            is_nonzero::<uops::LastBit<L>>(),
+                            is_nonzero::<uops::LastBit<R>>(),
                         ) {
                             (true, true) | (false, false) => Ordering::Equal,
                             (true, false) => Ordering::Greater,

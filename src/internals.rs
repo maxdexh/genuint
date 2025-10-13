@@ -49,10 +49,6 @@ pub trait _Uint: _UintArrs + 'static {
     //       as _Uint>::IfImpl<T, F>
     //       as ToUint>::ToUint
     // Converting to `Uint` here removes the final `ToUint` conversion.
-    //
-    // WARN: Do not project to _Uint early, since that would cause
-    // `uint::From<If<_1, T, F>>` (T: Uint) to normalize to
-    // `<T as UintSealed>::__Uint`, rather than `T`.
     type If<T: ToUint, F: ToUint>: Uint;
     type Opaque<N: ToUint>: Uint;
 

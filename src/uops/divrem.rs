@@ -61,7 +61,7 @@ pub(crate) type _RemUnchecked<L, R> = _SubIfGe<_NaiveRem<L, R>, R>;
 #[apply(lazy)]
 pub type _DivUnchecked<L, R> = PushBit<
     _DivUnchecked<_H<L>, R>,
-    IsFalsy<_Lt<_NaiveRem<L, R>, R>>, //
+    IsZero<_Lt<_NaiveRem<L, R>, R>>, //
 >;
 
 #[apply(lazy)]
