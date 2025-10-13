@@ -309,6 +309,7 @@ pub(crate) use divrem::*;
 pub use divrem::{Div, Rem};
 
 mod shift;
+pub(crate) use shift::*;
 pub use shift::{Shl, Shr};
 
 mod pow;

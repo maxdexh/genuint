@@ -1,5 +1,8 @@
-use crate::Uint;
-use crate::array::*;
+use crate::{
+    Uint,
+    array::{helper::*, *},
+    uint,
+};
 
 impl<T, N: Uint, A> ArrApi<A>
 where
@@ -27,8 +30,8 @@ where
 
     /// Equivalent of [`<[T; N]>::each_ref`](array::each_ref).
     ///
-    /// # Errors
-    /// Note that this cannot possibly compile if `Length > usize::MAX`
+    /// Note that this method does not compile for `Length > usize::MAX` because the returned
+    /// array will be too large for the architecture.
     pub const fn each_ref(&self) -> ArrApi<impl Array<Item = &T, Length = N> + Copy> {
         let mut out = ArrVecApi::<super::CopyArr<_, _>>::new();
         let mut this = self.as_slice();
@@ -51,79 +54,85 @@ where
     }
 
     /// Equivalent of [`<[T; N]>::map`](array::map).
-    pub fn map<F, U>(self, mut f: F) -> ArrApi<impl Array<Item = U, Length = N>>
+    pub fn map<B>(self, mut f: impl FnMut(T) -> B::Item) -> ArrApi<B>
     where
-        F: FnMut(T) -> U,
+        B: Array<Length = N>,
     {
-        let mut out = ArrVec::new();
-        let mut inp = ArrDeqApi::new_full(self);
-        while let Some(first) = inp.pop_front() {
-            out.push(f(first));
+        let mut src = oversize::ArrConsumer::new(self);
+        let mut dst = oversize::ArrBuilder::new();
+        while let Some(item) = src.next() {
+            // SAFETY: `src` only returns up to `Length` items
+            unsafe { dst.push_unchecked(f(item)) }
         }
-        out.assert_full()
+        // SAFETY: `src` is empty, so this is full
+        unsafe { dst.into_full_unchecked() }
     }
 }
 
-// FIXME: oversized
 impl<A> Clone for ArrApi<A>
 where
     A: Array<Item: Clone>,
 {
     fn clone(&self) -> Self {
-        self.each_ref().map(Clone::clone).retype()
+        let mut src = oversize::ArrRefConsumer::new(self);
+        let mut dst = oversize::ArrBuilder::new();
+        while let Some(item) = src.next() {
+            // SAFETY: `src` only returns up to `Length` items
+            unsafe { dst.push_unchecked(item.clone()) }
+        }
+        // SAFETY: `src` is empty, so this is full
+        unsafe { dst.into_full_unchecked() }
     }
 }
 impl<A> Copy for ArrApi<A> where A: Array<Item: Copy> + Copy {}
 
-// FIXME: oversized
 impl<A> Default for ArrApi<A>
 where
     A: Array<Item: Default>,
 {
     fn default() -> Self {
-        Self::from_fn(|_| Default::default())
+        Arr::of(()).map(|()| Default::default())
     }
 }
-#[doc = doc_no_oversized!()]
 impl<A> core::fmt::Debug for ArrApi<A>
 where
     A: Array<Item: core::fmt::Debug>,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "{:?}", self.as_slice())
+        if uint::to_usize::<A::Length>().is_some() {
+            write!(f, "{:?}", self.as_slice())
+        } else {
+            write!(f, "[...]")
+        }
     }
 }
-#[doc = doc_no_oversized!()]
-impl<A> core::hash::Hash for ArrApi<A>
-where
-    A: Array<Item: core::hash::Hash>,
-{
-    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-        self.as_slice().hash(state)
+const _: () = {
+    use core::hash::{Hash, Hasher};
+    impl<A> Hash for ArrApi<A>
+    where
+        A: Array<Item: Hash>,
+    {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            if const { uint::to_usize::<A::Length>().is_some() } {
+                self.as_slice().hash(state)
+            } else {
+                fn hash_zst<A, H>(a: &A, h: &mut H)
+                where
+                    A: Array<Item: Hash>,
+                    H: Hasher,
+                {
+                    let mut src = oversize::ArrRefConsumer::new(a);
+                    while let Some(item) = src.next() {
+                        item.hash(h)
+                    }
+                }
+                hash_zst(self, state);
+            }
+        }
     }
-}
-// FIXME: oversized
-impl<T, A, I, O> core::ops::Index<I> for ArrApi<A>
-where
-    [T]: core::ops::Index<I, Output = O>,
-    A: Array<Item = T>,
-    O: ?Sized,
-{
-    type Output = O;
-    fn index(&self, index: I) -> &Self::Output {
-        &self.as_slice()[index]
-    }
-}
-// FIXME: oversized
-impl<T, A, I> core::ops::IndexMut<I> for ArrApi<A>
-where
-    [T]: core::ops::IndexMut<I>,
-    A: Array<Item = T>,
-{
-    fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        &mut self.as_mut_slice()[index]
-    }
-}
+};
+#[cfg(feature = "array-deref")]
+#[cfg_attr(docsrs, doc(cfg(feature = "array-deref")))]
 #[doc = doc_no_oversized!()]
 impl<T, A> core::ops::Deref for ArrApi<A>
 where
@@ -134,6 +143,8 @@ where
         self.as_slice()
     }
 }
+#[cfg(feature = "array-deref")]
+#[cfg_attr(docsrs, doc(cfg(feature = "array-deref")))]
 #[doc = doc_no_oversized!()]
 impl<T, A> core::ops::DerefMut for ArrApi<A>
 where
