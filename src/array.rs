@@ -1,4 +1,6 @@
 //! Drop-in replacement for builtin `[T; N]` arrays, using [`Uint`](crate::Uint) for the length
+//!
+//! TODO: Examples
 
 use crate::internals;
 
@@ -43,7 +45,6 @@ pub use crate::internals::array_types::*;
 /// Most [`ArrApi`] methods panic at runtime when interacting with arrays whose length exceeds
 /// [`usize::MAX`] (which is only possible if the item type is a ZST), even for `impl`s that
 /// are normally infallible, such as [`Deref`](core::ops::Deref).
-/// This behavior is not always documented.
 #[repr(transparent)]
 pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item> {
     /// The array being wrapped.
@@ -123,9 +124,8 @@ impl<A> ArrFlatten<A> {
 /// [`ArrVecApi`] has the same limitations around lengths exceeding [`usize::MAX`] as [`ArrApi`].
 #[cfg_attr(not(doc), repr(transparent))]
 pub struct ArrVecApi<A: Array<Item = T>, T = <A as Array>::Item>(
-    // SAFETY INVARIANT: See ArrVecRepr
-    arr_vec::ArrVecDrop<A>,
-    core::marker::PhantomData<T>,
+    /// Encapsulates the drop impl to allow future changes
+    arr_vec::ArrVecDrop<A, T>,
 );
 
 /// Alias for [`ArrVecApi`] around [`Arr`].
@@ -145,9 +145,8 @@ pub type ArrVec<T, N> = ArrVecApi<Arr<T, N>>;
 /// [`ArrVecApi`] has the same limitations around lengths exceeding [`usize::MAX`] as [`ArrApi`].
 #[cfg_attr(not(doc), repr(transparent))]
 pub struct ArrDeqApi<A: Array<Item = T>, T = <A as Array>::Item>(
-    // SAFETY INVARIANT: See ArrDeqRepr
-    arr_deq::ArrDeqDrop<A>,
-    core::marker::PhantomData<T>,
+    /// Encapsulates the drop impl to allow future changes
+    arr_deq::ArrDeqDrop<A, T>,
 );
 
 /// Alias for [`ArrDeqApi`] around [`Arr`].

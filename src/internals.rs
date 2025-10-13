@@ -68,7 +68,6 @@ pub trait _Uint: _UintArrs + 'static {
     type _DirectAppend<B: _Bit>: _Uint;
 }
 
-//
 pub trait _Pint: _Uint {}
 pub trait _Bit: _Uint {}
 

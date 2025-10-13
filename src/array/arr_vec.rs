@@ -12,10 +12,12 @@ use crate::{
 
 /// Wraps the drop impl so it isn't exposed as a trait bound
 #[repr(transparent)]
-pub(crate) struct ArrVecDrop<A: Array<Item = T>, T = <A as Array>::Item>(
-    ArrVecRepr<A>,
-    PhantomData<T>,
-);
+pub(crate) struct ArrVecDrop<A: Array<Item = T>, T = <A as Array>::Item> {
+    /// # Safety
+    /// See [`ArrVecRepr`].y
+    repr: ArrVecRepr<A>,
+    _p: PhantomData<T>,
+}
 impl<A: Array<Item = T>, T> Drop for ArrVecDrop<A, T> {
     fn drop(&mut self) {
         let (owned, ..) = self.split_at_spare_mut();
@@ -41,7 +43,7 @@ pub(crate) struct ArrVecRepr<A: Array> {
 // Defer the impl of ArrVecApi here because we need it for the Drop impl
 impl<A: Array<Item = T>, T> ArrVecDrop<A> {
     const fn split_at_spare_mut(&mut self) -> (&mut [T], &mut [MaybeUninit<T>]) {
-        let Self(repr, ..) = self;
+        let Self { repr, .. } = self;
         // SAFETY: Invariants are upheld, see below
         let &mut ArrVecRepr { ref mut arr, len } = repr;
         let (init, spare) = arr.as_mut_slice().split_at_mut(len);
@@ -54,7 +56,7 @@ impl<A: Array<Item = T>, T> ArrVecDrop<A> {
 // Methods that directly use the fields
 impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     const fn as_repr(&self) -> &ArrVecRepr<A> {
-        let Self(ArrVecDrop(repr, ..), ..) = self;
+        let Self(ArrVecDrop { repr, .. }) = self;
         repr
     }
 
@@ -62,7 +64,7 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// The invariants of the vector must be upheld. It must also not be possible to break them
     /// through returned references created from this.
     const unsafe fn as_mut_repr(&mut self) -> &mut ArrVecRepr<A> {
-        let Self(ArrVecDrop(repr, ..), ..) = self;
+        let Self(ArrVecDrop { repr, .. }) = self;
         repr
     }
 
@@ -86,7 +88,10 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// ```
     pub const unsafe fn from_uninit_parts(arr: ArrApi<MaybeUninit<A>>, len: usize) -> Self {
         let repr = ArrVecRepr { arr, len };
-        Self(ArrVecDrop(repr, PhantomData), PhantomData)
+        Self(ArrVecDrop {
+            repr,
+            _p: PhantomData,
+        })
     }
 
     const fn into_repr(self) -> ArrVecRepr<A> {
@@ -124,7 +129,7 @@ impl<A: Array<Item = T, Length = N>, T, N: Uint> ArrVecApi<A> {
     /// assert_eq!(vec, [1, 2, 3]);
     /// ```
     pub const fn split_at_spare_mut(&mut self) -> (&mut [T], &mut [MaybeUninit<T>]) {
-        let Self(drop, ..) = self;
+        let Self(drop) = self;
         drop.split_at_spare_mut()
     }
 }

@@ -6,11 +6,12 @@ use super::{ArrApi, ArrDeqApi, Array, helper::*};
 
 /// Wraps the drop impl so it isn't exposed as a trait bound
 #[repr(transparent)]
-pub(crate) struct ArrDeqDrop<A: Array<Item = T>, T = <A as Array>::Item>(
-    // SAFETY INVARIANT: See ArrVecRepr
-    ArrDeqRepr<A>,
-    PhantomData<T>,
-);
+pub(crate) struct ArrDeqDrop<A: Array<Item = T>, T = <A as Array>::Item> {
+    /// # Safety
+    /// See [`ArrDeqRepr`].y
+    repr: ArrDeqRepr<A>,
+    _p: PhantomData<T>,
+}
 impl<A: Array<Item = T>, T> Drop for ArrDeqDrop<A, T> {
     fn drop(&mut self) {
         let (lhs, rhs) = self.as_mut_slices();
@@ -29,7 +30,7 @@ impl<A: Array<Item = T>, T> Drop for ArrDeqDrop<A, T> {
 }
 impl<T, A: Array<Item = T>> ArrDeqDrop<A> {
     const fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
-        let Self(repr, ..) = self;
+        let Self { repr, .. } = self;
         let &mut ArrDeqRepr {
             head,
             len,
@@ -74,7 +75,7 @@ use deque_utils::*;
 // Methods dealing directly with the fields
 impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     const fn as_repr(&self) -> &ArrDeqRepr<A> {
-        let Self(ArrDeqDrop(repr, ..), ..) = self;
+        let Self(ArrDeqDrop { repr, .. }, ..) = self;
         repr
     }
 
@@ -82,7 +83,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// The invariant of the deque must be upheld. It must also not be possible to break them
     /// through returned references created from this.
     const unsafe fn as_mut_repr(&mut self) -> &mut ArrDeqRepr<A> {
-        let Self(ArrDeqDrop(repr, ..), ..) = self;
+        let Self(ArrDeqDrop { repr, .. }, ..) = self;
         repr
     }
 
@@ -90,7 +91,10 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     /// `head, len < A::Length`, `len` items are initialized, starting at `head` and wrapping
     /// around the end of the array.
     const unsafe fn from_repr(repr: ArrDeqRepr<A>) -> Self {
-        Self(ArrDeqDrop(repr, PhantomData), PhantomData)
+        Self(ArrDeqDrop {
+            repr,
+            _p: PhantomData,
+        })
     }
 
     const fn into_repr(self) -> ArrDeqRepr<A> {
