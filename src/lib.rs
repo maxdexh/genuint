@@ -33,9 +33,9 @@ mod utils;
 pub mod array;
 pub mod condty;
 pub mod consts;
-pub mod ops;
 pub mod small;
 pub mod uint;
+pub mod uops;
 
 /// A type-level non-negative integer
 ///

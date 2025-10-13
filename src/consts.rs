@@ -4,7 +4,7 @@
 
 #[allow(unused_imports)] // for docs
 use crate::{ToUint, Uint};
-use crate::{ops, small::*, uint};
+use crate::{small::*, uint, uops};
 
 /// Holds a const [`u128`]
 ///
@@ -28,13 +28,13 @@ impl ToUint for ConstBool<false> {
 }
 
 /// [`usize::BITS`] as a [`Uint`]
-pub type PtrWidth = uint::From<ops::Shl<ConstUsize<{ size_of::<usize>() }>, _3>>;
+pub type PtrWidth = uint::From<uops::Shl<ConstUsize<{ size_of::<usize>() }>, _3>>;
 
 /// [`usize::MAX`] as a [`Uint`]
-pub type UsizeMax = uint::From<ops::SatSub<ops::Shl<_1, PtrWidth>, _1>>;
+pub type UsizeMax = uint::From<uops::SatSub<uops::Shl<_1, PtrWidth>, _1>>;
 
 /// [`isize::MAX`] as a [`Uint`]
-pub type IsizeMax = uint::From<ops::PopBit<UsizeMax>>;
+pub type IsizeMax = uint::From<uops::PopBit<UsizeMax>>;
 
 #[test]
 fn test_usize_max() {
@@ -50,8 +50,8 @@ macro_rules! gen_maxes {
         $(
             #[doc = concat!("[`", stringify!($prim), "::MAX`] as a [`Uint`]")]
             pub type $name = uint::From<
-                ops::_DecUnchecked<
-                    ops::Shl<_1, $bits>
+                crate::uops::_DecUnchecked<
+                    crate::uops::Shl<_1, $bits>
                 >
             >;
         )*

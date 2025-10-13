@@ -111,39 +111,48 @@ pub fn __apply(attr: TokenStream, input: TokenStream) -> TokenStream {
     .collect()
 }
 
-#[doc(hidden)]
-#[proc_macro]
-pub fn __lit(input: TokenStream) -> TokenStream {
-    let mut input = input.into_iter();
-
-    let Some(mut lit) = input.next() else {
-        return compile_error("Unexpected end of input", Span::call_site());
-    };
-
-    while let TokenTree::Group(g) = lit {
-        let mut tokens = g.stream().into_iter();
-
-        lit = match tokens.next() {
-            Some(x) => x,
-            None => return compile_error("Unexpected end of input", g.span_close()),
-        };
-
-        if let Some(leftover) = tokens.next() {
-            return compile_error(
-                "Leftover tokens. Input must be a single literal token without sign",
-                leftover.span(),
-            );
-        }
+fn single_tree(input: impl IntoIterator<Item = TokenTree>) -> Option<TokenTree> {
+    let mut iter = input.into_iter();
+    match (iter.next(), iter.next()) {
+        (Some(single), None) => Some(single),
+        _ => None,
     }
-    let TokenTree::Literal(lit) = lit else {
-        return compile_error("Expected literal", lit.span());
+}
+
+fn lit_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
+    let mut input = input.into_iter();
+    let mut last_arg_span = Span::call_site();
+    let mut get_arg = || -> Result<_, _> {
+        let arg = input
+            .next()
+            .ok_or_else(|| compile_error("Unexpected end of input", last_arg_span))?;
+
+        let TokenTree::Group(mut arg) = arg else {
+            return Err(compile_error("Expected group", arg.span()));
+        };
+        last_arg_span = arg.span_close();
+
+        loop {
+            match single_tree(arg.stream()) {
+                Some(TokenTree::Group(g)) if g.delimiter() == Delimiter::None => {
+                    arg = g;
+                }
+                _ => return Ok(arg.stream()),
+            }
+        }
     };
 
+    let lit = get_arg()?;
+    let push = get_arg()?;
+    let zero = get_arg()?;
+    let one = get_arg()?;
+
+    let Some(TokenTree::Literal(lit)) = single_tree(lit.clone()) else {
+        return Err(compile_error("Expected literal", lit));
+    };
     let span = lit.span();
     let lit = lit.to_string().replace("_", "");
     let lit = lit.as_str();
-
-    let crate_path = TokenStream::from_iter(input);
 
     let doit = |digits, radix| -> Result<_, Box<dyn std::error::Error>> {
         let bits = {
@@ -152,37 +161,25 @@ pub fn __lit(input: TokenStream) -> TokenStream {
         };
         let append_depth = bits.len();
 
-        // [`crate::consts::_0`, `crate::consts::_1`]
-        let consts = {
-            let prefix = crate_path.clone().extended(pathseg("small", span));
-            [(prefix.clone(), "_0"), (prefix, "_1")]
-                .map(|(c, name)| c.extended(pathseg(name, span)))
-        };
+        // first bit, `0`
+        let first = zero.clone();
 
-        // first bit, `crate::consts::_0`
-        let first = consts[0].clone();
-
-        // [`, crate::consts::_0>`, `, crate::consts::_1`]
-        let consts_and_puncts = consts.map(|c| {
-            [punct(',', span)]
+        // `, B>`
+        let punct_bits = [zero, one].map(|c| {
+            Some(punct(',', span))
                 .into_iter()
                 .chain(c)
                 .chain([punct('>', span)])
                 .collect::<TokenStream>()
         });
 
-        // `crate::ops::PushBit<`
-        let append = crate_path.extended(
-            pathseg("ops", span)
-                .into_iter()
-                .chain(pathseg("PushBit", span))
-                .chain([punct('<', span)]),
-        );
+        // `PushBit<`
+        let push = push.extended(Some(punct('<', span)));
 
-        // `crate::ops::PushBit<..., crate::consts::_X>`
-        Ok(iter::repeat_n(append, append_depth)
+        // `PushBit<..., B>`
+        Ok(iter::repeat_n(push, append_depth)
             .chain([first])
-            .chain(bits.map(|bit| consts_and_puncts[usize::from(bit)].clone()))
+            .chain(bits.map(|bit| punct_bits[usize::from(bit)].clone()))
             .collect())
     };
 
@@ -192,5 +189,14 @@ pub fn __lit(input: TokenStream) -> TokenStream {
         Some(("0b", bin)) => doit(bin, 2),
         _ => doit(lit, 10),
     }
-    .unwrap_or_else(|err| compile_error(&err.to_string(), span))
+    .map_err(|err| compile_error(&err.to_string(), span))
+}
+
+#[doc(hidden)]
+#[proc_macro]
+pub fn __lit(input: TokenStream) -> TokenStream {
+    match lit_impl(input) {
+        Ok(out) => out,
+        Err(out) => out,
+    }
 }

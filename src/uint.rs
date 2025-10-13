@@ -2,7 +2,7 @@
 
 use core::cmp::Ordering;
 
-use crate::{ToUint, Uint, maxint::Umax, ops, small, uint};
+use crate::{ToUint, Uint, maxint::Umax, small, uint, uops};
 
 /// Alias for [`ToUint::ToUint`].
 pub type From<N> = <N as ToUint>::ToUint;
@@ -26,7 +26,12 @@ pub type From<N> = <N as ToUint>::ToUint;
 #[doc(hidden)]
 macro_rules! __lit {
     ($l:literal) => {
-        $crate::uint::From<$crate::__mac::__lit!(($l) $crate)>
+        $crate::uint::From<$crate::__mac::proc::__lit!(
+            ($l)
+            ($crate::uops::PushBit)
+            ($crate::small::_0)
+            ($crate::small::_1)
+        )>
     };
 }
 pub use __lit as lit;
@@ -34,9 +39,9 @@ pub use __lit as lit;
 const fn to_umax_overflowing<N: Uint>() -> (Umax, bool) {
     const {
         if is_truthy::<N>() {
-            let (h, o1) = to_umax_overflowing::<uint::From<ops::PopBit<N>>>();
+            let (h, o1) = to_umax_overflowing::<uint::From<uops::PopBit<N>>>();
             let (t, o2) = h.overflowing_mul(2);
-            let (n, o3) = t.overflowing_add(is_truthy::<ops::LastBit<N>>() as _);
+            let (n, o3) = t.overflowing_add(is_truthy::<uops::LastBit<N>>() as _);
             (n, o1 || o2 || o3)
         } else {
             (0, false)
@@ -65,10 +70,10 @@ pub const fn to_str<N: ToUint>() -> &'static str {
                 doit::<
                     uint::From<
                         // Pop a digit
-                        ops::Div<N, small::_10>,
+                        uops::Div<N, small::_10>,
                     >,
                 >(),
-                &[b'0' + to_usize::<ops::Rem<N, small::_10>>().unwrap() as u8],
+                &[b'0' + to_usize::<uops::Rem<N, small::_10>>().unwrap() as u8],
             ];
         }
         const fn doit<N: Uint>() -> &'static [u8] {
@@ -158,12 +163,12 @@ pub const fn cmp<L: ToUint, R: ToUint>() -> Ordering {
                     false => Ordering::Equal,
                 }
             } else {
-                match doit::<From<ops::PopBit<L>>, From<ops::PopBit<R>>>() {
+                match doit::<From<uops::PopBit<L>>, From<uops::PopBit<R>>>() {
                     it @ (Ordering::Less | Ordering::Greater) => it,
                     Ordering::Equal => {
                         match (
-                            is_truthy::<ops::LastBit<L>>(),
-                            is_truthy::<ops::LastBit<R>>(),
+                            is_truthy::<uops::LastBit<L>>(),
+                            is_truthy::<uops::LastBit<R>>(),
                         ) {
                             (true, true) | (false, false) => Ordering::Equal,
                             (true, false) => Ordering::Greater,

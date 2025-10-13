@@ -3,7 +3,7 @@ use crate::{
     array::{helper::*, *},
     condty::CondResult,
     internals::ArraySealed,
-    ops,
+    uops,
 };
 
 // SAFETY: By definition
@@ -34,14 +34,14 @@ impl<A: Array> ArraySealed for ArrApi<A> {}
 // in accordance with array layout
 unsafe impl<T, A: Array<Item = T>, B: Array<Item = T>> Array for ArrConcat<A, B> {
     type Item = T;
-    type Length = crate::uint::From<crate::ops::Add<A::Length, B::Length>>;
+    type Length = crate::uint::From<crate::uops::Add<A::Length, B::Length>>;
 }
 impl<T, A: Array<Item = T>, B: Array<Item = T>> ArraySealed for ArrConcat<A, B> {}
 
 // SAFETY: repr(transparent), `[[T; M]; N]` is equivalent to `[T; M * N]`
 unsafe impl<A: Array<Item = B>, B: Array> Array for ArrFlatten<A> {
     type Item = B::Item;
-    type Length = crate::uint::From<crate::ops::Mul<A::Length, B::Length>>;
+    type Length = crate::uint::From<crate::uops::Mul<A::Length, B::Length>>;
 }
 impl<A: Array<Item = B>, B: Array> ArraySealed for ArrFlatten<A> {}
 
@@ -141,7 +141,7 @@ where
     /// This method supports arrays with lengths exceeding [`usize::MAX`].
     pub const fn try_retype<Dst: Array<Item = T>>(
         self,
-    ) -> CondResult<ops::Eq<N, Dst::Length>, Dst, Self> {
+    ) -> CondResult<uops::Eq<N, Dst::Length>, Dst, Self> {
         convert::try_retype(self)
     }
 

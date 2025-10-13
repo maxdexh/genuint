@@ -1,6 +1,28 @@
-//! Drop-in replacement for builtin `[T; N]` arrays, using [`Uint`](crate::Uint) for the length
+//! Drop-in replacement for builtin `[T; N]` arrays, using [`Uint`] for the length
 //!
 //! TODO: Examples
+//!
+//! # Oversized arrays
+//! Because [`Uint`] is not restricted to the values of a [`usize`], it is possible to have array
+//! types that have a [`Length`] exceeding [`usize::MAX`]. These arrays can only exist when the
+//! item type is zero-sized, as they would otherwise exceed the object size limit of [`isize::MAX`].
+//!
+//! While these arrays can exist, they are only partially supported and many methods/impls will panic
+//! when interacting with them. These methods/impls have a line in their documentation stating that
+//! oversized arrays are unsupported.
+//!
+//! Note that this includes methods/impls that are usually considered infallible, such as
+//! [`Deref::deref`](core::ops::Deref), since it is not possible to create a slice that
+//! includes all items of an oversized array.
+//!
+//! [`Uint`]: crate::Uint
+//! [`Length`]: Array::Length
+
+macro_rules! doc_no_oversized {
+    () => {
+        "This method/impl does not support [oversized arrays](crate::array#oversized-arrays) and will panic when interacting with them."
+    };
+}
 
 use crate::internals;
 
@@ -40,11 +62,6 @@ pub use crate::internals::array_types::*;
 /// This gives better lifetime inferrence for the item type. Some methods, such as
 /// [`Self::each_ref`] and the [`Index`](core::ops::Index) impl would not compile
 /// the way they are written without it.
-///
-/// # Oversized arrays
-/// Most [`ArrApi`] methods panic at runtime when interacting with arrays whose length exceeds
-/// [`usize::MAX`] (which is only possible if the item type is a ZST), even for `impl`s that
-/// are normally infallible, such as [`Deref`](core::ops::Deref).
 #[repr(transparent)]
 pub struct ArrApi<A: Array<Item = T>, T = <A as Array>::Item> {
     /// The array being wrapped.
@@ -119,9 +136,6 @@ impl<A> ArrFlatten<A> {
 ///   accessed in `const` using [`const_util::mem::man_drop_mut`].
 /// - Using [`Arr`]/[`CopyArr`] instead if the item type has a default value, or a layout niche
 ///   with [`Option`].
-///
-/// # Oversized arrays
-/// [`ArrVecApi`] has the same limitations around lengths exceeding [`usize::MAX`] as [`ArrApi`].
 #[cfg_attr(not(doc), repr(transparent))]
 pub struct ArrVecApi<A: Array<Item = T>, T = <A as Array>::Item>(
     /// Encapsulates the drop impl to allow future changes
@@ -140,9 +154,6 @@ pub type ArrVec<T, N> = ArrVecApi<Arr<T, N>>;
 ///
 /// # Drop implementation
 /// See [`ArrVecApi#drop-implementation`]
-///
-/// # Oversized arrays
-/// [`ArrVecApi`] has the same limitations around lengths exceeding [`usize::MAX`] as [`ArrApi`].
 #[cfg_attr(not(doc), repr(transparent))]
 pub struct ArrDeqApi<A: Array<Item = T>, T = <A as Array>::Item>(
     /// Encapsulates the drop impl to allow future changes

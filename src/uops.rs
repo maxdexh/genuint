@@ -1,4 +1,4 @@
-//! Module defining operations for [`Uint`]s.
+//! Module with operations for [`Uint`]s.
 //!
 //! # Laziness
 //! Operations implemented as a struct implementing [`ToUint`] are called lazy. They are lazy
@@ -42,7 +42,7 @@
 //! computed when it is projected to [`ToUint::ToUint`]. For example, consider the following
 //! implementation of [`BitAnd`]:
 //! ```
-//! use genuint::{ToUint, small::*, ops::*, uint};
+//! use genuint::{ToUint, small::*, uops::*, uint};
 //! // MyBitAnd is a struct implementing ToUint, i.e. a lazy operation
 //! pub struct MyBitAnd<L, R>(L, R);
 //! impl<L: ToUint, R: ToUint> ToUint for MyBitAnd<L, R> {
@@ -112,7 +112,7 @@
 //!
 //! # Complete example implementation of [`BitAnd`]
 //! ```
-//! use genuint::{ToUint, small::*, ops::*, uint};
+//! use genuint::{ToUint, small::*, uops::*, uint};
 //! pub struct _MyBitAnd<L, R>(L, R); // hide this in a private module
 //! impl<L: ToUint, R: ToUint> ToUint for _MyBitAnd<L, R> {
 //!     type ToUint = uint::From<If<
@@ -190,7 +190,7 @@ macro_rules! lazy {
     ) => {
         $(#[$attr])*
         pub struct $Name<$($P $(= $Def)?),*>($($P),*);
-        crate::ops::lazy_impl! {
+        crate::uops::lazy_impl! {
             type $Name<$($P),*> = $Val;
         }
     };
@@ -200,13 +200,13 @@ pub(crate) use lazy;
 /// Variadic [`Opaque`]
 macro_rules! VarOpaque {
     ($($LazyBase:ident)::+<$($P:ident),* $(,)?>) => {
-        crate::ops::VarOpaque!(
+        crate::uops::VarOpaque!(
             @$($P)*,
             $($LazyBase)::+<$($P),*>
         )
     };
     (@$P:ident $($Ps:ident)*, $Out:ty) => {
-        crate::ops::Opaque<$P, crate::ops::VarOpaque!(@$($Ps)*, $Out)>
+        crate::uops::Opaque<$P, crate::uops::VarOpaque!(@$($Ps)*, $Out)>
     };
     (@, $Out:ty) => {
         $Out
@@ -233,9 +233,9 @@ macro_rules! opaque {
         #[cfg(test)]
         #[allow(unused)] // Ensure that LazyBase is spanned for LSP
         const _: () = { use $LazyBase; };
-        crate::ops::lazy! {
+        crate::uops::lazy! {
             $(#[$attr])*
-            pub type $Name<$($P $(: $Bound)? $(= $Def)?),*> $(: $OutBound)? = crate::ops::VarOpaque!($LazyBase<$($P),*>);
+            pub type $Name<$($P $(: $Bound)? $(= $Def)?),*> $(: $OutBound)? = crate::uops::VarOpaque!($LazyBase<$($P),*>);
         }
     };
 }
@@ -248,7 +248,7 @@ macro_rules! test_op {
         $v:vis $kw:ident $TypeName:ident<$($P:ident $(= $Def:ty)?),* $(,)?> $($rest:tt)*
     ) => {
         #[cfg(test)]
-        crate::ops::testing::test_op! { $test_name: $($P)*, $TypeName<$($P),*>, $($args)* }
+        crate::uops::testing::test_op! { $test_name: $($P)*, $TypeName<$($P),*>, $($args)* }
 
         $(#[$attr])*
         $v $kw $TypeName<$($P $(= $Def)?),*> $($rest)*
@@ -263,7 +263,7 @@ macro_rules! base_case {
         $v:vis type $Name:ident<$($P:ident $(: $Bound:path)? $(= $Def:ty)?),* $(,)?> $(: $OutBound:path)? = $Val:ty;
     ) => {
         $(#[$attr])*
-        $v type $Name<$($P $(: $Bound)? $(= $Def)?),*> $(: $OutBound)? = crate::ops::If<
+        $v type $Name<$($P $(: $Bound)? $(= $Def)?),*> $(: $OutBound)? = crate::uops::If<
             $CheckZero,
             $Val,
             $IfZero,

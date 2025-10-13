@@ -22,7 +22,6 @@
 use crate::{
     array::{Array, helper::*},
     condty::CondResult,
-    ops,
 };
 
 macro_rules! cast_by_raw {
@@ -35,18 +34,22 @@ macro_rules! cast_by_raw {
 macro_rules! decl_ptr {
     (
         $name:ident,
+        modifiers! $modifiers:tt,
         $($input:tt)*
     ) => {
         decl_ptr! {
             @[$]
             $name,
+            modifiers! $modifiers,
+            modifiers! $modifiers,
             $($input)*
         }
     };
     (
-        @[$dollar:tt]
+        @[$DOLLAR_SIGN:tt]
         $name:ident,
         modifiers! $modifiers:tt,
+        modifiers! { $($mods:tt)* },
         typ! { $tparam:ident => $($typ:tt)* },
         doc = ($docname_lhs:expr, $docname_rhs:expr),
         $(into_raw = |$into_raw_par:pat_param| $into_raw:expr,)?
@@ -58,7 +61,7 @@ macro_rules! decl_ptr {
         $(,)?
     ) => {
         macro_rules! $name {
-            (typ, $dollar$tparam:ty) => { $($typ)* };
+            (typ, $DOLLAR_SIGN$tparam:ty) => { $($typ)* };
             (docname, $inner_name:expr) => { core::concat!($docname_lhs, $inner_name, $docname_rhs) };
             $( (into_raw, $ptr:expr) => {{ let $into_raw_par = $ptr; $into_raw }}; )?
             $( (from_raw, $ptr:expr) => {{ let $from_raw_par = $ptr; $from_raw }}; )?
@@ -209,7 +212,11 @@ macro_rules! decl_retype {
         /// [`CondResult`], even for references, since [`CondResult`] does not need extra space for a
         /// discriminant, so there is no niche optimization benifit from using an option (or ZST error
         /// type).
-        $($mods)* fn $try_retype<Src, Dst>(src: $ty!(typ, Src)) -> CondResult<ops::Eq<Src::Length, Dst::Length>, $ty!(typ, Dst), $ty!(typ, Src)>
+        $($mods)* fn $try_retype<Src, Dst>(src: $ty!(typ, Src)) -> CondResult<
+            crate::uops::Eq<Src::Length, Dst::Length>,
+            $ty!(typ, Dst),
+            $ty!(typ, Src),
+        >
         where
             Src: Array,
             Dst: Array<Item = Src::Item>,

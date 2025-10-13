@@ -64,6 +64,7 @@ where
     }
 }
 
+// FIXME: oversized
 impl<A> Clone for ArrApi<A>
 where
     A: Array<Item: Clone>,
@@ -73,6 +74,8 @@ where
     }
 }
 impl<A> Copy for ArrApi<A> where A: Array<Item: Copy> + Copy {}
+
+// FIXME: oversized
 impl<A> Default for ArrApi<A>
 where
     A: Array<Item: Default>,
@@ -81,6 +84,7 @@ where
         Self::from_fn(|_| Default::default())
     }
 }
+#[doc = doc_no_oversized!()]
 impl<A> core::fmt::Debug for ArrApi<A>
 where
     A: Array<Item: core::fmt::Debug>,
@@ -89,6 +93,7 @@ where
         write!(f, "{:?}", self.as_slice())
     }
 }
+#[doc = doc_no_oversized!()]
 impl<A> core::hash::Hash for ArrApi<A>
 where
     A: Array<Item: core::hash::Hash>,
@@ -97,6 +102,7 @@ where
         self.as_slice().hash(state)
     }
 }
+// FIXME: oversized
 impl<T, A, I, O> core::ops::Index<I> for ArrApi<A>
 where
     [T]: core::ops::Index<I, Output = O>,
@@ -108,6 +114,7 @@ where
         &self.as_slice()[index]
     }
 }
+// FIXME: oversized
 impl<T, A, I> core::ops::IndexMut<I> for ArrApi<A>
 where
     [T]: core::ops::IndexMut<I>,
@@ -117,7 +124,7 @@ where
         &mut self.as_mut_slice()[index]
     }
 }
-
+#[doc = doc_no_oversized!()]
 impl<T, A> core::ops::Deref for ArrApi<A>
 where
     A: Array<Item = T>,
@@ -127,6 +134,7 @@ where
         self.as_slice()
     }
 }
+#[doc = doc_no_oversized!()]
 impl<T, A> core::ops::DerefMut for ArrApi<A>
 where
     A: Array<Item = T>,

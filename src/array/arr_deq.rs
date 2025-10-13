@@ -8,7 +8,7 @@ use super::{ArrApi, ArrDeqApi, Array, helper::*};
 #[repr(transparent)]
 pub(crate) struct ArrDeqDrop<A: Array<Item = T>, T = <A as Array>::Item> {
     /// # Safety
-    /// See [`ArrDeqRepr`].y
+    /// See [`ArrDeqRepr`].
     repr: ArrDeqRepr<A>,
     _p: PhantomData<T>,
 }

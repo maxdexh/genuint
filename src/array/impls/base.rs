@@ -64,8 +64,8 @@ where
     /// Creating an oversized array of `()`
     /// ```
     /// #![recursion_limit = "1024"]
-    /// use genuint::{array::*, uint, ops, small::*, consts::{PtrWidth, UsizeMax}};
-    /// type LargeSize = uint::From<ops::Shl<_1, PtrWidth>>;
+    /// use genuint::{array::*, uint, uops, small::*, consts::{PtrWidth, UsizeMax}};
+    /// type LargeSize = uint::From<uops::Shl<_1, PtrWidth>>;
     /// assert!(uint::to_usize::<LargeSize>().is_none());
     /// let arr = Arr::<_, LargeSize>::of(());
     /// let ArrConcat(most, [()]): ArrConcat<CopyArr<_, UsizeMax>, _> = arr.retype();
@@ -137,16 +137,16 @@ where
     /// Converting a [`Uint`] to a string in binary, at compile time, with arbitrary length.
     /// ```
     /// extern crate generic_upper_bound as gub;
-    /// use genuint::{ToUint, Uint, uint, ops, array::{Arr, ArrApi}};
+    /// use genuint::{ToUint, Uint, uint, uops, array::{Arr, ArrApi}};
     /// use core::mem::MaybeUninit;
     ///
-    /// type BinaryLen<N> = uint::From<ops::BaseLen<uint::lit!(2), N>>;
+    /// type BinaryLen<N> = uint::From<uops::BaseLen<uint::lit!(2), N>>;
     /// const fn to_binary_arr<N: Uint>() -> Arr<u8, BinaryLen<N>> {
     ///     let last_bit = [
-    ///         b'0' + uint::is_truthy::<ops::LastBit::<N>>() as u8
+    ///         b'0' + uint::is_truthy::<uops::LastBit::<N>>() as u8
     ///     ];
-    ///     if uint::is_truthy::<ops::PopBit<N>>() {
-    ///         to_binary_arr::<uint::From<ops::PopBit<N>>>()
+    ///     if uint::is_truthy::<uops::PopBit<N>>() {
+    ///         to_binary_arr::<uint::From<uops::PopBit<N>>>()
     ///             .concat(last_bit)
     ///             .try_retype()
     ///             .unwrap()

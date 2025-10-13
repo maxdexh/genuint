@@ -14,7 +14,7 @@ use crate::{
 #[repr(transparent)]
 pub(crate) struct ArrVecDrop<A: Array<Item = T>, T = <A as Array>::Item> {
     /// # Safety
-    /// See [`ArrVecRepr`].y
+    /// See [`ArrVecRepr`].
     repr: ArrVecRepr<A>,
     _p: PhantomData<T>,
 }

@@ -6,14 +6,13 @@ use crate::{Uint, array::*, const_fmt, uint};
 pub(crate) const fn arr_len<A: Array>() -> usize {
     const fn doit<N: Uint>() -> usize {
         let precalc = const {
-            if let Some(n) = uint::to_usize::<N>() {
-                Ok(n)
-            } else {
-                Err(const_fmt::fmt![
+            match uint::to_usize::<N>() {
+                Some(n) => Ok(n),
+                None => Err(const_fmt::fmt![
                     "Array length ",
                     PhantomData::<N>,
                     " exceeds the maximum value for a usize",
-                ])
+                ]),
             }
         };
         match precalc {
