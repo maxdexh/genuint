@@ -11,6 +11,8 @@ use crate::{
 };
 
 /// Wraps the drop impl so it isn't exposed as a trait bound
+// NOTE: Mutable access to fields and construction of this struct requires a safety
+// comment. Prefer using as_mut_repr and from_uninit_parts for this.
 #[repr(transparent)]
 pub(crate) struct ArrVecDrop<A: Array<Item = T>, T = <A as Array>::Item> {
     /// # Safety

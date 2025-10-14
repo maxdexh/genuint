@@ -5,6 +5,8 @@ use crate::{const_fmt, utils};
 use super::{ArrApi, ArrDeqApi, Array, helper::*};
 
 /// Wraps the drop impl so it isn't exposed as a trait bound
+// NOTE: Mutable access to fields and construction of this struct requires a safety
+// comment. Prefer using as_mut_repr and from_repr for this.
 #[repr(transparent)]
 pub(crate) struct ArrDeqDrop<A: Array<Item = T>, T = <A as Array>::Item> {
     /// # Safety
@@ -30,6 +32,7 @@ impl<A: Array<Item = T>, T> Drop for ArrDeqDrop<A, T> {
 }
 impl<T, A: Array<Item = T>> ArrDeqDrop<A> {
     const fn as_mut_slices(&mut self) -> (&mut [T], &mut [T]) {
+        // SAFETY: See below
         let Self { repr, .. } = self;
         let &mut ArrDeqRepr {
             head,
@@ -41,7 +44,9 @@ impl<T, A: Array<Item = T>> ArrDeqDrop<A> {
 
         // SAFETY: The invariants of `as_nonnull_slices` are such that it it safe to call with the
         // fields of a `ArrDeqApi`. The returned pointers are derived from the mutable slice such
-        // that it is valid to turn them back into references.
+        // that it is valid to turn them back into mutable references.
+        // Also the returned slices can only be used to write valid elements into the valid part of
+        // the array.
         unsafe {
             let (mut lhs, mut rhs) = as_nonnull_slices(buf, head, len);
             (lhs.as_mut(), rhs.as_mut())

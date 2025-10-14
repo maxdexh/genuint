@@ -11,17 +11,8 @@
 //! when interacting with them. These methods/impls have a line in their documentation stating that
 //! oversized arrays are unsupported.
 //!
-//! Note that this includes methods/impls that are usually considered infallible, such as
-//! [`Deref::deref`](core::ops::Deref).
-//!
 //! [`Uint`]: crate::Uint
 //! [`Length`]: Array::Length
-
-macro_rules! doc_no_oversized {
-    () => {
-        "Does not support [oversized arrays](crate::array#oversized-arrays) and panics when interacting with them. Note that this may be relaxed in the future."
-    };
-}
 
 use crate::internals;
 
@@ -205,6 +196,7 @@ macro_rules! __drop_items {
 }
 pub use __drop_items as drop_items;
 
+pub(crate) mod container;
 pub(crate) mod helper;
 
 mod arr_deq;

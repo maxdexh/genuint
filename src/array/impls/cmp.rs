@@ -1,8 +1,4 @@
-use crate::{
-    ToUint,
-    array::{ArrApi, Array, helper::oversize},
-    consts::ConstUsize,
-};
+use crate::{ToUint, array::*, consts::ConstUsize};
 
 fn partial_eq_impl<A: Array, U>(lhs: &ArrApi<A>, rhs: &[U]) -> bool
 where
@@ -51,9 +47,9 @@ where
         } else if const { crate::uint::to_usize::<A::Length>().is_some() } {
             self.as_slice() == other.as_slice()
         } else {
-            let mut lhs = oversize::ArrRefConsumer::new(self);
-            let mut rhs = oversize::ArrRefConsumer::new(other);
-            while let (Some(l), Some(r)) = (lhs.next(), rhs.next()) {
+            let mut lhs = container::ArrRefConsumer::new(self);
+            let mut rhs = container::ArrRefConsumer::new(other);
+            while let (Some(l), Some(r)) = (lhs.pop_front(), rhs.pop_front()) {
                 if l != r {
                     return false;
                 }

@@ -1,8 +1,4 @@
-use crate::{
-    Uint,
-    array::{helper::*, *},
-    uint,
-};
+use crate::{Uint, array::*, uint};
 
 impl<T, N: Uint, A> ArrApi<A>
 where
@@ -58,9 +54,9 @@ where
     where
         B: Array<Length = N>,
     {
-        let mut src = oversize::ArrConsumer::new(self);
-        let mut dst = oversize::ArrBuilder::new();
-        while let Some(item) = src.next() {
+        let mut src = container::ArrConsumer::new(self);
+        let mut dst = container::ArrBuilder::new();
+        while let Some(item) = src.pop_front() {
             // SAFETY: `src` only returns up to `Length` items
             unsafe { dst.push_unchecked(f(item)) }
         }
@@ -75,9 +71,9 @@ where
     T: Clone,
 {
     fn clone(&self) -> Self {
-        let mut src = oversize::ArrRefConsumer::new(self);
-        let mut dst = oversize::ArrBuilder::new();
-        while let Some(item) = src.next() {
+        let mut src = container::ArrRefConsumer::new(self);
+        let mut dst = container::ArrBuilder::new();
+        while let Some(item) = src.pop_front() {
             // SAFETY: `src` only returns up to `Length` items
             unsafe { dst.push_unchecked(item.clone()) }
         }
@@ -131,8 +127,8 @@ const _: () = {
                     A: Array<Item: Hash>,
                     H: Hasher,
                 {
-                    let mut src = oversize::ArrRefConsumer::new(a);
-                    while let Some(item) = src.next() {
+                    let mut src = container::ArrRefConsumer::new(a);
+                    while let Some(item) = src.pop_front() {
                         item.hash(h)
                     }
                 }

@@ -1,9 +1,11 @@
-use crate::{Uint, array::*};
+use crate::{
+    Uint,
+    array::{container::*, *},
+};
 
-// TODO: Implement as a double ended buffer, implement APIs like as_slice, override default impls
-// FIXME: oversize
+// TODO: override default impls, add methods like as_slice
 pub struct IntoIter<A: Array> {
-    pub(crate) deq: ArrDeqApi<A>,
+    pub(crate) items: ArrConsumer<A>,
 }
 
 impl<T, N: Uint, A> Iterator for IntoIter<A>
@@ -12,11 +14,14 @@ where
 {
     type Item = T;
     fn next(&mut self) -> Option<Self::Item> {
-        self.deq.pop_front()
+        self.items.pop_front()
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.deq.len();
-        (len, Some(len))
+        #[allow(clippy::option_if_let_else)]
+        match self.items.len() {
+            Some(len) => (len, Some(len)),
+            None => (usize::MAX, None),
+        }
     }
 }
 impl<T, N: Uint, A> DoubleEndedIterator for IntoIter<A>
@@ -24,10 +29,9 @@ where
     A: Array<Item = T, Length = N>,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.deq.pop_back()
+        self.items.pop_back()
     }
 }
-impl<T, N: Uint, A> ExactSizeIterator for IntoIter<A> where A: Array<Item = T, Length = N> {}
 
 impl<A: Array> IntoIterator for ArrApi<A> {
     type Item = A::Item;
@@ -35,7 +39,7 @@ impl<A: Array> IntoIterator for ArrApi<A> {
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
-            deq: ArrDeqApi::new_full(self),
+            items: ArrConsumer::new(self),
         }
     }
 }
@@ -45,7 +49,7 @@ impl<A: Array> IntoIterator for ArrVecApi<A> {
 
     fn into_iter(self) -> Self::IntoIter {
         Self::IntoIter {
-            deq: self.into_deque(),
+            items: ArrConsumer::from_vec(self),
         }
     }
 }

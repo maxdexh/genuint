@@ -1,8 +1,4 @@
-use crate::{
-    ToUint, Uint,
-    array::Array,
-    uimpl::{_0, _1, _U},
-};
+use crate::{ToUint, Uint, array::Array, uimpl::*};
 
 // NOTE: items from this module with names starting with _,
 // except the above, are not meant to be used from anywhere
