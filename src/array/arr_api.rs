@@ -223,7 +223,7 @@ macro_rules! decl_retype {
             arr_impl_ubcheck::<Src>();
             arr_impl_ubcheck::<Dst>();
 
-            crate::condty::condty_ctx!(
+            crate::condty::ctx!(
                 |c| c.new_ok(
                     // SAFETY: Src::Length == Dst::Length
                     unsafe { $ty!(cast, src) },

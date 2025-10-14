@@ -13,8 +13,8 @@ use super::*;
 #[apply(lazy)]
 pub type _Inc<N> = If<
     _P<N>, //
-    PushBit<_Inc<_H<N>>, _0>,
-    PushBit<_H<N>, _1>,
+    PushBit<_Inc<_H<N>>, U0>,
+    PushBit<_H<N>, U1>,
 >;
 
 pub(crate) type _PlusBit<N, C> = If<C, _Inc<N>, N>;
@@ -37,7 +37,7 @@ pub(crate) type _PlusBit<N, C> = If<C, _Inc<N>, N>;
 /// ```
 #[apply(base_case! 0 == L => _PlusBit<R, C>)] // 0 + R + C = R + C
 #[apply(lazy)]
-pub type _CarryAdd<L, R, C = _0> = PushBit<
+pub type _CarryAdd<L, R, C = U0> = PushBit<
     // LH + RH + X / 2
     _CarryAdd<
         _H<R>, // swap args to converge faster

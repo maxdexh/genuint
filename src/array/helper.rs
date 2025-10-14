@@ -227,7 +227,7 @@ pub(crate) mod oversize {
     impl<A: Array> ArrBuilder<A> {
         pub const fn new() -> Self {
             Self {
-                inner: condty::condty_ctx!(
+                inner: condty::ctx!(
                     |c| c.new_ok(InstanceCounter::empty()),
                     |c| c.new_err(ArrVecApi::new()), //
                 ),
@@ -236,7 +236,7 @@ pub(crate) mod oversize {
         /// # Safety
         /// This builder must have `A::Length` elements.
         pub unsafe fn into_full_unchecked(self) -> A {
-            condty::condty_ctx!(
+            condty::ctx!(
                 // SAFETY: The counter is maxed out, so this is logically equivalent
                 // to moving the instances out of the container.
                 |_| unsafe {
@@ -250,7 +250,7 @@ pub(crate) mod oversize {
         /// This builder must have fewer than `A::Length` elements.
         pub const unsafe fn push_unchecked(&mut self, item: A::Item) {
             let inner = self.inner.as_mut();
-            condty::condty_ctx!(
+            condty::ctx!(
                 // SAFETY:
                 |c| unsafe { c.unwrap_ok(inner).push_unchecked(item) },
                 |c| c.unwrap_err(inner).push(item), //
@@ -269,7 +269,7 @@ pub(crate) mod oversize {
     impl<A: Array> ArrConsumer<A> {
         pub const fn new(arr: A) -> Self {
             Self {
-                inner: condty::condty_ctx!(
+                inner: condty::ctx!(
                     |c| c.new_ok(InstanceCounter::full(arr)),
                     |c| c.new_err(ArrDeqApi::new_full(arr)), //
                 ),
@@ -277,7 +277,7 @@ pub(crate) mod oversize {
         }
         pub const fn next(&mut self) -> Option<A::Item> {
             let inner = self.inner.as_mut();
-            condty::condty_ctx!(
+            condty::ctx!(
                 |c| c.unwrap_ok(inner).pop(), //
                 |c| c.unwrap_err(inner).pop_front(),
             )
@@ -299,7 +299,7 @@ pub(crate) mod oversize {
             const { arr_impl_ubcheck::<A>() }
 
             Self {
-                inner: condty::condty_ctx!(
+                inner: condty::ctx!(
                     |c| c.new_ok((
                         BigCounter::max(),
                         // SAFETY: array length is nonzero, so this points to the first item.
@@ -311,7 +311,7 @@ pub(crate) mod oversize {
         }
         pub const fn next(&mut self) -> Option<&'a T> {
             let inner = self.inner.as_mut();
-            condty::condty_ctx!(
+            condty::ctx!(
                 |c| {
                     let (count, r) = c.unwrap_ok(inner);
                     match count.is_zero() {

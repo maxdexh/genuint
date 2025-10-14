@@ -21,17 +21,17 @@ pub struct ConstUsize<const N: usize>;
 /// Implements [`ToUint`], using seperate impls for `true` and `false`.
 pub struct ConstBool<const B: bool>;
 impl ToUint for ConstBool<true> {
-    type ToUint = _1;
+    type ToUint = U1;
 }
 impl ToUint for ConstBool<false> {
-    type ToUint = _0;
+    type ToUint = U0;
 }
 
 /// [`usize::BITS`] as a [`Uint`]
-pub type PtrWidth = uint::From<uops::Shl<ConstUsize<{ size_of::<usize>() }>, _3>>;
+pub type PtrWidth = uint::From<uops::Shl<ConstUsize<{ size_of::<usize>() }>, uint::lit!(3)>>;
 
 /// [`usize::MAX`] as a [`Uint`]
-pub type UsizeMax = uint::From<uops::SatSub<uops::Shl<_1, PtrWidth>, _1>>;
+pub type UsizeMax = uint::From<uops::SatSub<uops::Shl<U1, PtrWidth>, U1>>;
 
 /// [`isize::MAX`] as a [`Uint`]
 pub type IsizeMax = uint::From<uops::PopBit<UsizeMax>>;
@@ -51,7 +51,7 @@ macro_rules! gen_maxes {
             #[doc = concat!("[`", stringify!($prim), "::MAX`] as a [`Uint`]")]
             pub type $name = uint::From<
                 crate::uops::_DecUnchecked<
-                    crate::uops::Shl<_1, $bits>
+                    crate::uops::Shl<U1, $bits>
                 >
             >;
         )*

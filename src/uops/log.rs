@@ -10,7 +10,7 @@ pub type _ILogUncheckedNormRec<B, N> = _ILogUnchecked<
 pub type _ILogUnchecked<B, N> = If<
     //
     _Lt<N, B>,
-    _0,
+    U0,
     _Inc<_ILogUncheckedNormRec<B, N>>,
 >;
 #[apply(lazy)]
@@ -28,7 +28,7 @@ pub type _ILog<B, N> = If<
 /// Using `B <= 1` or `N == 0` gives an "overflow while evaluating" error.
 /// ```compile_fail,E0275
 /// use genuint::{uops::ILog, uint, small::*};
-/// const _: fn(uint::From<ILog<_1, _0>>) = |_| {};
+/// const _: fn(uint::From<ILog<U1, U0>>) = |_| {};
 /// ```
 #[apply(opaque)]
 #[apply(test_op!
@@ -47,7 +47,7 @@ pub type _BaseLen<B, N> = If<
         // If B > 1 and N > 0, length in base B is just ILog + 1
         _Inc<_ILogUnchecked<B, N>>,
         // The length of 0 is 1
-        _1,
+        U1,
     >,
     // Recurse infinitely
     _BaseLen<B, N>,
@@ -59,7 +59,7 @@ pub type _BaseLen<B, N> = If<
 /// Using `B <= 1` gives an "overflow while evaluating" error.
 /// ```compile_fail,E0275
 /// use genuint::{uops::BaseLen, uint, small::*};
-/// const _: fn(uint::From<BaseLen<_1, _0>>) = |_| {};
+/// const _: fn(uint::From<BaseLen<U1, U0>>) = |_| {};
 /// ```
 #[apply(opaque)]
 #[apply(test_op! test_base_len, {

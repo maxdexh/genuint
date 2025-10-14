@@ -69,9 +69,10 @@ where
     }
 }
 
-impl<A> Clone for ArrApi<A>
+impl<A, T, N: Uint> Clone for ArrApi<A>
 where
-    A: Array<Item: Clone>,
+    A: Array<Item = T, Length = N>,
+    T: Clone,
 {
     fn clone(&self) -> Self {
         let mut src = oversize::ArrRefConsumer::new(self);
@@ -86,28 +87,37 @@ where
 }
 impl<A> Copy for ArrApi<A> where A: Array<Item: Copy> + Copy {}
 
-impl<A> Default for ArrApi<A>
+impl<A, T, N: Uint> Default for ArrApi<A>
 where
-    A: Array<Item: Default>,
+    A: Array<Item = T, Length = N>,
+    T: Default,
 {
     fn default() -> Self {
         Arr::of(()).map(|()| Default::default())
     }
 }
-impl<A> core::fmt::Debug for ArrApi<A>
-where
-    A: Array<Item: core::fmt::Debug>,
-{
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        if uint::to_usize::<A::Length>().is_some() {
-            write!(f, "{:?}", self.as_slice())
-        } else {
-            write!(f, "[...]")
+
+const _: () = {
+    use core::fmt::{self, Debug};
+
+    impl<A, T, N: Uint> Debug for ArrApi<A>
+    where
+        A: Array<Item = T, Length = N>,
+        T: Debug,
+    {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            if uint::to_usize::<A::Length>().is_some() {
+                write!(f, "{:?}", self.as_slice())
+            } else {
+                write!(f, "[...]")
+            }
         }
     }
-}
+};
+
 const _: () = {
     use core::hash::{Hash, Hasher};
+
     impl<A> Hash for ArrApi<A>
     where
         A: Array<Item: Hash>,
@@ -131,26 +141,3 @@ const _: () = {
         }
     }
 };
-#[cfg(feature = "array-deref")]
-#[cfg_attr(docsrs, doc(cfg(feature = "array-deref")))]
-#[doc = doc_no_oversized!()]
-impl<T, A> core::ops::Deref for ArrApi<A>
-where
-    A: Array<Item = T>,
-{
-    type Target = [T];
-    fn deref(&self) -> &Self::Target {
-        self.as_slice()
-    }
-}
-#[cfg(feature = "array-deref")]
-#[cfg_attr(docsrs, doc(cfg(feature = "array-deref")))]
-#[doc = doc_no_oversized!()]
-impl<T, A> core::ops::DerefMut for ArrApi<A>
-where
-    A: Array<Item = T>,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.as_mut_slice()
-    }
-}

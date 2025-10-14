@@ -73,7 +73,7 @@ where
     /// Returns the wrapped array of this [`ArrApi`].
     ///
     /// This method is primarily useful when dealing with nested [`ArrApi`]s
-    /// or extracting a type with its own api (such as builtin arrays or [`Concat`])
+    /// or extracting a type with its own api (such as builtin arrays or [`ArrConcat`])
     /// inside of an [`ArrApi`] when moving out of [`self.inner`](Self::inner) is
     /// not possible, e.g. in `const` contexts with generics.
     pub const fn into_inner(self) -> A {
@@ -88,7 +88,7 @@ where
     /// # Examples
     /// ```
     /// use genuint::{array::*, small::*};
-    /// let arr = Arr::<_, _4>::from_fn(|i| i * i);
+    /// let arr = Arr::<_, U4>::from_fn(|i| i * i);
     /// assert_eq!(arr, [0, 1, 4, 9]);
     /// ```
     #[track_caller]
@@ -110,7 +110,7 @@ where
     /// Retyping [`Arr`] to [`CopyArr`]:
     /// ```
     /// use genuint::{array::*, small::*};
-    /// let arr = Arr::<_, _5>::from_fn(|i| i * i);
+    /// let arr = Arr::<_, U5>::from_fn(|i| i * i);
     /// let converted: CopyArr<_, _> = arr.retype();
     /// let converted_copy = converted;
     /// assert_eq!(converted, converted_copy);

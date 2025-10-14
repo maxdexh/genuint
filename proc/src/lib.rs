@@ -143,7 +143,7 @@ fn lit_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
     };
 
     let lit = get_arg()?;
-    let push = get_arg()?;
+    let append = get_arg()?;
     let zero = get_arg()?;
     let one = get_arg()?;
 
@@ -154,33 +154,49 @@ fn lit_impl(input: TokenStream) -> Result<TokenStream, TokenStream> {
     let lit = lit.to_string().replace("_", "");
     let lit = lit.as_str();
 
-    let doit = |digits, radix| -> Result<_, Box<dyn std::error::Error>> {
-        let bits = {
+    let doit = |digits: &str, radix: u32| -> Result<TokenStream, Box<dyn std::error::Error>> {
+        let mut bits = {
             let num = ibig::UBig::from_str_radix(digits, radix)?;
             (0..num.bit_len()).rev().map(move |i| num.bit(i))
         };
+
+        let Some(true) = bits.next() else {
+            debug_assert!(
+                bits.all(|bit| !bit),
+                "Logic Error: First bit was zero/nonexistent but number was non-zero"
+            );
+            return Ok(zero);
+        };
+
         let append_depth = bits.len();
 
-        // first bit, `0`
-        let first = zero.clone();
-
-        // `, B>`
-        let punct_bits = [zero, one].map(|c| {
-            Some(punct(',', span))
-                .into_iter()
-                .chain(c)
-                .chain([punct('>', span)])
-                .collect::<TokenStream>()
+        // `Append<Append<...Append<Append<`
+        let output = iter::repeat_n(
+            append.extended(
+                Some(punct('<', span)), //
+            ),
+            append_depth,
+        );
+        // `Append<Append<...Append<Append<1`
+        let output = output.chain(
+            // First bit, `1`
+            Some(one.clone()),
+        );
+        // `Append<Append<...Append<Append<1, B1>, B2>...>, BN>`
+        let output = output.chain({
+            // `, B>`
+            let punct_bits = [zero, one].map(|c| {
+                Some(punct(',', span))
+                    .into_iter()
+                    .chain(c)
+                    .chain(Some(punct('>', span)))
+                    .collect::<TokenStream>()
+            });
+            // `, B1>, B2>, ...>, BN>`
+            bits.map(move |bit| punct_bits[usize::from(bit)].clone())
         });
 
-        // `PushBit<`
-        let push = push.extended(Some(punct('<', span)));
-
-        // `PushBit<..., B>`
-        Ok(iter::repeat_n(push, append_depth)
-            .chain([first])
-            .chain(bits.map(|bit| punct_bits[usize::from(bit)].clone()))
-            .collect())
+        Ok(output.collect())
     };
 
     match lit.split_at_checked(2) {

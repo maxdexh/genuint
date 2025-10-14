@@ -21,7 +21,7 @@ type _SubIfGe<L, R> = If<
 ///       = (2 * (H % R) + P) % R
 ///       = NaiveRem(L, R) % R
 /// ```
-#[apply(base_case! 0 == L => _0)] // NaiveRem(0, R) = 2 * (0 % R) + 0 = 0
+#[apply(base_case! 0 == L => U0)] // NaiveRem(0, R) = 2 * (0 % R) + 0 = 0
 #[apply(lazy)]
 pub type _NaiveRem<L, R> = PushBit<
     _RemUnchecked<_H<L>, R>, //
@@ -57,7 +57,7 @@ pub(crate) type _RemUnchecked<L, R> = _SubIfGe<_NaiveRem<L, R>, R>;
 ///
 /// Since we still have NaiveRem(L, R) <= 2 * R - 1 (See [`_RemUnchecked`]),
 /// `NaiveRem(L, R) / R = if NaiveRem(L, R) >= R { 1 } else { 0 }`
-#[apply(base_case! 0 == L => _0)] // 0 / R = 0
+#[apply(base_case! 0 == L => U0)] // 0 / R = 0
 #[apply(lazy)]
 pub type _DivUnchecked<L, R> = PushBit<
     _DivUnchecked<_H<L>, R>,
@@ -78,7 +78,7 @@ pub type _Rem<L, R> = If<
 /// Dividing by zero gives a "overflow while evaluating" error.
 /// ```compile_fail,E0275
 /// use genuint::{uops::Rem, uint, small::*};
-/// const _: fn(uint::From<Rem<_1, _0>>) = |_| {};
+/// const _: fn(uint::From<Rem<U1, U0>>) = |_| {};
 /// ```
 #[doc(alias = "%")]
 #[doc(alias = "modulo")]
@@ -105,7 +105,7 @@ pub type _Div<L, R> = If<
 /// Dividing by zero gives a "overflow while evaluating" error.
 /// ```compile_fail,E0275
 /// use genuint::{uops::Div, uint, small::*};
-/// const _: fn(uint::From<Div<_1, _0>>) = |_| {};
+/// const _: fn(uint::From<Div<U1, U0>>) = |_| {};
 /// ```
 #[doc(alias = "/")]
 #[apply(opaque)]

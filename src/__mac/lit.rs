@@ -1,1 +1,1 @@
-pub use crate::uops::PushBit;
+pub type _DirectAppend<H, P> = crate::uimpl::_U<H, P>;

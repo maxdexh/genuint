@@ -1,8 +1,44 @@
 use crate::{
-    Uint,
-    array::{ArrApi, Array},
+    ToUint,
+    array::{ArrApi, Array, helper::oversize},
+    consts::ConstUsize,
 };
 
+fn partial_eq_impl<A: Array, U>(lhs: &ArrApi<A>, rhs: &[U]) -> bool
+where
+    A::Item: PartialEq<U>,
+{
+    (const { crate::uint::to_usize::<A::Length>().is_some() } && lhs.as_slice() == rhs)
+}
+
+impl<A, U> PartialEq<[U]> for ArrApi<A>
+where
+    A: Array,
+    A::Item: PartialEq<U>,
+{
+    fn eq(&self, other: &[U]) -> bool {
+        partial_eq_impl(self, other)
+    }
+}
+impl<A, U> PartialEq<&[U]> for ArrApi<A>
+where
+    A: Array,
+    A::Item: PartialEq<U>,
+{
+    fn eq(&self, &other: &&[U]) -> bool {
+        partial_eq_impl(self, other)
+    }
+}
+impl<A, U, const N: usize> PartialEq<[U; N]> for ArrApi<A>
+where
+    A: Array,
+    A::Item: PartialEq<U>,
+    ConstUsize<N>: ToUint<ToUint = A::Length>,
+{
+    fn eq(&self, other: &[U; N]) -> bool {
+        partial_eq_impl(self, other)
+    }
+}
 impl<A, B> PartialEq<ArrApi<B>> for ArrApi<A>
 where
     A: Array,
@@ -10,70 +46,46 @@ where
     A::Item: PartialEq<B::Item>,
 {
     fn eq(&self, other: &ArrApi<B>) -> bool {
-        self.as_slice() == other.as_slice()
+        if const { crate::uint::cmp::<A::Length, B::Length>().is_ne() } {
+            false
+        } else if const { crate::uint::to_usize::<A::Length>().is_some() } {
+            self.as_slice() == other.as_slice()
+        } else {
+            let mut lhs = oversize::ArrRefConsumer::new(self);
+            let mut rhs = oversize::ArrRefConsumer::new(other);
+            while let (Some(l), Some(r)) = (lhs.next(), rhs.next()) {
+                if l != r {
+                    return false;
+                }
+            }
+            true
+        }
     }
 }
-impl<T, N: Uint, A> Eq for ArrApi<A>
-where
-    A: Array<Item = T, Length = N>,
-    T: Eq,
-{
-}
-
-impl<T, A, U> PartialEq<&[U]> for ArrApi<A>
-where
-    T: PartialEq<U>,
-    A: Array<Item = T>,
-{
-    fn eq(&self, &other: &&[U]) -> bool {
-        self.as_slice() == other
-    }
-}
-
-impl<T, U, A> PartialEq<ArrApi<A>> for &[T]
-where
-    T: PartialEq<U>,
-    A: Array<Item = U>,
-{
-    fn eq(&self, other: &ArrApi<A>) -> bool {
-        *self == other.as_slice()
-    }
-}
-
-impl<A, T, const N: usize> PartialEq<[T; N]> for ArrApi<A>
+impl<A> Eq for ArrApi<A>
 where
     A: Array,
-    A::Item: PartialEq<T>,
-    crate::consts::ConstUsize<N>: crate::ToUint<ToUint = A::Length>,
+    A::Item: Eq,
 {
-    fn eq(&self, other: &[T; N]) -> bool {
-        self.as_slice() == other.as_slice()
-    }
-}
-impl<A, T, const N: usize> PartialEq<ArrApi<A>> for [T; N]
-where
-    A: Array,
-    T: PartialEq<A::Item>,
-    crate::consts::ConstUsize<N>: crate::ToUint<ToUint = A::Length>,
-{
-    fn eq(&self, other: &ArrApi<A>) -> bool {
-        self.as_slice() == other.as_slice()
-    }
 }
 
 impl<A> PartialOrd for ArrApi<A>
 where
-    A: Array<Item: PartialOrd>,
+    A: Array,
+    A::Item: PartialOrd,
 {
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        // FIXME: oversize
         self.as_slice().partial_cmp(other.as_slice())
     }
 }
 impl<A> Ord for ArrApi<A>
 where
-    A: Array<Item: Ord>,
+    A: Array,
+    A::Item: Ord,
 {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        // FIXME: oversize
         self.as_slice().cmp(other.as_slice())
     }
 }

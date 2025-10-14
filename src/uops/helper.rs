@@ -1,7 +1,7 @@
 use super::*;
 
-pub type _And<L, R> = If<L, R, _0>;
-pub type _Or<L, R> = If<L, _1, R>;
+pub type _And<L, R> = If<L, R, U0>;
+pub type _Or<L, R> = If<L, U1, R>;
 pub type _Xor<L, R> = uint::From<If<L, IsZero<R>, R>>;
 pub type _Xnor<L, R> = uint::From<If<L, R, IsZero<R>>>;
 pub type _Xor3<A, B, C> = uint::From<If<A, _Xnor<B, C>, _Xor<B, C>>>;
@@ -26,6 +26,6 @@ pub type _P<N> = uint::From<LastBit<N>>;
 pub type _DecUnchecked<N> = If<
     //
     _P<N>,
-    PushBit<_H<N>, _0>,
-    PushBit<_DecUnchecked<_H<N>>, _1>,
+    PushBit<_H<N>, U0>,
+    PushBit<_DecUnchecked<_H<N>>, U1>,
 >;

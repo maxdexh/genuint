@@ -246,7 +246,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     ///     None
     /// );
     /// assert_eq!(
-    ///     ArrDeqApi::new_full(Arr::<_, _20>::from_fn(|i| i)).pop_front(),
+    ///     ArrDeqApi::new_full(Arr::<_, U20>::from_fn(|i| i)).pop_front(),
     ///     Some(0)
     /// );
     /// ```
@@ -285,7 +285,7 @@ impl<A: Array<Item = T>, T> ArrDeqApi<A> {
     ///     None
     /// );
     /// assert_eq!(
-    ///     ArrDeqApi::new_full(Arr::<_, _20>::from_fn(|i| i)).pop_back(),
+    ///     ArrDeqApi::new_full(Arr::<_, U20>::from_fn(|i| i)).pop_back(),
     ///     Some(19)
     /// );
     /// ```

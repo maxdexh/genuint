@@ -1,6 +1,6 @@
 [package]
 name = "genuint-proc"
-version.workspace = true
+version = "0.0.1"
 edition = "2024"
 
 [lib]
@@ -8,4 +8,3 @@ proc-macro = true
 
 [dependencies]
 ibig = "0.3.6"
-num = { version = "0.4.3", features = ["num-bigint"] }

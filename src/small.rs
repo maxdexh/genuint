@@ -15,8 +15,8 @@ macro_rules! new_alias {
     };
 }
 
-new_alias!(_0, 0, crate::uimpl::_0);
-new_alias!(_1, 1, crate::uimpl::_1);
+new_alias!(U0, 0, crate::uimpl::_0);
+new_alias!(U1, 1, crate::uimpl::_1);
 
 macro_rules! bisect {
     ($name:ident, $val:expr, $half:ty, $parity:ty) => {

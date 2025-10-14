@@ -16,7 +16,7 @@ use super::*;
 pub type _Eq<L, R> = If<
     _Xnor<_P<L>, _P<R>>,
     _Eq<_H<R>, _H<L>>, // X == Y iff Y == X
-    _0,
+    U0,
 >;
 
 /// Type-level [`==`](core::cmp::PartialEq)
@@ -41,7 +41,7 @@ pub type Ne<L, R> = _Ne;
 /// LtByLast(L, R) := (H(L) == H(R) and P(L) == 0 and P(R) == 1)
 /// ```
 type _LtByLast<L, R> = _And<
-    If<_P<L>, _0, _P<R>>, //
+    If<_P<L>, U0, _P<R>>, //
     _Eq<_H<L>, _H<R>>,
 >;
 
@@ -62,12 +62,12 @@ pub type _Lt<L, R> = If<
         L,
         If<
             _Lt<_H<L>, _H<R>>, //
-            _1,
+            U1,
             _LtByLast<L, R>,
         >,
-        _1, // 0 < R is true since L != 0
+        U1, // 0 < R is true since L != 0
     >,
-    _0, // L < 0 is false
+    U0, // L < 0 is false
 >;
 
 /// Type-level [`<`](core::cmp::PartialOrd)

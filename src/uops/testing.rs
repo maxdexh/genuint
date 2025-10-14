@@ -1,8 +1,8 @@
 #![cfg(test)]
 
-use crate::{small::*, uint, uops, Uint};
+use crate::{Uint, small::*, uint, uops};
 
-pub(crate) type SatDec<N> = uint::From<uops::If<N, uops::_DecUnchecked<N>, _0>>;
+pub(crate) type SatDec<N> = uint::From<uops::If<N, uops::_DecUnchecked<N>, U0>>;
 
 #[test]
 /// Make sure the test runner is actually testing anything, since it uses SatDec to traverse ranges.
@@ -26,15 +26,15 @@ const SKIP_TESTS: bool = option_env!("skip_uint_tests").is_some();
 pub(crate) type DefaultHi = uint::From<
     uops::If<
         crate::consts::ConstBool<SKIP_TESTS>,
-        _0,
+        U0,
         uops::If<
             crate::consts::ConstBool<MORE_TESTS>, //
-            _50,
-            _10,
+            uint::lit!(50),
+            uint::lit!(10),
         >,
     >,
 >;
-pub(crate) type DefaultLo = crate::small::_0;
+pub(crate) type DefaultLo = crate::small::U0;
 
 /// A type-level linked list of `Uint`s
 pub(crate) trait UintList: Sized {
@@ -59,9 +59,9 @@ pub(crate) trait Tests: Sized {
 // so that we don't need to monomorphize infinitely many functions.
 impl UintList for () {
     const EMPTY: bool = true;
-    type First = _0;
+    type First = U0;
     type Tail = Self;
-    type Len = _0;
+    type Len = U0;
 
     type ReduceTestsArgs<T: Tests<RangesLo = Self>> = T;
 }

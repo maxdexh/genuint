@@ -452,7 +452,7 @@ where
     ///     None
     /// );
     /// assert_eq!(
-    ///     ArrVecApi::new_full(Arr::<_, _20>::from_fn(|i| i)).pop(),
+    ///     ArrVecApi::new_full(Arr::<_, U20>::from_fn(|i| i)).pop(),
     ///     Some(19)
     /// );
     /// ```

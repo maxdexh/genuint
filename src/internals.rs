@@ -8,13 +8,13 @@ use crate::{
 // except the above, are not meant to be used from anywhere
 // but this module. This includes associated items.
 
-pub trait _Tern {
-    type _Tern<T, F>;
+pub trait _Cond {
+    type _CondTy<T, F>;
 }
-impl<C: Uint> _Tern for C {
-    type _Tern<T, F> = InternalOp!(C, CondDirect<T, F>);
+impl<C: Uint> _Cond for C {
+    type _CondTy<T, F> = InternalOp!(C, _CondTy<T, F>);
 }
-pub type CondDirect<C, T, F> = <C as _Tern>::_Tern<T, F>;
+pub type CondTy<C, T, F> = <C as _Cond>::_CondTy<T, F>;
 
 pub type _Internals<N> = <N as UintSealed>::__Uint;
 macro_rules! InternalOp {
@@ -39,7 +39,7 @@ pub trait _Uint: _UintArrs + 'static {
     // This needs to evaluate directly to `T` or `F` because it is observable
     // for generic `T` and `F` (not that one could do anything else, since there
     // are no trait bounds)
-    type CondDirect<T, F>;
+    type _CondTy<T, F>;
 
     // These are exposed only through structs implementing ToUint, so we can
     // do the ToUint conversion on the result here directly. This has the
@@ -83,7 +83,7 @@ impl _Bit for _0 {}
 impl _Uint for _0 {
     const IS_NONZERO: bool = false;
 
-    type CondDirect<T, F> = F;
+    type _CondTy<T, F> = F;
 
     type If<T: ToUint, F: ToUint> = F::ToUint;
     type Opaque<N: ToUint> = N::ToUint;
@@ -101,7 +101,7 @@ impl _Pint for _1 {}
 impl _Uint for _1 {
     const IS_NONZERO: bool = true;
 
-    type CondDirect<T, F> = T;
+    type _CondTy<T, F> = T;
 
     type If<T: ToUint, F: ToUint> = T::ToUint;
     type Opaque<N: ToUint> = N::ToUint;
@@ -119,7 +119,7 @@ impl<Pre: _Pint, Last: _Bit> _Pint for _U<Pre, Last> {}
 impl<Pre: _Pint, Last: _Bit> _Uint for _U<Pre, Last> {
     const IS_NONZERO: bool = true;
 
-    type CondDirect<T, F> = T;
+    type _CondTy<T, F> = T;
 
     type If<T: ToUint, F: ToUint> = T::ToUint;
     type Opaque<N: ToUint> = N::ToUint;

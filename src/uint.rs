@@ -2,7 +2,7 @@
 
 use core::cmp::Ordering;
 
-use crate::{ToUint, Uint, maxint::Umax, small, uint, uops};
+use crate::{ToUint, Uint, maxint::Umax, uint, uops};
 
 /// Alias for [`ToUint::ToUint`].
 pub type From<N> = <N as ToUint>::ToUint;
@@ -26,12 +26,12 @@ pub type From<N> = <N as ToUint>::ToUint;
 #[doc(hidden)]
 macro_rules! __lit {
     ($l:literal) => {
-        $crate::uint::From<$crate::__mac::proc::__lit!(
+        $crate::__mac::proc::__lit! {
             ($l)
-            ($crate::uops::PushBit)
-            ($crate::small::_0)
-            ($crate::small::_1)
-        )>
+            ($crate::__mac::lit::_DirectAppend)
+            ($crate::small::U0)
+            ($crate::small::U1)
+        }
     };
 }
 pub use __lit as lit;
@@ -75,10 +75,10 @@ pub const fn to_str<N: ToUint>() -> &'static str {
                 doit::<
                     uint::From<
                         // Pop a digit
-                        uops::Div<N, small::_10>,
+                        uops::Div<N, uint::lit!(10)>,
                     >,
                 >(),
-                &[b'0' + to_usize::<uops::Rem<N, small::_10>>().unwrap() as u8],
+                &[b'0' + to_usize::<uops::Rem<N, uint::lit!(10)>>().unwrap() as u8],
             ];
         }
         const fn doit<N: Uint>() -> &'static [u8] {

@@ -54,16 +54,16 @@ where
     /// # Examples
     /// Creating an array of integers.
     /// ```
-    /// use genuint::{array::*, small::*};
-    /// let arr = Arr::<_, _4>::of(1);
+    /// use genuint::{array::*, uint};
+    /// let arr = Arr::<_, uint::lit!(4)>::of(1);
     /// assert_eq!(arr, [1; 4]);
     /// ```
     ///
     /// Creating an oversized array of `()`
     /// ```
     /// #![recursion_limit = "1024"]
-    /// use genuint::{array::*, uint, uops, small::*, consts::{PtrWidth, UsizeMax}};
-    /// type LargeSize = uint::From<uops::Shl<_1, PtrWidth>>;
+    /// use genuint::{array::*, uint, uops, consts::{PtrWidth, UsizeMax}};
+    /// type LargeSize = uint::From<uops::Shl<uint::lit!(1), PtrWidth>>;
     /// assert!(uint::to_usize::<LargeSize>().is_none());
     /// let arr = Arr::<_, LargeSize>::of(());
     /// let ArrConcat(most, [()]): ArrConcat<CopyArr<_, UsizeMax>, _> = arr.retype();

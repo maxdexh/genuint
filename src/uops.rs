@@ -51,9 +51,9 @@
 //!         // take the bitand of the previous bits and append the and of the last bit
 //!         PushBit<
 //!             MyBitAnd<PopBit<L>, PopBit<R>>,
-//!             If<LastBit<L>, LastBit<R>, _0>, // boolean AND
+//!             If<LastBit<L>, LastBit<R>, U0>, // boolean AND
 //!         >,
-//!         _0, // 0 & R = 0
+//!         U0, // 0 & R = 0
 //!     >>;
 //! }
 //! fn check_input<L: ToUint, R: ToUint>() {
@@ -62,8 +62,8 @@
 //!         uint::to_u128::<L>().unwrap() & uint::to_u128::<R>().unwrap(),
 //!     )
 //! }
-//! check_input::<_3, _5>();
-//! check_input::<_59, _122>();
+//! check_input::<U3, U5>();
+//! check_input::<U59, U122>();
 //! check_input::<uint::lit!(0b10101000110111111), uint::lit!(0b11110111011111)>()
 //! ```
 //! Because `MyBitAnd` is [`ToUint`] here and [`If`] works by only evaluating
@@ -123,9 +123,9 @@
 //!                 uint::From<PopBit<L>>,
 //!                 uint::From<PopBit<R>>,
 //!             >,
-//!             If<LastBit<L>, LastBit<R>, _0>, // boolean AND
+//!             If<LastBit<L>, LastBit<R>, U0>, // boolean AND
 //!         >,
-//!         _0, // 0 & R = 0
+//!         U0, // 0 & R = 0
 //!     >>;
 //! }
 //! pub type MyBitAnd<L, R> = Opaque<L, Opaque<R, _MyBitAnd<L, R>>>;
@@ -135,14 +135,14 @@
 //!         uint::to_u128::<L>().unwrap() & uint::to_u128::<R>().unwrap(),
 //!     )
 //! }
-//! check_input::<_3, _5>();
-//! check_input::<_59, _122>();
+//! check_input::<U3, U5>();
+//! check_input::<U59, U122>();
 //! check_input::<uint::lit!(0b10101000110111111), uint::lit!(0b11110111011111)>()
 //! ```
 
-use crate::{internals::InternalOp, small::*, uint, utils::apply};
 #[expect(unused_imports)] // for docs
 use crate::{ToUint, Uint};
+use crate::{internals::InternalOp, small::*, uint, utils::apply};
 
 macro_rules! lazy_impl {
     (

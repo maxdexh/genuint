@@ -101,14 +101,14 @@ fn opaqueness_tests() {
     }
     fn accept<A: ToUint, B: ToUint>() {
         // types that are provably the same
-        check_eq!(uint::From<If<_1, A, B>>, uint::From<A>);
-        check_eq!(uint::From<If<_0, A, B>>, uint::From<B>);
-        check_eq!(uint::From<Opaque<_0, A>>, uint::From<A>);
+        check_eq!(uint::From<If<U1, A, B>>, uint::From<A>);
+        check_eq!(uint::From<If<U0, A, B>>, uint::From<B>);
+        check_eq!(uint::From<Opaque<U0, A>>, uint::From<A>);
 
         // types that are not provably the same
         check_neq!(uint::From<Opaque<B, A>>, uint::From<A>);
         check_neq!(uint::From<Opaque<B, A>>, Opaque<A, A>);
-        check_neq!(uint::From<PopBit<PushBit<_0, A>>>, _0);
+        check_neq!(uint::From<PopBit<PushBit<U0, A>>>, U0);
     }
-    accept::<_3, _7>();
+    accept::<uint::lit!(3), uint::lit!(7)>();
 }

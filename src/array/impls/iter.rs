@@ -1,6 +1,7 @@
 use crate::{Uint, array::*};
 
 // TODO: Implement as a double ended buffer, implement APIs like as_slice, override default impls
+// FIXME: oversize
 pub struct IntoIter<A: Array> {
     pub(crate) deq: ArrDeqApi<A>,
 }
@@ -28,7 +29,6 @@ where
 }
 impl<T, N: Uint, A> ExactSizeIterator for IntoIter<A> where A: Array<Item = T, Length = N> {}
 
-#[doc = doc_no_oversized!()]
 impl<A: Array> IntoIterator for ArrApi<A> {
     type Item = A::Item;
     type IntoIter = IntoIter<Self>;

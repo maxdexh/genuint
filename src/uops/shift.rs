@@ -1,7 +1,7 @@
 use super::*;
 
 /// DoubleIf(N, C) := if C { 2 * N } else { N }
-type _DoubleIf<N, C> = If<C, PushBit<N, _0>, N>;
+type _DoubleIf<N, C> = If<C, PushBit<N, U0>, N>;
 
 /// `Shl(L, R) := L << R := L * Pow(2, R)`
 ///
